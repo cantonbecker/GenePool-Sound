@@ -726,7 +726,7 @@ _position.copyFrom( position );
 	
 
     //-----------------------------------------------------------------------------------------
-    // Is this swimbot marked for death? If so, the calling function must do the kiiling...
+    // Is this swimbot marked for death? If so, the calling function must do the killing...
     //-----------------------------------------------------------------------------------------
 	this.getMarkedForDeath = function()
 	{
@@ -742,12 +742,12 @@ _position.copyFrom( position );
 	}
 	
     //-------------------------------------------------------------
-    // This must be called when the calling function has recieved 
+    // This must be called when the calling function has received 
     // notification that the swimbot is making an audible call. 
     // When this happens the value of _makingSoundCall is switched
     // back to false, so it can be ready for making the next call.
     //-------------------------------------------------------------
-	this.setReceivedUtterance = function()
+	this.setDoneUttering = function()
 	{
 		_uttering = false;
 	}
@@ -779,7 +779,7 @@ _position.copyFrom( position );
 		if ( _age % SOUND_CALL_FREQUENCY === 0 )
 		{
 			//console.log( "swimbot " + _index + " just made an utterance!" );
-			_uttering = true;			
+			_uttering = true;
 			_swimbotRenderer.showUtterance();
 		}	
 

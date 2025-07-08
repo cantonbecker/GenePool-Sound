@@ -1173,11 +1173,8 @@ if ( mode === SimulationStartMode.SPECIES )
                 if ( _swimbots[s].getIsTryingToEat() )
                 {
                     let eatenFoodBit = _swimbots[s].eatChosenFoodBit();
-                    
-	                if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
-					{             
-                    	_sound.playSoundEvent( SOUND_EVENT_TYPE_EAT, _swimbots[s] );
-                	}
+                    let isInView = ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ));
+                    _sound.considerSoundEvent( SOUND_EVENT_TYPE_EAT, _swimbots[s], isInView );
                 }
                 
                 //-------------------------------------
@@ -1185,11 +1182,8 @@ if ( mode === SimulationStartMode.SPECIES )
                 //-------------------------------------
                 if ( _swimbots[s].getIsUttering() )
                 {
-	                if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
-					{             
-                    	_swimbots[s].setReceivedUtterance();
-                    	_sound.playSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s] );
-                	}
+	               let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+                  _sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s], isInView );
                 }
                 
                 //-------------------------------------
@@ -1198,11 +1192,8 @@ if ( mode === SimulationStartMode.SPECIES )
                 if ( _swimbots[s].getMarkedForDeath() )
 				{
 					_swimbots[s].die();
-				
-					if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
-					{             
-					    _sound.playSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[s] );
-					}			
+	             let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+				    _sound.considerSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[s], isInView );
         	    }
                 
                 //----------------------------------------
@@ -1282,10 +1273,8 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                                 let initialAngle = getRandomAngleInDegrees();                                                        
                                 _swimbots[ newBornSwimbotIndex ].create( newBornSwimbotIndex, 0, _vectorUtility, initialAngle, energyToOffspring, _childGenotype, _embryology )
  
-								if ( _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() ) )
-								{             
-				                    _sound.playSoundEvent( SOUND_EVENT_TYPE_BIRTH, _swimbots[newBornSwimbotIndex]);
-								}
+								        let isInView = _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() );
+				                    _sound.considerSoundEvent( SOUND_EVENT_TYPE_BIRTH, _swimbots[newBornSwimbotIndex], isInView);
 
                                 //--------------------------------------------------
                                 // add the new swimbot to the family tree
@@ -2410,10 +2399,8 @@ if ( globalTweakers.numFoodTypes === 2 )
         //------------------------------
         _swimbots[ ID ].die();
 
-		if ( _camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() ) )
-		{             
-        	_sound.playSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ] );
-        }
+		  let isInView = _camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() );
+        _sound.considerSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ], isInView );
         
         //------------------------------
         // add a pool effect....

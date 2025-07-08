@@ -957,13 +957,13 @@ function updateUI()
         
             if ( selectedSwimbot === NULL_INDEX )
             {
-                console.log( "selectedSwimbot = NULL_INDEX" );
+                // console.log( "selectedSwimbot = NULL_INDEX" );
                 document.getElementById( 'selectedSwimbotPanel'   ).style.visibility = 'hidden';		        	        
                 document.getElementById( 'noSelectedSwimbotPanel' ).style.visibility = 'visible';	        	        
             }
             else
             {
-                console.log( "selectedSwimbot = " + selectedSwimbot );
+                // console.log( "selectedSwimbot = " + selectedSwimbot );
                 document.getElementById( 'selectedSwimbotPanel'   ).style.visibility = 'visible';		        	        
                 document.getElementById( 'noSelectedSwimbotPanel' ).style.visibility = 'hidden';	
             

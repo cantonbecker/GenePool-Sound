@@ -32,7 +32,7 @@ const MIDI_CHANNEL_UTTER = 7;
 const MIDI_CHANNEL_GLOBAL = 15;
 
 var last_utterance_time = 0;
-const MIN_WAIT_BETWEEN_UTTERANCES = 800;
+const MIN_WAIT_BETWEEN_UTTERANCES = 500;
 //------------------------------------------
 function Sound()
 {
@@ -89,7 +89,7 @@ function Sound()
 	//----------------------------------------------------
 	this.setGlobalParameters = function( p0, p1, p2, p3 )
 	{
-		console.log( "sound: setGlobalParameters: " + p0 + " " + p1 + " " + p2 + " " + p3);
+		// console.log( "sound: setGlobalParameters: " + p0 + " " + p1 + " " + p2 + " " + p3);
 		
 		_parameter_0 = p0;
 		_parameter_1 = p1;
@@ -100,24 +100,24 @@ function Sound()
 		let _parameter_3_scaled = Math.max(5, Math.min(127, Math.round((_parameter_3 - 500) * 127 / (3000 - 500))));
 		if (midiOutput) {
 			sendCC(21, _parameter_3_scaled, MIDI_CHANNEL_GLOBAL);
-			console.log( "Global CC 21: " + _parameter_3_scaled);
+			// console.log( "Global CC 21: " + _parameter_3_scaled);
 		}
 	}
 
 	//------------------------------------------------
-	this.playSoundEvent = function( type, swimbot )
+	this.considerSoundEvent = function( type, swimbot, isInView )
 	{
 		let position = swimbot.getPosition();
 		let id = swimbot.getIndex();
-		let printString = "play sound: type = ";
+		let printString = "considerSoundEvent() for swimbot no. " + id + " type = ";
 		let midiChannel = 0; // 0-15
 		let midiNote = 32;
 		let midiVelocity = 127;
 		let noteLength = 500;
 		
 		if ( type === SOUND_EVENT_TYPE_NULL ) { 
-			printString += "null";
-		} else if ( type === SOUND_EVENT_TYPE_EAT ) { 
+			printString += "NULL ";
+		} else if ( type === SOUND_EVENT_TYPE_EAT && isInView ) { 
 			let midiChannel = MIDI_CHANNEL_EAT;
 			let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
 			let idToDegrees = id % maxDegrees;
@@ -130,7 +130,7 @@ function Sound()
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
 			}
 			printString += "EAT note " + midiNote + " w/CC 14 " + controlValue;
-		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) {
+		} else if ( type === SOUND_EVENT_TYPE_BIRTH && isInView) {
 			let midiChannel = MIDI_CHANNEL_BIRTH;
 			let maxDegrees = INTERVAL_SCALE.length * 3;  // 2 octaves of our scale
 			let idToDegrees = id % maxDegrees;
@@ -141,7 +141,7 @@ function Sound()
 			if (midiOutput) {
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
 			}
-		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
+		} else if ( type === SOUND_EVENT_TYPE_DEATH && isInView) {
 			let midiChannel = MIDI_CHANNEL_DEATH;
 			let midiNote = 64;
 			let noteLength = 1000;
@@ -149,30 +149,24 @@ function Sound()
 			if (midiOutput) {
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
 			}
-		} else if ( type === SOUND_EVENT_TYPE_UTTER ) {
-			if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_UTTERANCES) {
-				last_utterance_time = Date.now();
-				let midiChannel = MIDI_CHANNEL_UTTER;
-				let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
-				let idToDegrees = id % maxDegrees;
-				let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-				let degree = idToDegrees % INTERVAL_SCALE.length;
-				let midiNote = BASE_MIDI_NOTE + 12 + (octave * 12) + INTERVAL_SCALE[degree];
-				let noteLength = 800;
-				let midiModWheelPos = id % 127; // full range
-				let midiControl21 = 32 + (id % 64); // limited range 32 - 96
-				printString += "UTTER";
-				if (midiOutput) {
-					// sendCC(21, midiControl21, midiChannel);
-					// sendCC(1, midiModWheelPos, midiChannel);
-					// sendNote(midiNote, midiVelocity, noteLength, midiChannel);
-					composeAndPlayUtterance(id);
-				}
-			} // end if OK to make an utterance
+		} else if ( type === SOUND_EVENT_TYPE_UTTER) {
+			let midiChannel = MIDI_CHANNEL_UTTER;
+			let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
+			let idToDegrees = id % maxDegrees;
+			let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
+			let degree = idToDegrees % INTERVAL_SCALE.length;
+			let midiNote = BASE_MIDI_NOTE + 12 + (octave * 12) + INTERVAL_SCALE[degree];
+			let noteLength = 800;
+			let midiModWheelPos = id % 127; // full range
+			let midiControl21 = 32 + (id % 64); // limited range 32 - 96
+			printString += "UTTER";
+			// sendCC(21, midiControl21, midiChannel);
+			// sendCC(1, midiModWheelPos, midiChannel);
+			// sendNote(midiNote, midiVelocity, noteLength, midiChannel);
+			composeAndPlayUtterance(id, midiOutput, isInView, swimbot);
 		} // end if sound types
 		 
-		printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
-		printString += "; id = " + id;
+		// printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
 		 
 		console.log( printString );
 
@@ -193,46 +187,57 @@ function Sound()
 		midiOutput.send([cc, controllerNumber, value]);
 	}
 
-function composeAndPlayUtterance(id) {
-	const midiChannel = MIDI_CHANNEL_UTTER;  // or derive dynamically
-	const baseNote = BASE_MIDI_NOTE + 12 + (( id % 3 ) * 12);   // starting point
-	const baseMod = (id % 64);   // starting point
-	const accentMod = (id % 63);
-	const velocity = 90 + (id % 35);
-	const noteDuration = 50 + ((id % 3) * 25);
-	const tempoModifier = .5 + ((id % 4 ) * .5);
-	const startTime = Date.now();
-
-	const maxDegrees = INTERVAL_SCALE.length * 3;
-	const idToDegrees = id % maxDegrees;
-	const octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-	const degree = idToDegrees % INTERVAL_SCALE.length;
-	const specialMidiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
-
-
-	// static melody & CC sequence
-	const midiSequence = [
-		{ delay: 0,    type: 'note', note: baseNote + 0, velocity, duration: noteDuration * 2 },
-		{ delay: 50 * tempoModifier,  type: 'cc',   cc: 1, value: baseMod },
-		{ delay: 100 * tempoModifier,  type: 'note', note: specialMidiNote - 2, velocity, duration: noteDuration },
-		{ delay: 150 * tempoModifier,  type: 'cc',   cc: 1, value: baseMod + accentMod },
-		{ delay: 200 * tempoModifier,  type: 'note', note: specialMidiNote, velocity, duration: noteDuration },
-		{ delay: 500 * tempoModifier, type: 'note', note: baseNote + 2, velocity, duration: noteDuration },
-		{ delay: 550 * tempoModifier, type: 'cc',   cc: 1, value: baseMod },
-		{ delay: 600 * tempoModifier, type: 'note', note: baseNote + 9, velocity, duration: noteDuration * 4 }
-	];
-
-	// schedule each step
-	for (const step of midiSequence) {
-		setTimeout(() => {
-			if (step.type === 'note') {
-				sendNote(step.note, step.velocity, step.duration, midiChannel);
-			} else if (step.type === 'cc') {
-				sendCC(step.cc, step.value, midiChannel);
-			}
-		}, step.delay);
-	}
-}
-
+	function composeAndPlayUtterance(id, midiOutput, isInView, swimbot) {
+		const midiChannel = MIDI_CHANNEL_UTTER;  // or derive dynamically
+		const baseNote = BASE_MIDI_NOTE + 12 + (( id % 3 ) * 12);   // starting point
+		const baseMod = (id % 64);   // starting point
+		const accentMod = (id % 63);
+		const velocity = 90 + (id % 35);
+		const noteDuration = 50 + ((id % 3) * 25);
+		const tempoModifier = .5 + ((id % 4 ) * .5);
+		const startTime = Date.now();
+	
+		const maxDegrees = INTERVAL_SCALE.length * 3;
+		const idToDegrees = id % maxDegrees;
+		const octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
+		const degree = idToDegrees % INTERVAL_SCALE.length;
+		const specialMidiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
+	
+		let playAudio = false; // special conditions have to be met for us to actually play sound
+		if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_UTTERANCES && midiOutput && isInView) {
+			last_utterance_time = Date.now();
+			playAudio = true;
+			console.log ('*** Beginning MIDI utterance for swimbot ' + id + ' ***');
+		}
+	
+		// static melody & CC sequence
+		const midiSequence = [
+			{ delay: 0,    type: 'note', note: baseNote + 0, velocity, duration: noteDuration * 2 },
+			{ delay: 50 * tempoModifier,  type: 'cc',   cc: 1, value: baseMod },
+			{ delay: 100 * tempoModifier,  type: 'note', note: specialMidiNote - 2, velocity, duration: noteDuration },
+			{ delay: 150 * tempoModifier,  type: 'cc',   cc: 1, value: baseMod + accentMod },
+			{ delay: 200 * tempoModifier,  type: 'note', note: specialMidiNote, velocity, duration: noteDuration },
+			{ delay: 500 * tempoModifier, type: 'note', note: baseNote + 2, velocity, duration: noteDuration },
+			{ delay: 550 * tempoModifier, type: 'cc',   cc: 1, value: baseMod },
+			{ delay: 600 * tempoModifier, type: 'note', note: baseNote + 9, velocity, duration: noteDuration * 4 },
+			{ delay: 800 * tempoModifier, type: 'done' }
+		];
+	
+		// schedule each step
+		for (const step of midiSequence) {		
+			setTimeout(() => {
+				if (step.type === 'note') {
+					if (playAudio) sendNote(step.note, step.velocity, step.duration, midiChannel);
+				} else if (step.type === 'cc') {
+					if (playAudio) sendCC(step.cc, step.value, midiChannel);
+				} else if (step.type === 'done') {
+					swimbot.setDoneUttering(); // always do this, regardless of MIDI status or whether we're in view
+					// console.log('setDoneUttering for swimbot ' + id);
+					if (playAudio) console.log ('*** Ended MIDI utterance for swimbot ' + id + ' ***');
+	
+				}
+			}, step.delay);
+		} // end for each step
+	} // end function composeAndPlayUtterance()
 
 }
