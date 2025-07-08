@@ -105,9 +105,10 @@ function Sound()
 	}
 
 	//------------------------------------------------
-	this.playSoundEvent = function( type, position, id )
+	this.playSoundEvent = function( type, swimbot )
 	{
-		
+		let position = swimbot.getPosition();
+		let id = swimbot.getIndex();
 		let printString = "play sound: type = ";
 		let midiChannel = 0; // 0-15
 		let midiNote = 32;

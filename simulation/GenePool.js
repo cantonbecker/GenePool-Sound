@@ -1176,7 +1176,7 @@ if ( mode === SimulationStartMode.SPECIES )
                     
 	                if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
 					{             
-                    	_sound.playSoundEvent( SOUND_EVENT_TYPE_EAT, _swimbots[s].getPosition(), s );
+                    	_sound.playSoundEvent( SOUND_EVENT_TYPE_EAT, _swimbots[s] );
                 	}
                 }
                 
@@ -1188,7 +1188,7 @@ if ( mode === SimulationStartMode.SPECIES )
 	                if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
 					{             
                     	_swimbots[s].setReceivedUtterance();
-                    	_sound.playSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s].getPosition(), s );
+                    	_sound.playSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s] );
                 	}
                 }
                 
@@ -1201,7 +1201,7 @@ if ( mode === SimulationStartMode.SPECIES )
 				
 					if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
 					{             
-					    _sound.playSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[s].getPosition(), s );
+					    _sound.playSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[s] );
 					}			
         	    }
                 
@@ -1284,7 +1284,7 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
  
 								if ( _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() ) )
 								{             
-				                    _sound.playSoundEvent( SOUND_EVENT_TYPE_BIRTH, _swimbots[ newBornSwimbotIndex ].getPosition(), newBornSwimbotIndex );
+				                    _sound.playSoundEvent( SOUND_EVENT_TYPE_BIRTH, _swimbots[newBornSwimbotIndex]);
 								}
 
                                 //--------------------------------------------------
@@ -2412,7 +2412,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 
 		if ( _camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() ) )
 		{             
-        	_sound.playSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ].getPosition(), ID );
+        	_sound.playSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ] );
         }
         
         //------------------------------
