@@ -13,14 +13,14 @@
 
 "use strict";
 
-const SOUND_UPDATE_PERIOD =  60; // frame counter (not clock time)
+const SOUND_UPDATE_PERIOD =  30; // frame counter (not clock time)
 
-const SOUND_EVENT_TYPE_NULL		= -1
+const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  0;
 const SOUND_EVENT_TYPE_BIRTH	=  1;
 const SOUND_EVENT_TYPE_DEATH	=  2;
 const SOUND_EVENT_TYPE_UTTER	=  3;
-const NUM_SOUND_EVENT_TYPES		=  4;
+const NUM_SOUND_EVENT_TYPES	=  4;
 
 const BASE_MIDI_NOTE = 48; // C3
 const INTERVAL_SCALE = [0, 2, 4, 7, 9]; // pentatonic
