@@ -24,11 +24,11 @@ const SOUND_EVENT_TYPE_UTTER	=  4;
 const BASE_MIDI_NOTE = 48; // C3
 const INTERVAL_SCALE = [0, 2, 4, 7, 9]; // pentatonic
 
-const MIDI_CHANNEL_EAT = 0;
-const MIDI_CHANNEL_BIRTH = 1;
-const MIDI_CHANNEL_DEATH = 2;
-const MIDI_CHANNEL_UTTER = 7;
-const MIDI_CHANNEL_GLOBAL = 15;
+const MIDI_CHANNEL_EAT = 1;
+const MIDI_CHANNEL_BIRTH = 2;
+const MIDI_CHANNEL_DEATH = 3;
+const MIDI_CHANNEL_UTTER = 8;
+const MIDI_CHANNEL_GLOBAL = 16;
 
 var last_utterance_time = 0;
 const MIN_WAIT_BETWEEN_UTTERANCES = 500;
@@ -114,7 +114,7 @@ function Sound()
 		} else {
 			printString += " (no type???)";
 		}
-		let midiChannel = 0; // 0-15
+		let midiChannel = 1; // 1-16
 		let midiNote = 32;
 		let midiVelocity = 127;
 		let noteLength = 500;
@@ -166,21 +166,6 @@ function Sound()
 		console.log( printString );
 
     }
-
-	//------------------------------------------------
-	function sendNote(noteNumber, velocity, durationMs, midiChannel) {
-		const noteOn = 0x90 | midiChannel;
-		const noteOff = 0x80 | midiChannel;
-		midiOutput.send([noteOn, noteNumber, velocity]);
-		setTimeout(() => {
-			midiOutput.send([noteOff, noteNumber, 0]);
-		}, durationMs);
-	}
-	
-	function sendCC(controllerNumber, value, midiChannel) {
-		const cc = 0xB0 | midiChannel;
-		midiOutput.send([cc, controllerNumber, value]);
-	}
 
 	function composeAndPlayUtterance(id, isInView, swimbot) {
 		const midiChannel = MIDI_CHANNEL_UTTER;  // or derive dynamically
@@ -238,5 +223,23 @@ function Sound()
 			return (' (Silent)');
 		}
 	} // end function composeAndPlayUtterance()
+
+
+	function sendNote(noteNumber, velocity, durationMs, midiChannel) {
+		let zeroIndexMidiChannel = midiChannel - 1; 
+		const noteOn = 0x90 | zeroIndexMidiChannel;
+		const noteOff = 0x80 | zeroIndexMidiChannel;
+		midiOutput.send([noteOn, noteNumber, velocity]);
+		setTimeout(() => {
+			midiOutput.send([noteOff, noteNumber, 0]);
+		}, durationMs);
+	}
+	
+	function sendCC(controllerNumber, value, midiChannel) {
+		let zeroIndexMidiChannel = midiChannel - 1; 
+		const cc = 0xB0 | zeroIndexMidiChannel;
+		midiOutput.send([cc, controllerNumber, value]);
+	}
+
 
 }
