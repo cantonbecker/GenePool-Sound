@@ -3539,6 +3539,7 @@ for (let g=0; g<NUM_GENES; g++)
     this.getSwimbotAttractionDescription    = function( ID ) {	return _swimbots[ ID ].getAttractionDescription     (); }
     this.getSwimbotPreferredFoodType        = function( ID ) {	return _swimbots[ ID ].getPreferredFoodType         (); }
     this.getSwimbotDigestibleFoodType       = function( ID ) {	return _swimbots[ ID ].getDigestibleFoodType        (); }
+    this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
 
     
     // this is now being initialized from the index.html...

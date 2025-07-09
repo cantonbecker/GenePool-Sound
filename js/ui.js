@@ -994,6 +994,8 @@ function updateUI()
                 + "goal = " + goalDescription
                 + "<br>"
                 + "<br>"
+                + "is uttering = " + genePool.getSwimbotIsUttering ( selectedSwimbot )
+                + "<br>"
                 + "food type preference = " + foodPreferenceText
                 + "<br>"
                 + "best-digested food type = " + foodTypeText
@@ -1001,7 +1003,6 @@ function updateUI()
                 + "number of food bits eaten = " + Math.floor( genePool.getSwimbotNumFoodBitsEaten( selectedSwimbot ).toString() )
                 + "<br>"
                 + "energy = " + Math.floor( genePool.getSwimbotEnergy( selectedSwimbot ).toString() )
-                + "<br>"
                 + "<br>"
                 + "sexual attraction = " + genePool.getSwimbotAttractionDescription( selectedSwimbot )
                 + "<br>"
