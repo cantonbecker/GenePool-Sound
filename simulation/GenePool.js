@@ -1144,8 +1144,6 @@ if ( mode === SimulationStartMode.SPECIES )
             
 //testNumLiving ++;
             
-            
-            
                 _swimbots[s].update();
                 
                 //-----------------------------------------------------------------
@@ -1182,9 +1180,10 @@ if ( mode === SimulationStartMode.SPECIES )
                 //--------------------------------------
                 if ( _swimbots[s].getMarkedForUttering() )
                 {
-	               let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                  _sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s], isInView );
                   _swimbots[s].unMarkForUttering();
+                  _swimbots[s].setStartUttering(); // sets _uttering to true
+	               let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+                  _sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s], isInView ); // will eventually set _uttering to false
                 }
                 
                 //-------------------------------------
