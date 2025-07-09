@@ -67,6 +67,7 @@ const SOUND_CALL_FREQUENCY = 1000;
 	let _numFoodBitsEaten   = 0;
 	//let _maximumLifeSpan    = 0;
 	let _markedForDeath		= false;
+	let _markedForUttering	= false;
 	let _uttering			= false;
 	let _index              = NULL_INDEX;
 	let _chosenMateIndex    = NULL_INDEX;
@@ -732,6 +733,19 @@ _position.copyFrom( position );
 	{
 		return _markedForDeath;
 	}
+
+    //--------------------------------
+    // Is this swimbot ready to utter? 
+    //--------------------------------
+	this.getMarkedForUttering = function()
+	{
+		return _markedForUttering;
+	}
+
+	this.unMarkForUttering = function()
+	{
+		_markedForUttering = false;
+	}
 	
     //-------------------------------------------
     // Is this swimbot making an audible utterance? 
@@ -741,6 +755,14 @@ _position.copyFrom( position );
 		return _uttering;
 	}
 	
+    //-------------------------------------------------------------------------------------------------
+    // When a swimbot begins uttering (whether it's in view or audible or not) we set _uttering to true 
+    //-------------------------------------------------------------------------------------------------
+	this.setStartUttering = function()
+	{
+		_uttering = true;
+	}
+
     //-------------------------------------------------------------
     // This must be called when the calling function has received 
     // notification that the swimbot is making an audible call. 
@@ -773,15 +795,15 @@ _position.copyFrom( position );
         _brain.setEnergyLevel( _energy );
         _brain.update();
         
-		//---------------------------
-		// update utterances
-		//---------------------------
-		if ( _age % SOUND_CALL_FREQUENCY === 0 )
-		{
-			//console.log( "swimbot " + _index + " just made an utterance!" );
-			_uttering = true;
-			_swimbotRenderer.showUtterance();
-		}	
+        //---------------------------
+        // queue an utterance if it's time
+        //---------------------------
+        if ( _age % SOUND_CALL_FREQUENCY === 0 )
+        {
+            // console.log( "swimbot " + _index + " ready to utter!" );
+            _markedForUttering = true;
+            _swimbotRenderer.showUtterance();
+        }	
 
         //-------------------------------------
         // I wanna eat my chosen food bit...

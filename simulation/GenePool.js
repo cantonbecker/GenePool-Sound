@@ -1177,13 +1177,14 @@ if ( mode === SimulationStartMode.SPECIES )
                     _sound.considerSoundEvent( SOUND_EVENT_TYPE_EAT, _swimbots[s], isInView );
                 }
                 
-                //-------------------------------------
-                // making sound calls
-                //-------------------------------------
-                if ( _swimbots[s].getIsUttering() )
+                //--------------------------------------
+                // are we supposed to make an utterance?
+                //--------------------------------------
+                if ( _swimbots[s].getMarkedForUttering() )
                 {
 	               let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
                   _sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s], isInView );
+                  _swimbots[s].unMarkForUttering();
                 }
                 
                 //-------------------------------------
@@ -1191,7 +1192,7 @@ if ( mode === SimulationStartMode.SPECIES )
                 //-------------------------------------
                 if ( _swimbots[s].getMarkedForDeath() )
 				{
-					_swimbots[s].die();
+					 _swimbots[s].die();
 	             let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
 				    _sound.considerSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[s], isInView );
         	    }
@@ -2557,16 +2558,7 @@ if ( globalTweakers.numFoodTypes === 2 )
                         {
                             _swimbots[s].setRenderingGoals( false );
                         }
-					}
-					
-					
-if ( _swimbots[s].getIsUttering() )
-{
-	// console.log( "yup................." );
-}					
-					
-					
-					
+					}					
 				}
 			}
 		}

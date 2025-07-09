@@ -16,11 +16,10 @@
 const SOUND_UPDATE_PERIOD =  30; // frame counter (not clock time)
 
 const SOUND_EVENT_TYPE_NULL	= -1
-const SOUND_EVENT_TYPE_EAT  	=  0;
-const SOUND_EVENT_TYPE_BIRTH	=  1;
-const SOUND_EVENT_TYPE_DEATH	=  2;
-const SOUND_EVENT_TYPE_UTTER	=  3;
-const NUM_SOUND_EVENT_TYPES	=  4;
+const SOUND_EVENT_TYPE_EAT  	=  1;
+const SOUND_EVENT_TYPE_BIRTH	=  2;
+const SOUND_EVENT_TYPE_DEATH	=  3;
+const SOUND_EVENT_TYPE_UTTER	=  4;
 
 const BASE_MIDI_NOTE = 48; // C3
 const INTERVAL_SCALE = [0, 2, 4, 7, 9]; // pentatonic
@@ -109,7 +108,12 @@ function Sound()
 	{
 		let position = swimbot.getPosition();
 		let id = swimbot.getIndex();
-		let printString = "considerSoundEvent() for swimbot no. " + id + " type = ";
+		let printString = "considerSoundEvent() for swimbot no. " + id;
+		if (type) {
+			printString += " type = ";
+		} else {
+			printString += " (no type???)";
+		}
 		let midiChannel = 0; // 0-15
 		let midiNote = 32;
 		let midiVelocity = 127;
@@ -117,53 +121,44 @@ function Sound()
 		
 		if ( type === SOUND_EVENT_TYPE_NULL ) { 
 			printString += "NULL ";
-		} else if ( type === SOUND_EVENT_TYPE_EAT && isInView ) { 
-			let midiChannel = MIDI_CHANNEL_EAT;
-			let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
-			let idToDegrees = id % maxDegrees;
-			let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-			let degree = idToDegrees % INTERVAL_SCALE.length;
-			let midiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
-			let controlValue = id % 100; // control of about 0-100
-			if (midiOutput) {
+		} else if ( type === SOUND_EVENT_TYPE_EAT ) { 
+			printString += "EAT";
+			if (midiOutput && isInView) {
+				let midiChannel = MIDI_CHANNEL_EAT;
+				let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
+				let idToDegrees = id % maxDegrees;
+				let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
+				let degree = idToDegrees % INTERVAL_SCALE.length;
+				let midiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
+				let controlValue = id % 100; // control of about 0-100
 				sendCC(14, controlValue, midiChannel);
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
+				printString += " MIDI note " + midiNote + " w/CC 14 " + controlValue;
 			}
-			printString += "EAT note " + midiNote + " w/CC 14 " + controlValue;
-		} else if ( type === SOUND_EVENT_TYPE_BIRTH && isInView) {
-			let midiChannel = MIDI_CHANNEL_BIRTH;
-			let maxDegrees = INTERVAL_SCALE.length * 3;  // 2 octaves of our scale
-			let idToDegrees = id % maxDegrees;
-			let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-			let degree = idToDegrees % INTERVAL_SCALE.length;
-			let midiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
-			printString += "BIRTH note " + midiNote;
-			if (midiOutput) {
+		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
+			printString += "BIRTH";
+				if (midiOutput && isInView) {
+				let midiChannel = MIDI_CHANNEL_BIRTH;
+				let maxDegrees = INTERVAL_SCALE.length * 3;  // 2 octaves of our scale
+				let idToDegrees = id % maxDegrees;
+				let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
+				let degree = idToDegrees % INTERVAL_SCALE.length;
+				let midiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
+				printString += " MIDI note " + midiNote;
 			}
-		} else if ( type === SOUND_EVENT_TYPE_DEATH && isInView) {
-			let midiChannel = MIDI_CHANNEL_DEATH;
-			let midiNote = 64;
-			let noteLength = 1000;
+		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
 			printString += "DEATH";
-			if (midiOutput) {
+			if (midiOutput && isInView) {
+				let midiChannel = MIDI_CHANNEL_DEATH;
+				let midiNote = 64;
+				let noteLength = 1000;
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
+				printString += " MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_UTTER) {
-			let midiChannel = MIDI_CHANNEL_UTTER;
-			let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
-			let idToDegrees = id % maxDegrees;
-			let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-			let degree = idToDegrees % INTERVAL_SCALE.length;
-			let midiNote = BASE_MIDI_NOTE + 12 + (octave * 12) + INTERVAL_SCALE[degree];
-			let noteLength = 800;
-			let midiModWheelPos = id % 127; // full range
-			let midiControl21 = 32 + (id % 64); // limited range 32 - 96
 			printString += "UTTER";
-			// sendCC(21, midiControl21, midiChannel);
-			// sendCC(1, midiModWheelPos, midiChannel);
-			// sendNote(midiNote, midiVelocity, noteLength, midiChannel);
-			composeAndPlayUtterance(id, midiOutput, isInView, swimbot);
+			printString += composeAndPlayUtterance(id, isInView, swimbot);
 		} // end if sound types
 		 
 		// printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
@@ -187,7 +182,7 @@ function Sound()
 		midiOutput.send([cc, controllerNumber, value]);
 	}
 
-	function composeAndPlayUtterance(id, midiOutput, isInView, swimbot) {
+	function composeAndPlayUtterance(id, isInView, swimbot) {
 		const midiChannel = MIDI_CHANNEL_UTTER;  // or derive dynamically
 		const baseNote = BASE_MIDI_NOTE + 12 + (( id % 3 ) * 12);   // starting point
 		const baseMod = (id % 64);   // starting point
@@ -196,7 +191,6 @@ function Sound()
 		const noteDuration = 50 + ((id % 3) * 25);
 		const tempoModifier = .5 + ((id % 4 ) * .5);
 		const startTime = Date.now();
-	
 		const maxDegrees = INTERVAL_SCALE.length * 3;
 		const idToDegrees = id % maxDegrees;
 		const octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
@@ -238,6 +232,11 @@ function Sound()
 				}
 			}, step.delay);
 		} // end for each step
+		if (playAudio) {
+			return (' MIDI sequence on channel ' + midiChannel);
+		} else {
+			return (' (Silent)');
+		}
 	} // end function composeAndPlayUtterance()
 
 }
