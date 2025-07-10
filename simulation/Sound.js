@@ -21,17 +21,80 @@ const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 const SOUND_EVENT_TYPE_UTTER	=  4;
 
+// Define your MIDI channels as 1-16 (not zero indexed)
 const BASE_MIDI_NOTE = 48; // C3
-const INTERVAL_SCALE = [0, 2, 4, 7, 9]; // pentatonic
-
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
-const MIDI_CHANNEL_UTTER = 8;
+// we will round robin through the utter midi channels
+const MIDI_CHANNEL_UTTER_START = 8;
+const MIDI_CHANNEL_UTTER_END = 9;
+var midi_channel_utter_last = null;
+
 const MIDI_CHANNEL_GLOBAL = 16;
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000;
+
+/* Markov Chain Inter-onset Interval States:
+	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
+*/
+const SEQUENCE_DURATION_STATES = [
+  { name: 'short',  min: 30,  max: 60 },   // short notes will range from 30 to 60 ms
+  { name: 'medium', min: 100, max: 250 },
+  { name: 'long',   min: 300, max: 500 }
+];
+
+
+/*	3 x 3 probability matrix of how likely it is we will transition from one state to another.
+	Each set of numbers needs to add up to 1 (100%).
+*/
+const IOI_DURATION_PROBABILITY_MATRIX = [
+  [0.8, 0.1, 0.1],  // currently short? chances of staying short | switching medium | switching long 
+  [0.6, 0.2,  0.2 ],  // currently medium? chances of switching short | staying medium | switching long
+  [0.1, 0.6,  0.3 ]	// currently long? chances of switching short | switching medium | staying long
+];
+// Pentatonic
+const MIDI_NOTE_INTERVALS = [-10, -8, -5, -3, 0, +2, +4, +7, +9];
+
+// Minor pentatonic
+// const MIDI_NOTE_INTERVALS = [-9, -7, -5, -2, 0, +3, +5, +7, +10];
+
+// Whole-tone
+// const MIDI_NOTE_INTERVALS = [-10, -8, -6, -4, 0, +2, +4, +6, +8];
+
+// Chromatic cluster
+// const MIDI_NOTE_INTERVALS = [-4, -3, -2, -1, 0, +1, +2, +3, +4];
+
+
+// 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
+// each set of numbers needs to add up to 1
+/*
+const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
+  [0.10, 0.15, 0.20, 0.25, 0.10, 0.10, 0.05, 0.03, 0.02],
+  [0.05, 0.10, 0.20, 0.30, 0.10, 0.10, 0.10, 0.03, 0.02],
+  [0.04, 0.10, 0.20, 0.30, 0.20, 0.10, 0.03, 0.02, 0.01],
+  [0.03, 0.07, 0.10, 0.30, 0.30, 0.10, 0.05, 0.03, 0.02],
+  [0.02, 0.05, 0.10, 0.30, 0.30, 0.10, 0.10, 0.02, 0.01], // middle interval
+  [0.02, 0.03, 0.05, 0.10, 0.30, 0.30, 0.10, 0.07, 0.03],
+  [0.01, 0.02, 0.03, 0.10, 0.20, 0.30, 0.20, 0.10, 0.04],
+  [0.02, 0.03, 0.05, 0.10, 0.10, 0.10, 0.20, 0.30, 0.10],
+  [0.02, 0.05, 0.10, 0.20, 0.20, 0.15, 0.10, 0.10, 0.08]
+];
+*/
+
+const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
+  /* from -5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from -3 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from -2 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from -1 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from  0 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from +1 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from +2 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from +3 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
+  /* from +5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02]
+];
+
 
 var last_utterance_time = 0;
-const MIN_WAIT_BETWEEN_UTTERANCES = 500;
 //------------------------------------------
 function Sound()
 {
@@ -125,11 +188,11 @@ function Sound()
 			printString += "EAT";
 			if (midiOutput && isInView) {
 				let midiChannel = MIDI_CHANNEL_EAT;
-				let maxDegrees = INTERVAL_SCALE.length * 2;  // 2 octaves of our scale
+				let maxDegrees = MIDI_NOTE_INTERVALS.length * 2;  // 2 octaves of our scale
 				let idToDegrees = id % maxDegrees;
-				let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-				let degree = idToDegrees % INTERVAL_SCALE.length;
-				let midiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
+				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
+				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
+				let midiNote = BASE_MIDI_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
 				let controlValue = id % 100; // control of about 0-100
 				sendCC(14, controlValue, midiChannel);
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
@@ -139,11 +202,11 @@ function Sound()
 			printString += "BIRTH";
 				if (midiOutput && isInView) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
-				let maxDegrees = INTERVAL_SCALE.length * 3;  // 2 octaves of our scale
+				let maxDegrees = MIDI_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
 				let idToDegrees = id % maxDegrees;
-				let octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-				let degree = idToDegrees % INTERVAL_SCALE.length;
-				let midiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
+				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
+				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
+				let midiNote = BASE_MIDI_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
 				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
 				printString += " MIDI note " + midiNote;
 			}
@@ -158,7 +221,7 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_UTTER) {
 			printString += "UTTER";
-			printString += composeAndPlayUtterance(id, isInView, swimbot);
+			printString += doUtterance(id, isInView, swimbot);
 		} // end if sound types
 		 
 		// printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
@@ -167,41 +230,32 @@ function Sound()
 
     }
 
-	function composeAndPlayUtterance(id, isInView, swimbot) {
-		const midiChannel = MIDI_CHANNEL_UTTER;  // or derive dynamically
-		const baseNote = BASE_MIDI_NOTE + 12 + (( id % 3 ) * 12);   // starting point
-		const baseMod = (id % 64);   // starting point
-		const accentMod = (id % 63);
-		const velocity = 90 + (id % 35);
-		const noteDuration = 50 + ((id % 3) * 25);
-		const tempoModifier = .5 + ((id % 4 ) * .5);
-		const startTime = Date.now();
-		const maxDegrees = INTERVAL_SCALE.length * 3;
-		const idToDegrees = id % maxDegrees;
-		const octave = Math.floor(idToDegrees / INTERVAL_SCALE.length);
-		const degree = idToDegrees % INTERVAL_SCALE.length;
-		const specialMidiNote = BASE_MIDI_NOTE + (octave * 12) + INTERVAL_SCALE[degree];
-	
+	function doUtterance(id, isInView, swimbot) {
+		var midiChannel;
+		const utterLengths = [500, 1000, 1500, 4000];
+		const thisLength = utterLengths[Math.floor(Math.random() * utterLengths.length)];
+
 		let playAudio = false; // special conditions have to be met for us to actually play sound
-		if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_UTTERANCES && midiOutput && isInView) {
+		let midiSequence;
+		if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && isInView) {
 			last_utterance_time = Date.now();
 			playAudio = true;
+			// round robin through the MIDI channels we've set up for uttering
+			midi_channel_utter_last +=1;
+			if (midi_channel_utter_last > MIDI_CHANNEL_UTTER_END || midi_channel_utter_last < MIDI_CHANNEL_UTTER_START) {
+				midi_channel_utter_last = MIDI_CHANNEL_UTTER_START;
+			}
+			midiChannel = midi_channel_utter_last;
 			console.log ('*** Beginning MIDI utterance for swimbot ' + id + ' ***');
+			// midiSequence = generateUtteranceSequence(id, thisLength);
+			midiSequence = generateUtteranceSequence(id % 10, thisLength); // test only a few variations
+			console.log(midiSequence);
+		} else {
+			midiSequence = [
+				{ delay: thisLength, type: 'done' }
+			];
 		}
-	
-		// static melody & CC sequence
-		const midiSequence = [
-			{ delay: 0,    type: 'note', note: baseNote + 0, velocity, duration: noteDuration * 2 },
-			{ delay: 50 * tempoModifier,  type: 'cc',   cc: 1, value: baseMod },
-			{ delay: 100 * tempoModifier,  type: 'note', note: specialMidiNote - 2, velocity, duration: noteDuration },
-			{ delay: 150 * tempoModifier,  type: 'cc',   cc: 1, value: baseMod + accentMod },
-			{ delay: 200 * tempoModifier,  type: 'note', note: specialMidiNote, velocity, duration: noteDuration },
-			{ delay: 500 * tempoModifier, type: 'note', note: baseNote + 2, velocity, duration: noteDuration },
-			{ delay: 550 * tempoModifier, type: 'cc',   cc: 1, value: baseMod },
-			{ delay: 600 * tempoModifier, type: 'note', note: baseNote + 9, velocity, duration: noteDuration * 4 },
-			{ delay: 800 * tempoModifier, type: 'done' }
-		];
-	
+		
 		// schedule each step
 		for (const step of midiSequence) {		
 			setTimeout(() => {
@@ -218,13 +272,108 @@ function Sound()
 			}, step.delay);
 		} // end for each step
 		if (playAudio) {
-			return (' MIDI sequence on channel ' + midiChannel);
+			return (' MIDI sequence on channel ' + midiChannel + ' length ' + thisLength);
 		} else {
-			return (' (Silent)');
+			return (' Silent length ' + thisLength);
 		}
-	} // end function composeAndPlayUtterance()
+	} // end function doUtterance()
+		
+	/**
+	* @param {number} id         – deterministic seed
+	* @param {number} durationMs – total length in ms
+	* @returns {Array}           – [{delay, note, velocity, duration}, …, {delay, type:'done'}]
+	*/
 
+	/* returns an sequence like:
+		[
+			{ delay: 0, type: 'note', note: 44, velocity: 127, duration: 1000 },
+			{ delay: 500, type: 'cc', cc: 1, value: 96 },
+			{ delay: 1000, type: 'done' }
+		];
+	*/
+		
+	function generateUtteranceSequence(id, durationMs) {
+		// create a deterministic RNG seeded by id and durationMs
+		const rng = aleaPRNG(id.toString());
+		
+		// pick initial IOI‐state and interval‐state “randomly” but reproducibly
+		let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
+		if (durationMs < 750) lastIOI = 0; // but if utterance is short, always start with a short note
+		let lastInt = Math.floor(rng() * MIDI_NOTE_INTERVALS.length); // pick starting interval
 
+		// how likely are we to fool around with the mod wheel between notes? (Increase the exponent to further weigh towards zero)
+		let chanceOfModulation = rng() ** 3;
+		// sequenceData will hold our generated sequence
+		const sequenceData = [];
+		// initialize mod CC with a random value at time 0
+		
+		let initialModVal = Math.floor((rng() ** 3) * 128); // 0-127, weighed towards lower end
+
+		sequenceData.push({
+			delay: 0,  // in ms
+			type: 'cc',
+			cc: 1,
+			value: initialModVal
+		});
+
+		let sequenceTime = 10; // first note to happen 10ms after we set the initial mod CC
+		while (sequenceTime < durationMs) {
+			// pick next inter-onset interval
+			let p = rng(), cumulativeProb = 0, nextIOI;
+			for (let i = 0; i < SEQUENCE_DURATION_STATES.length; i++) {
+				cumulativeProb += IOI_DURATION_PROBABILITY_MATRIX[lastIOI][i];
+				if (p < cumulativeProb) { nextIOI = i; break; }
+			}
+			// fallback if rounding/FP left nextIOI undefined
+			if (nextIOI === undefined) nextIOI = SEQUENCE_DURATION_STATES.length - 1;
+		
+			const band = SEQUENCE_DURATION_STATES[nextIOI];
+			const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
+		
+			// stretch durations to 100–200% of the gap, with a floor of 50ms
+			const noteDur = Math.max( Math.round(interOnsetIntervalMs * (1 + rng() * 1)), 50 );
+		
+			// ——— pick next interval state ———
+			p = rng(); cumulativeProb = 0; let nextIntState;
+			for (let i = 0; i < MIDI_NOTE_INTERVALS.length; i++) {
+				cumulativeProb += IOI_MIDI_NOTE_PROBABILITY_MATRIX[lastInt][i];
+				if (p < cumulativeProb) { nextIntState = i; break; }
+			}
+			if (nextIntState === undefined) nextIntState = MIDI_NOTE_INTERVALS.length - 1;
+			const semis = MIDI_NOTE_INTERVALS[nextIntState];
+		
+			// ——— emit note event ———
+			sequenceData.push({
+				delay:    sequenceTime,  // in ms
+				type:     'note',
+				note:     BASE_MIDI_NOTE + 24 + semis + (12 * (id % 3)),
+				velocity: 80 + Math.round(rng() * 40),
+				duration: noteDur
+			});
+			
+			// push in random mod expressions
+			if (rng() < chanceOfModulation) {
+				let modVal = Math.floor(rng()*128); // equal weighted random 0-127
+				sequenceData.push({
+					delay: sequenceTime + 10,  // in ms
+					type: 'cc',
+					cc: 1,
+					value: modVal
+				});
+			}
+		
+			// advance time & states
+			sequenceTime += interOnsetIntervalMs;
+			lastIOI = nextIOI;
+			lastInt = nextIntState;
+		}
+		
+		// final done event
+		sequenceData.push({ delay: sequenceTime, type: 'done' });
+		return sequenceData;
+	}
+
+	// Actually send a MIDI note on (and schedule a note off) to the IAC bus. 
 	function sendNote(noteNumber, velocity, durationMs, midiChannel) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const noteOn = 0x90 | zeroIndexMidiChannel;
@@ -235,11 +384,15 @@ function Sound()
 		}, durationMs);
 	}
 	
+	// Actually send a MIDI control value
 	function sendCC(controllerNumber, value, midiChannel) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const cc = 0xB0 | zeroIndexMidiChannel;
 		midiOutput.send([cc, controllerNumber, value]);
 	}
 
+
+
+	// console.log (generateUtteranceSequence(44, 5000));
 
 }
