@@ -188,6 +188,9 @@ function Phenotype()
 	this.mass               = ZERO;
 	this.preferredFoodType  = 0;
 	this.digestibleFoodType = 0;
+	this.utterPeriod		= 0;
+	this.utterDuration		= 0;
+	this.utterEnergy		= 0;
 	
 	for (let p=0; p<MAX_PARTS; p++)
 	{

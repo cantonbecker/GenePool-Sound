@@ -62,6 +62,12 @@ const MAX_SEQUENCE_COUNT    =   5;
 const GREATEST_POSSIBLE_SWIMBOT_MASS = MAX_PARTS * MAX_LENGTH * MAX_WIDTH
 const GREATEST_POSSIBLE_SWIMBOT_LENGTH	= MAX_PARTS * MAX_LENGTH;
 
+const MIN_UTTER_PERIOD 	 = 20;  // in clock time
+const MAX_UTTER_PERIOD 	 = 500; // in clock time
+const MIN_UTTER_DURATION = 5;  	// in clock time
+const MAX_UTTER_DURATION = 100; // in clock time
+const MIN_UTTER_ENERGY 	 = 0.1;	// normaized, 0-1
+const MAX_UTTER_ENERGY 	 = 1.0;	// normaized, 0-1
 
 //--------------------
 function Embryology()
@@ -267,10 +273,41 @@ let testNoEel = true;
             phenotype.digestibleFoodType = Math.floor( _normalizedGenes[g] * 2 );     
         }   
         
-        
-        
-        
+        g++;  
+        _geneNames[g] = "utter period";
+        phenotype.utterPeriod = MIN_UTTER_PERIOD + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_PERIOD - MIN_UTTER_PERIOD ) );     
 
+        g++;  
+        _geneNames[g] = "utter duration";        
+		phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
+     
+		g++;  
+		_geneNames[g] = "utter energy";        
+		phenotype.utterEnergy = MIN_UTTER_ENERGY + _normalizedGenes[g] * ( MAX_UTTER_ENERGY - MIN_UTTER_ENERGY );     
+
+     	let clampAmount = 5;
+		if ( phenotype.utterDuration > phenotype.utterPeriod - clampAmount )
+		{
+			phenotype.utterDuration = phenotype.utterPeriod - clampAmount;
+		}
+
+		/*
+     	let clampAmount = 5;
+     	if ( phenotype.utterPeriod < clampAmount )
+     	{
+	     	phenotype.utterDuration = clampAmount - 1;
+     	}
+     	else 
+     	{		
+			let clampedDuration = phenotype.utterPeriod - 3;
+			if ( phenotype.utterDuration > clampedDuration )
+			{
+				phenotype.utterDuration = clampedDuration;
+			}
+		}
+		*/
+		
+		
         /*
         let preferredFoodType  = 0;
         let digestibleFoodType = 0;

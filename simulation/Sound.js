@@ -93,6 +93,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
   /* from +5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02]
 ];
 
+
 var last_utterance_time = 0;
 //------------------------------------------
 function Sound()
@@ -165,12 +166,10 @@ function Sound()
 		}
 	}
 
-	//------------------------------------------------
-	this.considerSoundEvent = function( type, swimbot, isInView )
+	//------------------------------------------------------------------------------------------------------
+	this.considerSoundEvent = function( type, position, duration, energy, id, isInView, callerFunction )
 	{
-		let position = swimbot.getPosition();
-		let id = swimbot.getIndex();
-		let printString = "considerSoundEvent() for swimbot no. " + id;
+		let printString = "considerSoundEvent() for swimbot no. " + id + " | duration=" + duration + " | energy=" + energy;
 		if (type) {
 			printString += " type = ";
 		} else {
@@ -219,21 +218,20 @@ function Sound()
 				printString += " MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_UTTER) {
-			printString += "UTTER";
-			printString += doUtterance(id, isInView, swimbot);
+			printString += "UTTER";			
+			//printString += " (duration = " + duration + "; energy = " + energy + "; )";
+			let utteranceResult = doUtterance(id, isInView, duration, energy, callerFunction );
+			printString += utteranceResult;
 		} // end if sound types
 		 
 		// printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
 		 
-		console.log( printString );
-
+ 		console.log( printString );
     }
 
-	function doUtterance(id, isInView, swimbot) {
+	function doUtterance(id, isInView, duration, energy, callerFunction ) {
 		var midiChannel;
-		const utterLengths = [500, 1000, 1500, 4000];
-		const thisLength = utterLengths[Math.floor(Math.random() * utterLengths.length)];
-
+		const thisLength = duration * 30; // range of 5-100 = 150ms-3000ms
 		let playAudio = false; // special conditions have to be met for us to actually play sound
 		let midiSequence;
 		if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && isInView) {
@@ -263,8 +261,8 @@ function Sound()
 				} else if (step.type === 'cc') {
 					if (playAudio) sendCC(step.cc, step.value, midiChannel);
 				} else if (step.type === 'done') {
-					swimbot.setDoneUttering(); // always do this, regardless of MIDI status or whether we're in view
-					// console.log('setDoneUttering for swimbot ' + id);
+					callerFunction.setDoneUtteringSound( id );  // always do this, regardless of MIDI status or whether we're in view							
+					// console.log('setDoneUtteringSound for swimbot ' + id);
 					if (playAudio) console.log ('*** Ended MIDI utterance for swimbot ' + id + ' ***');
 	
 				}

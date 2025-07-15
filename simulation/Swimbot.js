@@ -21,9 +21,7 @@ var    flopperY = 0;
 var    flopperXV = 0;
 var    flopperYV = 0;
 
-
-const SOUND_CALL_FREQUENCY = 1000;
-
+const PROTOTYPING_SOUND = true;
 
     //---------------------------------
     //  attraction 
@@ -67,8 +65,7 @@ const SOUND_CALL_FREQUENCY = 1000;
 	let _numFoodBitsEaten   = 0;
 	//let _maximumLifeSpan    = 0;
 	let _markedForDeath		= false;
-	let _markedForUttering	= false;
-	let _uttering			= false;
+	//let _markedForUtteringSound	= false;
 	let _index              = NULL_INDEX;
 	let _chosenMateIndex    = NULL_INDEX;
 	let _chosenFoodBitIndex = NULL_INDEX;
@@ -86,6 +83,7 @@ const SOUND_CALL_FREQUENCY = 1000;
 	let _energyEfficiency   = ZERO;
 	let _selectRadius       = ZERO;
 	let _species            = NULL_INDEX;
+	let _uttering			= false;
 	
 	let _lastPositionForEfficiencyMeasurement = new Vector2D();
     let _lastEnergyForEfficiencyMeasurement = ZERO;
@@ -734,45 +732,36 @@ _position.copyFrom( position );
 		return _markedForDeath;
 	}
 
+
+	/*
     //--------------------------------
     // Is this swimbot ready to utter? 
     //--------------------------------
-	this.getMarkedForUttering = function()
+	this.getMarkedForUtteringSound = function()
 	{
-		return _markedForUttering;
+		return _markedForUtteringSound;
 	}
 
-	this.unMarkForUttering = function()
+	this.unMarkForUtteringSound = function()
 	{
-		_markedForUttering = false;
+		_markedForUtteringSound = false;
 	}
+	*/
 	
-    //-------------------------------------------
-    // Is this swimbot making an audible utterance? 
-    //-------------------------------------------
-	this.getIsUttering = function()
-	{
-		return _uttering;
-	}
+    //------------------------------------------------------------------------
+    // utterance attributes...
+    //------------------------------------------------------------------------
+	this.getIsUttering 		= function() { return _uttering; 				}
+	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
+	this.getUtterEnergy 	= function() { return _phenotype.utterEnergy; 	}
 	
-    //-------------------------------------------------------------------------------------------------
-    // When a swimbot begins uttering (whether it's in view or audible or not) we set _uttering to true 
-    //-------------------------------------------------------------------------------------------------
-	this.setStartUttering = function()
-	{
-		_uttering = true;
-	}
-
-    //-------------------------------------------------------------
-    // This must be called when the calling function has received 
-    // notification that the swimbot is making an audible call. 
-    // When this happens the value of _makingSoundCall is switched
-    // back to false, so it can be ready for making the next call.
-    //-------------------------------------------------------------
-	this.setDoneUttering = function()
+	/*
+    //---------------------------------------
+	this.setDoneUtteringSound = function()
 	{
 		_uttering = false;
 	}
+	*/
 	
 	//--------------------------------
 	// update
@@ -794,15 +783,22 @@ _position.copyFrom( position );
         //-----------------------------
         _brain.setEnergyLevel( _energy );
         _brain.update();
-        
-        //---------------------------
-        // queue an utterance if it's time
-        //---------------------------
-        if ( _age % SOUND_CALL_FREQUENCY === 0 )
+
+        //-----------------------------------
+        // uttering
+        //-----------------------------------
+        if ( _age % _phenotype.utterPeriod === 0 )
         {
-            // console.log( "swimbot " + _index + " ready to utter!" );
-            _markedForUttering = true;
-            _swimbotRenderer.showUtterance();
+            //console.log( "swimbot " + _index + " ready to utter!" );
+            //_markedForUtteringSound = true;
+            _uttering = true;
+        }	
+        
+        if ( _age % _phenotype.utterPeriod === _phenotype.utterDuration )
+        {
+            //console.log( "swimbot " + _index + " ready to utter!" );
+            //_markedForUtteringSound = true;
+            _uttering = false;
         }	
 
         //-------------------------------------
@@ -1507,6 +1503,7 @@ let partAccelerationY = -strokeForceY;
         //------------------------------------------------------------------------------------------------
         // if looking for mate, scan the nearby swimbots and choose the most attractive...
         //------------------------------------------------------------------------------------------------	
+        
         if ( _brain.getState() === BRAIN_STATE_LOOKING_FOR_MATE )
         {			
             //console.log( "horny" );
@@ -1531,7 +1528,7 @@ let partAccelerationY = -strokeForceY;
                     atLeastOneBabeIsVisible = true;
                 }
             }
-            
+
             if ( atLeastOneBabeIsVisible )
             {
                 _chosenMate = mostAttractiveFound;
@@ -1563,19 +1560,7 @@ let partAccelerationY = -strokeForceY;
                 }
             }
 
-            if ( ICanStillSeeYou )
-            {
-                /*
-                assert( chosenMate != NULL );
-                if ( chosenMate->getEnergy() < STARVING )
-                {
-                    state.brain.setFoundSwimbot( false );
-                    chosenMate = NULL;
-                    state.chosenMateIndex = -1;
-                }
-                */
-            }
-            else
+            if ( ! ICanStillSeeYou )
             {
                 //console.log( "can't see you anymore" );
                 _brain.setFoundSwimbot( false );
@@ -1612,32 +1597,47 @@ let partAccelerationY = -strokeForceY;
 	this.getAttractiveness = function( judge )
 	{
         let attractiveness = gpRandom();
-        
-        let attractionCriterion = _brain.getAttractionCriterion();
-        
-        //console.log( "attractionCriterion = " + attractionCriterion );
-        
-        if ( attractionCriterion === ATTRACTION_COLORFUL        ) { attractiveness =        this.getColorSaturation         (); }
-        if ( attractionCriterion === ATTRACTION_BIG             ) { attractiveness =        this.getCurrentBodyBigness      (); }
-        if ( attractionCriterion === ATTRACTION_HYPER           ) { attractiveness =        this.getCurrentBodyHyperness    (); }
-        if ( attractionCriterion === ATTRACTION_LONG            ) { attractiveness =        this.getCurrentBodyLongness     (); }
-        if ( attractionCriterion === ATTRACTION_STRAIGHT        ) { attractiveness =        this.getCurrentBodyStraightness (); }
-        
-        if ( attractionCriterion === ATTRACTION_NO_COLOR        ) { attractiveness = ONE -  this.getColorSaturation         (); }
-        if ( attractionCriterion === ATTRACTION_SMALL           ) { attractiveness = ONE -  this.getCurrentBodyBigness      (); }
-        if ( attractionCriterion === ATTRACTION_STILL           ) { attractiveness = ONE -  this.getCurrentBodyHyperness    (); }
-        if ( attractionCriterion === ATTRACTION_SHORT           ) { attractiveness = ONE -  this.getCurrentBodyLongness     (); }
-        if ( attractionCriterion === ATTRACTION_CROOKED         ) { attractiveness = ONE -  this.getCurrentBodyStraightness (); }
-        
-        if ( attractionCriterion === ATTRACTION_SIMILAR_COLOR   ) { attractiveness =        this.getColorSimilarity         ( judge ); }
-        if ( attractionCriterion === ATTRACTION_SIMILAR_SIZE    ) { attractiveness =        this.getBignessSimilarity       ( judge ); }
-        if ( attractionCriterion === ATTRACTION_SIMILAR_HYPER   ) { attractiveness =        this.getHypernessSimilarity     ( judge ); }
-        if ( attractionCriterion === ATTRACTION_SIMILAR_LENGTH  ) { attractiveness =        this.getLengthSimilarity        ( judge ); }
-        if ( attractionCriterion === ATTRACTION_SIMILAR_STRAIGHT) { attractiveness =        this.getStraightessSimilarity   ( judge ); }
-        
-        if ( attractionCriterion === ATTRACTION_CLOSEST         ) { attractiveness =        this.getCloseness               ( judge ); }
-        if ( attractionCriterion === ATTRACTION_RANDOM          ) { attractiveness =        gpRandom(); }
-    
+
+		if ( PROTOTYPING_SOUND )
+		{
+			if ( _uttering )
+			{
+				//console.log( "yes - uttering" );
+				attractiveness = 1.0;
+			}
+			else
+			{
+				//console.log( "NO" );
+			}
+		}
+		else
+		{
+			let attractionCriterion = _brain.getAttractionCriterion();
+		
+			//console.log( "attractionCriterion = " + attractionCriterion );
+		
+			if ( attractionCriterion === ATTRACTION_COLORFUL        ) { attractiveness =        this.getColorSaturation         (); }
+			if ( attractionCriterion === ATTRACTION_BIG             ) { attractiveness =        this.getCurrentBodyBigness      (); }
+			if ( attractionCriterion === ATTRACTION_HYPER           ) { attractiveness =        this.getCurrentBodyHyperness    (); }
+			if ( attractionCriterion === ATTRACTION_LONG            ) { attractiveness =        this.getCurrentBodyLongness     (); }
+			if ( attractionCriterion === ATTRACTION_STRAIGHT        ) { attractiveness =        this.getCurrentBodyStraightness (); }
+		
+			if ( attractionCriterion === ATTRACTION_NO_COLOR        ) { attractiveness = ONE -  this.getColorSaturation         (); }
+			if ( attractionCriterion === ATTRACTION_SMALL           ) { attractiveness = ONE -  this.getCurrentBodyBigness      (); }
+			if ( attractionCriterion === ATTRACTION_STILL           ) { attractiveness = ONE -  this.getCurrentBodyHyperness    (); }
+			if ( attractionCriterion === ATTRACTION_SHORT           ) { attractiveness = ONE -  this.getCurrentBodyLongness     (); }
+			if ( attractionCriterion === ATTRACTION_CROOKED         ) { attractiveness = ONE -  this.getCurrentBodyStraightness (); }
+		
+			if ( attractionCriterion === ATTRACTION_SIMILAR_COLOR   ) { attractiveness =        this.getColorSimilarity         ( judge ); }
+			if ( attractionCriterion === ATTRACTION_SIMILAR_SIZE    ) { attractiveness =        this.getBignessSimilarity       ( judge ); }
+			if ( attractionCriterion === ATTRACTION_SIMILAR_HYPER   ) { attractiveness =        this.getHypernessSimilarity     ( judge ); }
+			if ( attractionCriterion === ATTRACTION_SIMILAR_LENGTH  ) { attractiveness =        this.getLengthSimilarity        ( judge ); }
+			if ( attractionCriterion === ATTRACTION_SIMILAR_STRAIGHT) { attractiveness =        this.getStraightessSimilarity   ( judge ); }
+		
+			if ( attractionCriterion === ATTRACTION_CLOSEST         ) { attractiveness =        this.getCloseness               ( judge ); }
+			if ( attractionCriterion === ATTRACTION_RANDOM          ) { attractiveness =        gpRandom(); }
+		}
+		    
         return attractiveness;
     }
 
@@ -2143,6 +2143,11 @@ console.log( "contributeToOffspring: _childEnergyRatio = " + _childEnergyRatio )
 	//-------------------------------------
 	this.render = function( levelOfDetail )
 	{
+		if ( _uttering )
+		{	
+			_swimbotRenderer.showUttering( _phenotype.utterEnergy );
+		}
+		
 	    _swimbotRenderer.render
 	    ( 
 	        _phenotype, 

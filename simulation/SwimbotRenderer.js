@@ -36,8 +36,7 @@ var    flopperYV = 0;
     //  effects 
     //---------------------------------
     const DEFAULT_SPLINE_FACTOR = 0.4;
-    const UTTER_EFFECT_DURATION = 20;
-    const UTTER_EFFECT_SIZE 	= 50;
+    const UTTER_EFFECT_SIZE 	= 70;
     const EGG_SIZE = 5.0;
 
 	//--------------------------------
@@ -51,7 +50,8 @@ var    flopperYV = 0;
 	let _age            = 1000;
 	let _energy         = ZERO;
 	let _splineFactor   = ZERO;
-	let _utterClock 	= 0;
+	let _showUttering	= false;
+	let _utteringEnergy	= ZERO;
 	let _renderingGenitalsAndMouths = false;
 
 	//----------------------------------------------------
@@ -77,12 +77,12 @@ var    flopperYV = 0;
     }
 
 	//-------------------------------------------
-	// set utterance
+	// set uttering
 	//-------------------------------------------
-	this.showUtterance = function()
+	this.showUttering = function( energy )
 	{	
-		_utterClock = UTTER_EFFECT_DURATION;
-	    //console.log( "show" );
+		_utteringEnergy = energy;
+		_showUttering = true;
     }
     
 	//-----------------------
@@ -106,13 +106,11 @@ var    flopperYV = 0;
     	_growthScale    = growthScale;
     	_focusDirection = focusDirection;
     	
-		if ( _utterClock > 0 )
+		if ( _showUttering )
 		{
 		    let p = 1;
 			
-			let radius = UTTER_EFFECT_SIZE - 5.0 * Math.random();
-
-			_utterClock --;
+			let radius = _utteringEnergy * UTTER_EFFECT_SIZE - 5.0 * Math.random();
 
 			canvas.fillStyle = "rgba( 100, 100, 200, 0.2 )";	
             canvas.beginPath();
@@ -125,7 +123,9 @@ var    flopperYV = 0;
             canvas.beginPath();
             canvas.arc( _phenotype.parts[p].position.x, _phenotype.parts[p].position.y, radius, 0, PI2, false );
             canvas.stroke();
-            canvas.closePath();	    	
+            canvas.closePath();	  
+            
+            _showUttering = false;  //reset for next time...
 		}
         
 		if ( levelOfDetail == SWIMBOT_LEVEL_OF_DETAIL_DOT )

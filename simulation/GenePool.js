@@ -88,7 +88,7 @@ function gpRandom()
 
 
 // this needs to be the same as the corresponding value in Embryology.js !!!!
-const NUM_GENES_USED = 112;
+//const NUM_GENES_USED = 113;
 
 //---------------------------------------------------------------
 // The global tweakers are all adjustable through the UI.
@@ -139,6 +139,8 @@ function GenePool()
 	let _swimbots 		        = new Array( Swimbot ); 
 	let _foodBits		        = new Array( MAX_FOODBITS );
     let _nearbySwimbotsArray    = new Array( BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS );
+    let _markedForUtteringSound = new Array( MAX_SWIMBOTS ); 
+
 	let _viewTracking		    = new ViewTracking();
     let _potentialMate          = new Swimbot();
 	let _chosenFoodBit          = new FoodBit();
@@ -199,6 +201,7 @@ function GenePool()
 	{
 		_swimbots[s] = new Swimbot(); 
 		_swimbots[s].setParent(this);
+		_markedForUtteringSound[s] = false;
 	}	
     
 	//---------------------------------------------------------
@@ -277,6 +280,11 @@ function GenePool()
 		this.timer = setTimeout( "genePool.update()", _millisecondsPerUpdate );	
 	}
 	
+	//---------------------------------------
+	this.setDoneUtteringSound = function( id )
+	{	
+		//_swimbots[ id ].setDoneUtteringSound(); 
+	}	
 	
 	//------------------------------------------
 	this.startSimulation = function( mode )
@@ -607,10 +615,16 @@ if ( mode === SimulationStartMode.SPECIES )
                 _myGenotype.randomize();
             }
 
-            //--------------------------------------------------
+
+            //-------------------------------------------------------------------
             // This sets all junk DNA to a value of 0!!!
-            //--------------------------------------------------
-            for (let g=NUM_GENES_USED; g<NUM_GENES; g++)
+            // 
+            // *********
+            // It seems this has to be done here, before _swimbots[i].create. 
+            // I don't know why. I'll look into this. It may have to do 
+            // with an initial calculation of genetic differences
+            //-------------------------------------------------------------------
+            for (let g=_embryology.getNumGenesUsed(); g<NUM_GENES; g++)
             {
                 _myGenotype.setGeneValue( g, 0 );
             }            
@@ -640,7 +654,7 @@ if ( mode === SimulationStartMode.SPECIES )
             // create the swimbot
             //--------------------------------------------------
             _swimbots[i].create( i, initialAge, initialPosition, initialAngle, initialEnergy, _myGenotype, _embryology );	
-            
+
             //------------------------------------------------------------------------------------
             // add the new swimbot to the family tree
             //------------------------------------------------------------------------------------
@@ -1171,29 +1185,86 @@ if ( mode === SimulationStartMode.SPECIES )
                 if ( _swimbots[s].getIsTryingToEat() )
                 {
                     let eatenFoodBit = _swimbots[s].eatChosenFoodBit();
+
+        	        //------------------------------
+    	            // a sound might be generated.
+	                //------------------------------
                     let isInView = ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ));
-                    _sound.considerSoundEvent( SOUND_EVENT_TYPE_EAT, _swimbots[s], isInView );
+                    _sound.considerSoundEvent
+                    ( 
+                    	SOUND_EVENT_TYPE_EAT, 
+                    	_swimbots[s].getPosition(), 
+                    	1,
+                    	1,
+                    	s, 
+                    	isInView, 
+                    	this 
+                    );
                 }
                 
-                //--------------------------------------
-                // are we supposed to make an utterance?
-                //--------------------------------------
-                if ( _swimbots[s].getMarkedForUttering() )
+                /*
+                //-----------------------------------------------
+                // are we supposed to make an uttering sound?
+                //-----------------------------------------------
+                if ( _swimbots[s].getMarkedForUtteringSound() )
                 {
-                  _swimbots[s].unMarkForUttering();
-                  _swimbots[s].setStartUttering(); // sets _uttering to true
-	               let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                  _sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s], isInView ); // will eventually set _uttering to false
+        	    	//------------------------------
+    	            // a sound might be generated.
+	                //------------------------------
+                	_swimbots[s].unMarkForUtteringSound();
+	            	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+                	_sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s].getPosition(), s, isInView, this ); // will eventually set _uttering to false
                 }
-                
+                */
+
+                //-----------------------------------------------
+                // Should we trigger an uttering sound?
+                //-----------------------------------------------
+				if ( _swimbots[s].getIsUttering() )
+				{
+					if ( ! _markedForUtteringSound[s] )
+					{
+						_markedForUtteringSound[s] = true;
+						
+		            	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+    	            	_sound.considerSoundEvent
+    	            	( 
+    	            		SOUND_EVENT_TYPE_UTTER, 
+    	            		_swimbots[s].getPosition(), 
+    	            		_swimbots[s].getUtterDuration(), 
+    	            		_swimbots[s].getUtterEnergy(), 
+    	            		s, 
+    	            		isInView,
+    	            		this 
+    	            	);
+					}
+				}
+				else
+				{
+					_markedForUtteringSound[s] = false;
+				}
+				
                 //-------------------------------------
                 // dying
                 //-------------------------------------
                 if ( _swimbots[s].getMarkedForDeath() )
 				{
-					 _swimbots[s].die();
-	             let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-				    _sound.considerSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[s], isInView );
+        	        //------------------------------
+    	            // a sound might be generated.
+	                //------------------------------
+	             	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+				    _sound.considerSoundEvent
+				    ( 
+				    	SOUND_EVENT_TYPE_DEATH, 
+				    	_swimbots[s].getPosition(), 
+				    	1, 
+				    	1,
+				    	s, 
+				    	isInView,
+				    	this 
+				    );
+
+					_swimbots[s].die();
         	    }
                 
                 //----------------------------------------
@@ -1271,10 +1342,31 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                                 // create the child swimbot
                                 //--------------------------------------------
                                 let initialAngle = getRandomAngleInDegrees();                                                        
-                                _swimbots[ newBornSwimbotIndex ].create( newBornSwimbotIndex, 0, _vectorUtility, initialAngle, energyToOffspring, _childGenotype, _embryology )
- 
-								        let isInView = _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() );
-				                    _sound.considerSoundEvent( SOUND_EVENT_TYPE_BIRTH, _swimbots[newBornSwimbotIndex], isInView);
+                                _swimbots[ newBornSwimbotIndex ].create
+                                ( 
+                                	newBornSwimbotIndex, 
+                                	0, 
+                                	_vectorUtility, 
+                                	initialAngle, 
+                                	energyToOffspring, 
+                                	_childGenotype, 
+                                	_embryology 
+                                );
+                                	
+			        	        //------------------------------
+    	    			        // a sound might be generated.
+	                			//------------------------------
+						        let isInView = _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() );
+				                _sound.considerSoundEvent
+				                ( 
+				                	SOUND_EVENT_TYPE_BIRTH, 
+				                	_swimbots[s].getPosition(), 
+				                	1,
+				                	1,
+				                	newBornSwimbotIndex, 
+				                	isInView, 
+				                	this 
+				                );
 
                                 //--------------------------------------------------
                                 // add the new swimbot to the family tree
@@ -1349,7 +1441,7 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
 	{		
 	    let diff = ZERO;
 	    let num = 0;
-        for (let g=NUM_GENES_USED; g<NUM_GENES; g++)
+        for (let g=_embryology.getNumGenesUsed(); g<NUM_GENES; g++)
         {
             diff += Math.abs( genotype1.getGeneValue(g) - genotype2.getGeneValue(g) ) / BYTE_SIZE;
             num ++;
@@ -1366,7 +1458,7 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
     //-----------------------------------
 	this.generatePhyloTree = function()
 	{		
-	    let numJunkGenes = NUM_GENES - NUM_GENES_USED;
+	    let numJunkGenes = NUM_GENES - _embryology.getNumGenesUsed();
 	    _phyloTree.initialize( numJunkGenes );
 	
         for (let s=0; s<MAX_SWIMBOTS; s++)
@@ -2400,7 +2492,16 @@ if ( globalTweakers.numFoodTypes === 2 )
         _swimbots[ ID ].die();
 
 		  let isInView = _camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() );
-        _sound.considerSoundEvent( SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ], isInView );
+        _sound.considerSoundEvent
+        ( 
+        	SOUND_EVENT_TYPE_DEATH, 
+        	_swimbots[s].getPosition(), 
+        	1,
+        	1,
+        	ID, 
+        	isInView, 
+        	this 
+        );
         
         //------------------------------
         // add a pool effect....
@@ -3539,7 +3640,7 @@ for (let g=0; g<NUM_GENES; g++)
     this.getSwimbotAttractionDescription    = function( ID ) {	return _swimbots[ ID ].getAttractionDescription     (); }
     this.getSwimbotPreferredFoodType        = function( ID ) {	return _swimbots[ ID ].getPreferredFoodType         (); }
     this.getSwimbotDigestibleFoodType       = function( ID ) {	return _swimbots[ ID ].getDigestibleFoodType        (); }
-    this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
+//this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
 
     
     // this is now being initialized from the index.html...
