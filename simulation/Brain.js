@@ -39,6 +39,7 @@ const BRAIN_FOCUS_TARGET_SHIFT_THRESHOLD    = 0.07;
 const BRAIN_WANDER_AMOUNT					= 0.2;
 //const BRAIN_WALL_BOUNCE_SHIFT_AMOUNT	    = 0.1;
 
+//const UTTER_FREQUENCY = 1000;
 
 //----------------------------------------
 // Brain!
@@ -50,12 +51,16 @@ function Brain()
 	let _foundFoodBit           = false;
 	let _foundSwimbot           = false;
 	let _hungerThreshold        = ZERO;
+	//let _uttering				= false;
+	//let _utterPeriod			= 0;
+	//let _clock					= 0;
 	let _attractionCriterion    = ATTRACTION_SIMILAR_COLOR;
 	
 	
-    //-----------------------------
-    this.initialize = function()
+    //----------------------------------
+    this.initialize = function( clock )
     {
+    	//_clock = clock;
 	    _state = BRAIN_STATE_NULL;
 	    
 	    /*
@@ -70,6 +75,8 @@ function Brain()
     //-----------------------
     this.update = function()
     {   
+    	//_clock ++;
+    
         //----------------------------------------------------------------------
         // if low energy, look for food, otherwise, look for sex
         //----------------------------------------------------------------------
@@ -130,7 +137,15 @@ function Brain()
                 _state = BRAIN_STATE_LOOKING_FOR_MATE;
             }
         }
-
+        
+        //-----------------------------------
+        // periodically start an utterance...
+        //-----------------------------------
+        //if ( _clock % UTTER_FREQUENCY === 0 )
+        //{
+            //_uttering = true;
+        //}	
+        
         //-----------------------------------------------------------------
         //  check for bogus brain state 
         //-----------------------------------------------------------------
@@ -144,7 +159,21 @@ function Brain()
     this.setEnergyLevel     = function(e) { _energy              = e; }   
     this.setHungerThreshold = function(h) { _hungerThreshold     = h; }		
     this.setFoundFoodBit    = function(f) { _foundFoodBit        = f; }
-    this.setFoundSwimbot    = function(f) { _foundSwimbot        = f; }		
+    this.setFoundSwimbot    = function(f) { _foundSwimbot        = f; }	
+    
+    /*
+    //---------------------------------
+    this.setIsUttering = function(u) 
+    { 
+    	_uttering = u; 
+    }		
+
+    //---------------------------------
+    this.getIsUttering = function() 
+    { 
+    	return _uttering; 
+    }		
+    */
 
     //--------------------------------
     this.setAttraction = function(a) 

@@ -755,13 +755,11 @@ _position.copyFrom( position );
 	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
 	this.getUtterEnergy 	= function() { return _phenotype.utterEnergy; 	}
 	
-	/*
     //---------------------------------------
 	this.setDoneUtteringSound = function()
 	{
 		_uttering = false;
 	}
-	*/
 	
 	//--------------------------------
 	// update
@@ -794,13 +792,23 @@ _position.copyFrom( position );
             _uttering = true;
         }	
         
+        // the Sound.js system determines when uttering stops
+        /*
         if ( _age % _phenotype.utterPeriod === _phenotype.utterDuration )
         {
             //console.log( "swimbot " + _index + " ready to utter!" );
             //_markedForUtteringSound = true;
-            _uttering = false;
+			_uttering = false;
         }	
-
+        */
+        
+        /*
+        if ( _uttering ) 
+        {
+        	_energy -= _phenotype.utterEnergy * ENERGY_USED_UP_UTTERING;
+		}
+		*/
+		
         //-------------------------------------
         // I wanna eat my chosen food bit...
         //-------------------------------------
@@ -1596,22 +1604,20 @@ let partAccelerationY = -strokeForceY;
 	//-----------------------------------------
 	this.getAttractiveness = function( judge )
 	{
-        let attractiveness = gpRandom();
+        let attractiveness = ZERO;
 
 		if ( PROTOTYPING_SOUND )
 		{
 			if ( _uttering )
 			{
 				//console.log( "yes - uttering" );
-				attractiveness = 1.0;
-			}
-			else
-			{
-				//console.log( "NO" );
+				attractiveness = _phenotype.utterEnergy;
 			}
 		}
 		else
 		{
+			attractiveness = gpRandom();
+		
 			let attractionCriterion = _brain.getAttractionCriterion();
 		
 			//console.log( "attractionCriterion = " + attractionCriterion );

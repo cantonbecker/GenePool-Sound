@@ -120,6 +120,7 @@ const WALL_BOUNCE = 0.1;
 //  energy 
 //---------------------------------------------------
 const ENERGY_USED_UP_SWIMMING				= 0.01;
+const ENERGY_USED_UP_UTTERING				= 0.01;
 const STARVING								= 4.0;
 const CONTINUAL_ENERGY_DRAIN				= 0.0001;
 
