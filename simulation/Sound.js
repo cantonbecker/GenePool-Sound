@@ -299,7 +299,7 @@ function Sound()
 		
 	function generateUtteranceSequence(id, durationMs) {
 		// create a deterministic RNG seeded by id and durationMs
-		const rng = aleaPRNG(id.toString());
+		const rng = aleaPRNG(id.toString()); // this substitutes for actually looking at genes
 		
 		// pick initial IOI‐state and interval‐state “randomly” but reproducibly
 		let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
