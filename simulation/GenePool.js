@@ -2455,7 +2455,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 
         // if we die within view, let's hear it
 		  if (_camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() )) {
-          _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[s].getPosition(), ID);
+          _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ].getPosition(), ID);
         }
         
         //------------------------------
