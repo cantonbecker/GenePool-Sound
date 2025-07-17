@@ -298,6 +298,8 @@ let testNoEel = true;
 		  const rng = aleaPRNG(_normalizedGenes.toString()); // initialize the random number generator with the entire genetic sequence
 		  const utterSequenceLength = phenotype.utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 
+        let sequenceTime = 0; // keep track of our timeline for composing (in ms)
+
         const sequenceData = [];
         // sequenceData will hold our generated sequence, something like this:
         /* 
@@ -312,10 +314,10 @@ let testNoEel = true;
         let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 
         // is our swimbot a baritone or a soprano?
-        let octaveNoteShift = 24 + (12 * (Math.floor(rng() * 3)));  // our song will be 2, 3, or 4 octaves above the MIDI base note
+        let octaveNoteShift = 32 + (12 * (Math.floor(rng() * 3)));  // octaves above the MIDI base note
 
         // how much mod wheel wiggling should there be between notes? (Increase the exponent to further weigh towards zero)
-        let chanceOfModulation = rng() ** 3;
+        let chanceOfModulation = rng() ** 4;
 
         // Markov Chain time! Pick initial Interval State (note)
         let lastInt = Math.floor(rng() * MIDI_NOTE_INTERVALS.length); // pick starting interval
@@ -324,16 +326,45 @@ let testNoEel = true;
         let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
         if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
         
-        // initialize mod CC with a random value at time 0
-        let initialModVal = Math.floor((rng() ** 3) * 128); // 0-127, weighed towards lower end        
+
+        // program synth (CC 18) with a random value
+        sequenceTime += 10; // add 10ms
         sequenceData.push({
-            delay: 0,  // in ms
+            delay: sequenceTime,
             type: 'cc',
-            cc: 1,
-            value: initialModVal
+            cc: 18,
+            value: Math.floor(rng() * 127) // 0-127, equal weight
         });
         
-        let sequenceTime = 10; // first note to happen 10ms after we set the initial mod CC
+        
+        // program synth (CC 19) with a random value
+        sequenceTime += 10; // add 10ms
+        sequenceData.push({
+            delay: sequenceTime,
+            type: 'cc',
+            cc: 19,
+            value: 20 + Math.floor((rng() ** 2) * 64) // 0-64, weighed towards lower end
+        });
+
+        // program synth (CC 20) with a random value
+        sequenceTime += 10; // add 10ms
+        sequenceData.push({
+            delay: sequenceTime,
+            type: 'cc',
+            cc: 20,
+            value: Math.floor((rng() ** 2) * 64) // 0-64, weighed towards lower end
+        });
+        
+        // initialize mod CC (1) with a random value
+        sequenceTime += 10; // add 10ms
+        sequenceData.push({
+            delay: sequenceTime,
+            type: 'cc',
+            cc: 1,
+            value: Math.floor((rng() ** 3) * 128) // 0-127, weighed towards lower end
+        });
+        
+        sequenceTime += 10; // wait 10ms before composing main utterance
         while (sequenceTime < utterSequenceLength) {
             // pick next inter-onset interval
             let p = rng(), cumulativeProb = 0, nextIOI;

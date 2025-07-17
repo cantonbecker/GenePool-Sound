@@ -13,8 +13,8 @@
 
 "use strict";
 
-const SOUND_UPDATE_PERIOD =  15; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
-var APPROX_MS_PER_CLOCK = 30; 		// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
+const SOUND_UPDATE_PERIOD =  30; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
+var APPROX_MS_PER_CLOCK = 20; 		// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 
 const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
@@ -27,13 +27,12 @@ const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
 
-// we will round robin through the utter midi channels
-const MIDI_CHANNEL_UTTER_START = 8;
-const MIDI_CHANNEL_UTTER_END = 9;
-var MIDI_CHANNEL_UTTER_LAST = 0;
+const MIDI_CHANNEL_UTTER_START = 8; // first MIDI channel to round robin through
+const MIDI_CHANNEL_UTTER_END = 12; // last MIDI channel to round robin through
+var MIDI_CHANNEL_UTTER_LAST = 0; // remembers which channel we last used
 
 const MIDI_CHANNEL_GLOBAL = 16;
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000;
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 3000 / (MIDI_CHANNEL_UTTER_END - MIDI_CHANNEL_UTTER_START);
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -54,10 +53,10 @@ const IOI_DURATION_PROBABILITY_MATRIX = [
   [0.1, 0.6,  0.3 ]	// currently long? chances of switching short | switching medium | staying long
 ];
 // Pentatonic
-const MIDI_NOTE_INTERVALS = [-10, -8, -5, -3, 0, +2, +4, +7, +9];
+// const MIDI_NOTE_INTERVALS = [-10, -8, -5, -3, 0, +2, +4, +7, +9];
 
 // Minor pentatonic
-// const MIDI_NOTE_INTERVALS = [-9, -7, -5, -2, 0, +3, +5, +7, +10];
+const MIDI_NOTE_INTERVALS = [-9, -7, -5, -2, 0, +3, +5, +7, +10];
 
 // Whole-tone
 // const MIDI_NOTE_INTERVALS = [-10, -8, -6, -4, 0, +2, +4, +6, +8];
@@ -243,7 +242,6 @@ function Sound()
 					if (playAudio) sendCC(step.cc, step.value, midiChannel);
 				} else if (step.type === 'done') { // always do this, even if we're not playing audio	
 					callerFunction.setDoneUtteringSound( utterVariablesObj.swimbotID );						
-					if (playAudio) console.log ('*** Ended MIDI utterance for swimbot ' + utterVariablesObj.swimbotID + ' ***');
 				}
 			}, step.delay);
 		}
