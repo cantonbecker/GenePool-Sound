@@ -81,6 +81,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
 ];
 */
 
+// bell-curveish around the middle note
 const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
   /* from -5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
   /* from -3 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
