@@ -233,8 +233,6 @@ function Sound()
 			console.log(utterVariablesObj.utterSequence);
 		}
 		
-playAudio = false;
-
 
 		// now walk through the utter MIDI sequence
 		for (const step of utterVariablesObj.utterSequence) {		
