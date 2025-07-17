@@ -196,6 +196,7 @@ function Phenotype()
 	this.utterLowNote		   = 0; // lowest pitch performed
 	this.utterNoteCount		= 0; // how many individual notes?
 	this.utterModCount		= 0; // how many control events (e.g. modwheel spinnings)?
+	this.utterSequence		= []; // this will store our swimbot's MIDI sequence when it is generated at birth
 	
 	for (let p=0; p<MAX_PARTS; p++)
 	{

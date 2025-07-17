@@ -270,15 +270,143 @@ let testNoEel = true;
         {
             phenotype.digestibleFoodType = Math.floor( _normalizedGenes[g] * 2 );     
         }   
+
+        //-----------------------------------------------------------------------------------------
+        // add genes for utterance:
+        //
+        //  
+        // 
+        //-----------------------------------------------------------------------------------------
         
         g++;  
         _geneNames[g] = "utter period";
         phenotype.utterPeriod = MIN_UTTER_PERIOD + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_PERIOD - MIN_UTTER_PERIOD ) );     
         // phenotype.utterPeriod = 300;
+        
         g++;  
         _geneNames[g] = "utter duration";        
-		phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
+		  phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
         // phenotype.utterDuration = 5;
+        
+
+        //------------------------------------------------------------------------------------------------
+        // *** generate the markov-chained utterance sequence ***
+        // when a swimbot is born, its unique and individual life-long MIDI "song" is composed
+        // and its utterance-related phenotypes (utterHighNote, utterNoteCount, etc.) are determined ...
+        //------------------------------------------------------------------------------------------------
+        
+		  const rng = aleaPRNG(_normalizedGenes.toString()); // initialize the random number generator with the entire genetic sequence
+		  const utterSequenceLength = phenotype.utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
+
+        const sequenceData = [];
+        // sequenceData will hold our generated sequence, something like this:
+        /* 
+            [
+                { delay: 0, type: 'note', note: 44, velocity: 127, duration: 1000 },
+                { delay: 500, type: 'cc', cc: 1, value: 96 },
+                { delay: 1000, type: 'done' }
+            ];
+        */
+
+        // these vars will keep a record of the phenotypical attributes of our new MIDI sequence
+        let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
+
+        // is our swimbot a baritone or a soprano?
+        let octaveNoteShift = 24 + (12 * (Math.floor(rng() * 3)));  // our song will be 2, 3, or 4 octaves above the MIDI base note
+
+        // how much mod wheel wiggling should there be between notes? (Increase the exponent to further weigh towards zero)
+        let chanceOfModulation = rng() ** 3;
+
+        // Markov Chain time! Pick initial Interval State (note)
+        let lastInt = Math.floor(rng() * MIDI_NOTE_INTERVALS.length); // pick starting interval
+
+        // Now pick the initial Inter-Onset Interval (duration)
+        let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
+        if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
+        
+        // initialize mod CC with a random value at time 0
+        let initialModVal = Math.floor((rng() ** 3) * 128); // 0-127, weighed towards lower end        
+        sequenceData.push({
+            delay: 0,  // in ms
+            type: 'cc',
+            cc: 1,
+            value: initialModVal
+        });
+        
+        let sequenceTime = 10; // first note to happen 10ms after we set the initial mod CC
+        while (sequenceTime < utterSequenceLength) {
+            // pick next inter-onset interval
+            let p = rng(), cumulativeProb = 0, nextIOI;
+            for (let i = 0; i < SEQUENCE_DURATION_STATES.length; i++) {
+                cumulativeProb += IOI_DURATION_PROBABILITY_MATRIX[lastIOI][i];
+                if (p < cumulativeProb) { nextIOI = i; break; }
+            }
+            // fallback if rounding/FP left nextIOI undefined
+            if (nextIOI === undefined) nextIOI = SEQUENCE_DURATION_STATES.length - 1;
+        
+            const band = SEQUENCE_DURATION_STATES[nextIOI];
+            const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
+        
+            // stretch durations to 100–200% of the gap, with a floor of 50ms
+            const thisNoteDuration = Math.max( Math.round(interOnsetIntervalMs * (1 + rng() * 1)), 50 );
+        
+            // ——— pick next interval state ———
+            p = rng(); cumulativeProb = 0; let nextIntState;
+            for (let i = 0; i < MIDI_NOTE_INTERVALS.length; i++) {
+                cumulativeProb += IOI_MIDI_NOTE_PROBABILITY_MATRIX[lastInt][i];
+                if (p < cumulativeProb) { nextIntState = i; break; }
+            }
+            if (nextIntState === undefined) nextIntState = MIDI_NOTE_INTERVALS.length - 1;
+            const thisNoteShift = MIDI_NOTE_INTERVALS[nextIntState];
+            let thisNoteNumber = MIDI_BASE_NOTE + octaveNoteShift + thisNoteShift;
+            
+            // remember some phenotypical info
+            if (thisNoteNumber > recordHighNote) recordHighNote = thisNoteNumber; // we hit our highest note yet
+            if (thisNoteNumber < recordLowNote) recordLowNote = thisNoteNumber; // we hit our lowest note yet
+            if (!recordNotesUsed.includes(thisNoteNumber)) recordNotesUsed.push(thisNoteNumber); // we used a new note
+        
+            // ——— emit note event ———
+            sequenceData.push({
+                delay:    sequenceTime,  // in ms
+                type:     'note',
+                note:     thisNoteNumber,
+                velocity: 80 + Math.round(rng() * 40),
+                duration: thisNoteDuration
+            });
+            recordNoteCount ++;
+            
+            // push in random MIDI mod expressions
+            if (rng() < chanceOfModulation) {
+                let modVal = Math.floor(rng()*128); // equal weighted random 0-127
+                sequenceData.push({
+                    delay: sequenceTime + 10,  // in ms
+                    type: 'cc',
+                    cc: 1,
+                    value: modVal
+                });
+                recordModCount ++;
+            }
+        
+            // advance time & states
+            sequenceTime += interOnsetIntervalMs;
+            lastIOI = nextIOI;
+            lastInt = nextIntState;
+        } // end while sequenceTime < utterSequenceLength
+        
+        // insert final 'done' event. This is important because even when a swimbot is uttering out of camera view
+        // (when it's silent to our ears) we use 'done' to schedule the end of the utterance period.
+        sequenceData.push({ delay: sequenceTime, type: 'done' });
+        
+        // store all our utterance and sequence-related phenotype data
+        phenotype.utterNoteSpan = recordNotesUsed.length; // how many different pitches did we use?
+        phenotype.utterHighNote = recordHighNote; // highest pitch performed
+        phenotype.utterLowNote = recordLowNote; // lowest pitch performed
+        phenotype.utterNoteCount = recordNoteCount; // how many individual notes?
+        phenotype.utterModCount = recordModCount; // how many control events (e.g. modwheel spinnings)?
+        phenotype.utterSequence = sequenceData;
+
+        console.log('*** A SWIMBOT IS BORN! ***', phenotype);
+
 		/*
         g++;  
 		_geneNames[g] = "utter energy";        
@@ -352,8 +480,10 @@ testNoEel = true;
 //console.log( "--------------");
         this.generateBodySequence( phenotype, _partIndex, ZERO, startCategory, ONE );  
 testNoEel = false;  
-
-
+    
+    
+    
+    
         //----------------------------------------------
         // generate the rest of the body...
         //----------------------------------------------

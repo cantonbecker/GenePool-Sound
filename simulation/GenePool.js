@@ -1186,71 +1186,40 @@ if ( mode === SimulationStartMode.SPECIES )
                 {
                     let eatenFoodBit = _swimbots[s].eatChosenFoodBit();
 
-        	       //------------------------------
-    	          // a sound might be generated. if this results in a new sonic phenotype, we'll return it as a JS object literal like this:
-                //  {
-                //    utterNoteSpan: 8,
-                //    utterHighNote: 55,
-                //    utterLowNote: 40,
-                //    utterNoteCount: 20,
-                //    utterModCount: 3
-                // }
-	             //------------------------------
-                    let isInView = ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ));
-                    _sound.considerSoundEvent
-                    ( 
-                    	SOUND_EVENT_TYPE_EAT, 
-                    	_swimbots[s].getPosition(), 
-                    	1,
-                    	s, 
-                    	isInView, 
-                    	this 
-                    );                    
-                }
+                    // if the swimbot is eating within view, let's hear it!
+                    if (_camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
+                        _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_EAT, _swimbots[s].getPosition(), s);
+                    }                   
+                } // end eating
                 
-                /*
-                //-----------------------------------------------
-                // are we supposed to make an uttering sound?
-                //-----------------------------------------------
-                if ( _swimbots[s].getMarkedForUtteringSound() )
-                {
-        	    	//------------------------------
-    	            // a sound might be generated.
-	                //------------------------------
-                	_swimbots[s].unMarkForUtteringSound();
-	            	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                	_sound.considerSoundEvent( SOUND_EVENT_TYPE_UTTER, _swimbots[s].getPosition(), s, isInView, this ); // will eventually set _uttering to false
-                }
-                */
-
-            //-------------------------------------------------------------
-            // *** TIME TO UTTER!!!*** Should we trigger an uttering sound?
-            //-------------------------------------------------------------
+                
+            //-----------------------------
+            // *** IS IT TIME TO UTTER? ***
+            //-----------------------------
 				if ( _swimbots[s].getIsUttering() )
 				{
-					if ( ! _markedForUtteringSound[s] )
-					{
-						_markedForUtteringSound[s] = true;
-						
-		            	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                     // we can retrieve a utterancePhenotype object from considerSoundEvent()
-    	            	let utterancePhenotype = _sound.considerSoundEvent
-    	            	( 
-    	            		SOUND_EVENT_TYPE_UTTER, 
-    	            		_swimbots[s].getPosition(), 
-    	            		_swimbots[s].getUtterDuration(), 
-    	            		s, 
-    	            		isInView,
-    	            		this 
-    	            	);
-
-                    if (utterancePhenotype) { // if we got one back, set it
-                        // set swimbot's .utterHighNote etc. properties
-                        _swimbots[s].setUtterancePhenotype(utterancePhenotype);
-                    }
-                        
-                        
-					}
+                if ( ! _markedForUtteringSound[s] )
+                {
+                    _markedForUtteringSound[s] = true;
+                    let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+                    
+                    let utterVariablesObj = {
+                        swimbotID:          s,
+                        swimbotInView:      isInView,
+                        swimbotPosition:    _swimbots[s].getPosition(),
+                        utterDuration:      _swimbots[s].getUtterDuration(),
+                        utterNoteSpan:      _swimbots[s].getUtterNoteSpan(),
+                        utterHighNote:      _swimbots[s].getUtterHighNote(),
+                        utterLowNote:       _swimbots[s].getUtterLowNote(),
+                        utterNoteCount:     _swimbots[s].getUtterNoteCount(),
+                        utterModCount:      _swimbots[s].getUtterModCount(),
+                        utterSequence:      _swimbots[s].getUtterSequence(),
+                    };
+                
+                    // actually send out the MIDI for the utterance, or, at least, schedule when to stop uttering 
+                    _sound.doUtterance (utterVariablesObj, this);
+                                
+                }
 				}
 				else
 				{
@@ -1261,23 +1230,14 @@ if ( mode === SimulationStartMode.SPECIES )
                 // dying
                 //-------------------------------------
                 if ( _swimbots[s].getMarkedForDeath() )
-				{
-        	        //------------------------------
-    	            // a sound might be generated.
-	                //------------------------------
-	             	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-				    _sound.considerSoundEvent
-				    ( 
-				    	SOUND_EVENT_TYPE_DEATH, 
-				    	_swimbots[s].getPosition(), 
-				    	1, 
-				    	s, 
-				    	isInView,
-				    	this 
-				    );
-
-					_swimbots[s].die();
-        	    }
+                {
+                    // if we're dying within view, let's hear it
+                    if( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
+                        _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[s].getPosition(), s);
+                    }
+                    
+                    _swimbots[s].die();
+                }
                 
                 //----------------------------------------
                 // giving birth to a new swimbot
@@ -1365,20 +1325,11 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                                 	_embryology 
                                 );
                                 	
-			        	        //------------------------------
-    	    			        // a sound might be generated.
-	                			//------------------------------
-						        let isInView = _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() );
-				                _sound.considerSoundEvent
-				                ( 
-				                	SOUND_EVENT_TYPE_BIRTH, 
-				                	_swimbots[s].getPosition(), 
-				                	1,
-				                	newBornSwimbotIndex, 
-				                	isInView, 
-				                	this 
-				                );
-
+                                // If we're born within view, let's hear it
+                                if ( _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() )) {
+                                    _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_BIRTH, _swimbots[ newBornSwimbotIndex ].getPosition(), s);
+                                }
+                            
                                 //--------------------------------------------------
                                 // add the new swimbot to the family tree
                                 //--------------------------------------------------
@@ -2502,16 +2453,10 @@ if ( globalTweakers.numFoodTypes === 2 )
         //------------------------------
         _swimbots[ ID ].die();
 
-		  let isInView = _camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() );
-        _sound.considerSoundEvent
-        ( 
-        	SOUND_EVENT_TYPE_DEATH, 
-        	_swimbots[s].getPosition(), 
-        	1,
-        	ID, 
-        	isInView, 
-        	this 
-        );
+        // if we die within view, let's hear it
+		  if (_camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() )) {
+          _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[s].getPosition(), ID);
+        }
         
         //------------------------------
         // add a pool effect....

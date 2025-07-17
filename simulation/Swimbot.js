@@ -732,41 +732,12 @@ _position.copyFrom( position );
 		return _markedForDeath;
 	}
 
-
-	/*
-    //--------------------------------
-    // Is this swimbot ready to utter? 
-    //--------------------------------
-	this.getMarkedForUtteringSound = function()
-	{
-		return _markedForUtteringSound;
-	}
-
-	this.unMarkForUtteringSound = function()
-	{
-		_markedForUtteringSound = false;
-	}
-	*/
 	
     //------------------------------------------------------------------------
     // utterance attributes...
     //------------------------------------------------------------------------
 	this.getIsUttering 		= function() { return _uttering; 				}
 	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
-
-    // send this a JS object literal like { utterNoteSpan: 8, utterHighNote: 55 ... }
-    this.setUtterancePhenotype  = function (utterancePhenotype) {
-        // console.log('Received utterancePhenotype of ', utterancePhenotype);
-        _phenotype.utterNoteSpan = utterancePhenotype.utterNoteSpan;
-        _phenotype.utterHighNote = utterancePhenotype.utterHighNote;
-        _phenotype.utterLowNote = utterancePhenotype.utterLowNote;
-        _phenotype.utterNoteCount = utterancePhenotype.utterNoteCount;
-        _phenotype.utterModCount = utterancePhenotype.utterModCount; 
-    }
-
-
-
-
 
 
 
@@ -1352,31 +1323,37 @@ let partAccelerationY = -strokeForceY;
 	//--------------------------------------------------------------------------------------------------------
 	// get functions
 	//--------------------------------------------------------------------------------------------------------
-	this.getIsTryingToEat               = function() { return _tryingToEat;                                 }
-	this.getIsTryingToMate              = function() { return _tryingToMate;                                }
-	this.getIndex                       = function() { return _index;                                       }
-	this.getAge                         = function() { return _age;                                         }
-	this.getAlive                       = function() { return _alive;                                       }
-	this.getEnergy                      = function() { return _energy;                                      }
-	this.getAngle                       = function() { return _angle;                                       }
-	this.getEnergyEfficiency            = function() { return _energyEfficiency;                            }
-	this.getPosition                    = function() { return _position;                                    }
-	this.getBoundingRadius              = function() { return _phenotype.sumPartLengths;                    }
-	this.getNumParts                    = function() { return _phenotype.numParts;                          }
-	this.getIsLookingForSensoryInput    = function() { return _readyforSensoryInputToBrain;                 }
-	this.getGenitalPosition             = function() { return _phenotype.parts[ GENITAL_INDEX ].position;   }
-	this.getMouthPosition               = function() { return _phenotype.parts[ MOUTH_INDEX   ].position;   }
-	this.getChosenMateIndex             = function() { return _chosenMateIndex;                             }
-	this.getChosenFoodBitIndex          = function() { return _chosenFoodBitIndex;                          }
-	this.getNumOffspring                = function() { return _numOffspring;                                }
-	this.getNumFoodBitsEaten            = function() { return _numFoodBitsEaten;                            }
-    this.getBrainState                  = function() { return _brain.getState();                           }
-    this.getGenotype                    = function() { return _genotype;                                   }
-	this.getSelectRadius                = function() { return _selectRadius;                                }
-	this.getPreferredFoodType           = function() { return _phenotype.preferredFoodType;                 }
-	this.getDigestibleFoodType          = function() { return _phenotype.digestibleFoodType;                }
-	this.getUtterPeriod                 = function() { return _phenotype.utterPeriod;                       }
-	this.getUtterDuration               = function() { return _phenotype.utterDuration;                     }
+    this.getIsTryingToEat               = function() { return _tryingToEat;                                 }
+    this.getIsTryingToMate              = function() { return _tryingToMate;                                }
+    this.getIndex                       = function() { return _index;                                       }
+    this.getAge                         = function() { return _age;                                         }
+    this.getAlive                       = function() { return _alive;                                       }
+    this.getEnergy                      = function() { return _energy;                                      }
+    this.getAngle                       = function() { return _angle;                                       }
+    this.getEnergyEfficiency            = function() { return _energyEfficiency;                            }
+    this.getPosition                    = function() { return _position;                                    }
+    this.getBoundingRadius              = function() { return _phenotype.sumPartLengths;                    }
+    this.getNumParts                    = function() { return _phenotype.numParts;                          }
+    this.getIsLookingForSensoryInput    = function() { return _readyforSensoryInputToBrain;                 }
+    this.getGenitalPosition             = function() { return _phenotype.parts[ GENITAL_INDEX ].position;   }
+    this.getMouthPosition               = function() { return _phenotype.parts[ MOUTH_INDEX   ].position;   }
+    this.getChosenMateIndex             = function() { return _chosenMateIndex;                             }
+    this.getChosenFoodBitIndex          = function() { return _chosenFoodBitIndex;                          }
+    this.getNumOffspring                = function() { return _numOffspring;                                }
+    this.getNumFoodBitsEaten            = function() { return _numFoodBitsEaten;                            }
+    this.getBrainState                  = function() { return _brain.getState();                            }
+    this.getGenotype                    = function() { return _genotype;                                    }
+    this.getSelectRadius                = function() { return _selectRadius;                                }
+    this.getPreferredFoodType           = function() { return _phenotype.preferredFoodType;                 }
+    this.getDigestibleFoodType          = function() { return _phenotype.digestibleFoodType;                }
+    this.getUtterPeriod                 = function() { return _phenotype.utterPeriod;                       }
+    this.getUtterDuration               = function() { return _phenotype.utterDuration;                     }
+    this.getUtterNoteSpan               = function() { return _phenotype.utterNoteSpan;                     }
+    this.getUtterHighNote               = function() { return _phenotype.utterHighNote;                     }
+    this.getUtterLowNote                = function() { return _phenotype.utterLowNote;                      }
+    this.getUtterNoteCount              = function() { return _phenotype.utterNoteCount;                    }
+    this.getUtterModCount               = function() { return _phenotype.utterModCount;                     }
+    this.getUtterSequence               = function() { return _phenotype.utterSequence;                     }
 	
 
 	//---------------------------------------
@@ -1654,16 +1631,26 @@ let partAccelerationY = -strokeForceY;
             // console.log ("My judge_phenotype is ",judge_phenotype);
             
             const noteSpanDiff   = Math.abs(_phenotype.utterNoteSpan - judge_phenotype.utterNoteSpan) / 9;           // range 1-10, max diff 9
-            const highNoteDiff   = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127;         // range 0-127
-            const lowNoteDiff    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127;           // range 0-127
+            const highNoteDiff   = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127;         // range 1-127
+            const lowNoteDiff    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127;           // range 1-127
         
-            // For counts, use a proportional difference to handle wide-ranging values:
-            const noteCountDiff = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / 
-                Math.max(_phenotype.utterNoteCount, judge_phenotype.utterNoteCount);
-        
-            const modCountDiff = Math.abs(_phenotype.utterModCount - judge_phenotype.utterModCount) / 
-                Math.max(_phenotype.utterModCount, judge_phenotype.utterModCount);
-        
+            // For note counts and mod countes, use a proportional difference to handle wide-ranging values:
+            let noteCountDiff;
+            const maxNoteCount = Math.max(_phenotype.utterNoteCount, judge_phenotype.utterNoteCount);
+            if (maxNoteCount === 0) {
+                noteCountDiff = 0;
+            } else {
+                noteCountDiff = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / maxNoteCount;
+            }
+            
+            let modCountDiff;
+            const maxModCount = Math.max(_phenotype.utterModCount, judge_phenotype.utterModCount);
+            if (maxModCount === 0) {
+                modCountDiff = 0;
+            } else {
+                modCountDiff = Math.abs(_phenotype.utterModCount - judge_phenotype.utterModCount) / maxModCount;
+            }        
+            
             // Average the normalized differences:
             const averageDiff = (noteSpanDiff + highNoteDiff + lowNoteDiff + noteCountDiff + modCountDiff) / 5;
         
@@ -1673,8 +1660,15 @@ let partAccelerationY = -strokeForceY;
             // Ensure attractiveness stays within [0,1] // clamp to make sure
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
-            console.log ("When comparing swimbot " + _index + " with judge " + judge_index + " my attractiveness is " + attractiveness);
+            // console.log ("When comparing swimbot " + _index + " with judge " + judge_index + " my attractiveness is " + attractiveness);
+            // console.log ("E.g. utterNoteCount " + _phenotype.utterNoteCount + " vs. " + judge_phenotype.utterNoteCount);
 
+            if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
+                console.log("ALERT: Setting attractiveness to zero because " + attractiveness + " was NaN or out of range 0-1 when comparing swimbot " + _index + " with judge " + judge_index);
+                console.log("_phenotype:", _phenotype);
+                console.log("judge_phenotype:", judge_phenotype);
+                attractiveness = 0;
+            }
 			}
 		}
 		else

@@ -20,10 +20,9 @@ const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
 const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
-const SOUND_EVENT_TYPE_UTTER	=  4;
 
 // Define your MIDI channels as 1-16 (not zero indexed)
-const BASE_MIDI_NOTE = 48; // C3
+const MIDI_BASE_NOTE = 48; // C3
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
@@ -31,7 +30,7 @@ const MIDI_CHANNEL_DEATH = 3;
 // we will round robin through the utter midi channels
 const MIDI_CHANNEL_UTTER_START = 8;
 const MIDI_CHANNEL_UTTER_END = 9;
-var midi_channel_utter_last = null;
+var MIDI_CHANNEL_UTTER_LAST = 0;
 
 const MIDI_CHANNEL_GLOBAL = 16;
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000;
@@ -97,7 +96,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
 ];
 
 
-var last_utterance_time = 0;
+var LAST_UTTERANCE_TIME = 0;
 //------------------------------------------
 function Sound()
 {
@@ -170,213 +169,91 @@ function Sound()
 	}
 
 	//------------------------------------------------------------------------------------------------------
-	this.considerSoundEvent = function( type, position, duration, id, isInView, callerFunction )
+	// doSwimbotSoundEvent is used for non-diegetic sounds, e.g. eating, being born, dying
+	this.doSwimbotSoundEvent = function( type, swimbotPosition, swimbotID )
 	{
-		let utterancePhenotype = null;
-		const startTime = performance.now(); // measure performance
-		let printString = "considerSoundEvent() for swimbot no. " + id + " | duration=" + duration;
-		if (type) {
-			printString += " type = ";
-		} else {
-			printString += " (no type???)";
-		}
-		let midiChannel = 1; // 1-16
-		let midiNote = 32;
-		let midiVelocity = 127;
-		let noteLength = 500;
+		let printString = "doSwimbotSoundEvent() type=" + type;
 		
-		if ( type === SOUND_EVENT_TYPE_NULL ) { 
-			printString += "NULL ";
-		} else if ( type === SOUND_EVENT_TYPE_EAT ) { 
-			printString += "EAT";
-			if (midiOutput && isInView) {
+		if ( type === SOUND_EVENT_TYPE_EAT ) { 
+			if (midiOutput) {
 				let midiChannel = MIDI_CHANNEL_EAT;
-				let maxDegrees = MIDI_NOTE_INTERVALS.length * 2;  // 2 octaves of our scale
-				let idToDegrees = id % maxDegrees;
-				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
-				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
-				let midiNote = BASE_MIDI_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
-				let controlValue = id % 100; // control of about 0-100
+				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
+				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
 				sendCC(14, controlValue, midiChannel);
-				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
-				printString += " MIDI note " + midiNote + " w/CC 14 " + controlValue;
+				sendNote(midiNote, 127, 100, midiChannel);
+				printString += " sent MIDI note " + midiNote + " w/CC 14 " + controlValue;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
-			printString += "BIRTH";
-				if (midiOutput && isInView) {
+			if (midiOutput) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
 				let maxDegrees = MIDI_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
-				let idToDegrees = id % maxDegrees;
-				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
+				let idToDegrees = swimbotID % maxDegrees;
 				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
-				let midiNote = BASE_MIDI_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
-				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
-				printString += " MIDI note " + midiNote;
+				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
+				let midiNote = MIDI_BASE_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
+				sendNote(midiNote, 127, 1000, midiChannel);
+				printString += " sent MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
-			printString += "DEATH";
-			if (midiOutput && isInView) {
+			if (midiOutput) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
-				let midiNote = 64;
-				let noteLength = 1000;
-				sendNote(midiNote, midiVelocity, noteLength, midiChannel);
-				printString += " MIDI note " + midiNote;
+				let maxDegrees = MIDI_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
+				let idToDegrees = swimbotID % maxDegrees;
+				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
+				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
+				let midiNote = MIDI_BASE_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
+				sendNote(midiNote, 127, 1000, midiChannel);
+				printString += " sent MIDI note " + midiNote;
 			}
-		} else if ( type === SOUND_EVENT_TYPE_UTTER) {
-			printString += "UTTER";			
-			utterancePhenotype = doUtterance(id, isInView, duration, callerFunction );
 		} // end if sound types
 		 
-		// printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
-		 
-		const endTime = performance.now(); // end timing
-		const elapsedMs = (endTime - startTime).toFixed(2);
-		printString += ` | execution time = ${elapsedMs} ms`;
-
+		// printString += "; swimbotPosition = " + swimbotPosition.x.toFixed(2) + ", " + swimbotPosition.y.toFixed(2);
  		console.log( printString );
-		return utterancePhenotype;
+		return false;
     }
 
-	function doUtterance(id, isInView, duration, callerFunction ) {
+	 // GenePool.js decides when a swimbot should utter, at which point
+	 // doUtterance() is called with an object describing its utterance phenotypes
+	 // e.g. utterVariablesObj.swimbotInView, utterVariablesObj.utterSequence... 
+
+	 this.doUtterance = function (utterVariablesObj, callerFunction ) {
 		var midiChannel;
-		const thisLength = duration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
-		let playAudio = false; // special conditions have to be met for us to actually play sound
-		let midiSequence = generateUtteranceSequence(id, thisLength); // do id % 5 to only test a few variations
-		if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && isInView) {
-			last_utterance_time = Date.now();
+		// special conditions have to be met for us to actually play sound
+		let playAudio = false;
+		if (Date.now() - LAST_UTTERANCE_TIME > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && utterVariablesObj.swimbotInView) {
 			playAudio = true;
-			// round robin through the MIDI channels we've set up for uttering
-			midi_channel_utter_last +=1;
-			if (midi_channel_utter_last > MIDI_CHANNEL_UTTER_END || midi_channel_utter_last < MIDI_CHANNEL_UTTER_START) {
-				midi_channel_utter_last = MIDI_CHANNEL_UTTER_START;
+			LAST_UTTERANCE_TIME = Date.now();
+			// pick a MIDI channel to utter on (round robin through the MIDI channels we've set up for uttering)
+			MIDI_CHANNEL_UTTER_LAST +=1;
+			if (MIDI_CHANNEL_UTTER_LAST > MIDI_CHANNEL_UTTER_END || MIDI_CHANNEL_UTTER_LAST < MIDI_CHANNEL_UTTER_START) {
+				MIDI_CHANNEL_UTTER_LAST = MIDI_CHANNEL_UTTER_START;
 			}
-			midiChannel = midi_channel_utter_last;
-			console.log ('*** Beginning MIDI utterance for swimbot ' + id + ' ***');
-			console.log(midiSequence);
+			midiChannel = MIDI_CHANNEL_UTTER_LAST;
+			console.log ('*** Beginning MIDI ch. ' + midiChannel + ' utterance for swimbot ' + utterVariablesObj.swimbotID + ' ***');
+			console.log(utterVariablesObj.utterSequence);
 		}
 		
-		// schedule each step
-		for (const step of midiSequence) {		
+playAudio = false;
+
+
+		// now walk through the utter MIDI sequence
+		for (const step of utterVariablesObj.utterSequence) {		
 			setTimeout(() => {
 				if (step.type === 'note') {
 					if (playAudio) sendNote(step.note, step.velocity, step.duration, midiChannel);
 				} else if (step.type === 'cc') {
 					if (playAudio) sendCC(step.cc, step.value, midiChannel);
-				} else if (step.type === 'done') {
-					callerFunction.setDoneUtteringSound( id );  // always do this, regardless of MIDI status or whether we're in view							
-					// console.log('setDoneUtteringSound for swimbot ' + id);
-					if (playAudio) console.log ('*** Ended MIDI utterance for swimbot ' + id + ' ***');
+				} else if (step.type === 'done') { // always do this, even if we're not playing audio	
+					callerFunction.setDoneUtteringSound( utterVariablesObj.swimbotID );						
+					if (playAudio) console.log ('*** Ended MIDI utterance for swimbot ' + utterVariablesObj.swimbotID + ' ***');
 				}
 			}, step.delay);
-		} // end for each step
-
-		// analyze the midiSequence to return a sonic phenotype (as a JS object literal)
-		let utterancePhenotype = {
-			utterNoteSpan: Math.floor(1 + Math.random() * 10),
-			utterHighNote: Math.floor(Math.random() * 128),
-			utterLowNote: Math.floor(Math.random() * 128),
-			utterNoteCount: Math.floor(1 + Math.random() * 20),
-			utterModCount: Math.floor(1 + Math.random() * 20)
-		};
+		}
+		return (false);
 		
-		return (utterancePhenotype);
-
 	} // end function doUtterance()
 		
-	/**
-	* @param {number} id         – deterministic seed
-	* @param {number} durationMs – total length in ms
-	* @returns {Array}           – [{delay, note, velocity, duration}, …, {delay, type:'done'}]
-	*/
 
-	/* returns an sequence like:
-		[
-			{ delay: 0, type: 'note', note: 44, velocity: 127, duration: 1000 },
-			{ delay: 500, type: 'cc', cc: 1, value: 96 },
-			{ delay: 1000, type: 'done' }
-		];
-	*/
-		
-	function generateUtteranceSequence(id, durationMs) {
-		// create a deterministic RNG seeded by id and durationMs
-		const rng = aleaPRNG(id.toString()); // this substitutes for actually looking at genes
-		
-		// pick initial IOI‐state and interval‐state “randomly” but reproducibly
-		let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
-		if (durationMs < 750) lastIOI = 0; // but if utterance is short, always start with a short note
-		let lastInt = Math.floor(rng() * MIDI_NOTE_INTERVALS.length); // pick starting interval
-
-		// how likely are we to fool around with the mod wheel between notes? (Increase the exponent to further weigh towards zero)
-		let chanceOfModulation = rng() ** 3;
-		// sequenceData will hold our generated sequence
-		const sequenceData = [];
-		// initialize mod CC with a random value at time 0
-		
-		let initialModVal = Math.floor((rng() ** 3) * 128); // 0-127, weighed towards lower end
-
-		sequenceData.push({
-			delay: 0,  // in ms
-			type: 'cc',
-			cc: 1,
-			value: initialModVal
-		});
-
-		let sequenceTime = 10; // first note to happen 10ms after we set the initial mod CC
-		while (sequenceTime < durationMs) {
-			// pick next inter-onset interval
-			let p = rng(), cumulativeProb = 0, nextIOI;
-			for (let i = 0; i < SEQUENCE_DURATION_STATES.length; i++) {
-				cumulativeProb += IOI_DURATION_PROBABILITY_MATRIX[lastIOI][i];
-				if (p < cumulativeProb) { nextIOI = i; break; }
-			}
-			// fallback if rounding/FP left nextIOI undefined
-			if (nextIOI === undefined) nextIOI = SEQUENCE_DURATION_STATES.length - 1;
-		
-			const band = SEQUENCE_DURATION_STATES[nextIOI];
-			const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
-		
-			// stretch durations to 100–200% of the gap, with a floor of 50ms
-			const noteDur = Math.max( Math.round(interOnsetIntervalMs * (1 + rng() * 1)), 50 );
-		
-			// ——— pick next interval state ———
-			p = rng(); cumulativeProb = 0; let nextIntState;
-			for (let i = 0; i < MIDI_NOTE_INTERVALS.length; i++) {
-				cumulativeProb += IOI_MIDI_NOTE_PROBABILITY_MATRIX[lastInt][i];
-				if (p < cumulativeProb) { nextIntState = i; break; }
-			}
-			if (nextIntState === undefined) nextIntState = MIDI_NOTE_INTERVALS.length - 1;
-			const semis = MIDI_NOTE_INTERVALS[nextIntState];
-		
-			// ——— emit note event ———
-			sequenceData.push({
-				delay:    sequenceTime,  // in ms
-				type:     'note',
-				note:     BASE_MIDI_NOTE + 24 + semis + (12 * (id % 3)),
-				velocity: 80 + Math.round(rng() * 40),
-				duration: noteDur
-			});
-			
-			// push in random mod expressions
-			if (rng() < chanceOfModulation) {
-				let modVal = Math.floor(rng()*128); // equal weighted random 0-127
-				sequenceData.push({
-					delay: sequenceTime + 10,  // in ms
-					type: 'cc',
-					cc: 1,
-					value: modVal
-				});
-			}
-		
-			// advance time & states
-			sequenceTime += interOnsetIntervalMs;
-			lastIOI = nextIOI;
-			lastInt = nextIntState;
-		}
-		
-		// final done event
-		sequenceData.push({ delay: sequenceTime, type: 'done' });
-		return sequenceData;
-	}
 
 	// Actually send a MIDI note on (and schedule a note off) to the IAC bus. 
 	function sendNote(noteNumber, velocity, durationMs, midiChannel) {
@@ -395,9 +272,5 @@ function Sound()
 		const cc = 0xB0 | zeroIndexMidiChannel;
 		midiOutput.send([cc, controllerNumber, value]);
 	}
-
-
-
-	// console.log (generateUtteranceSequence(44, 5000));
 
 }
