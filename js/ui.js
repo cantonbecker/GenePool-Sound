@@ -993,8 +993,11 @@ function updateUI()
                 + "<br>"
                 + "goal = " + goalDescription
                 + "<br>"
-                + "<br>"
                 + "is uttering = " + genePool.getSwimbotIsUttering ( selectedSwimbot )
+                + "<br>"
+                + "utter period = " + genePool.getSwimbotUtterPeriod ( selectedSwimbot )
+                + "<br>"
+                + "utter duration = " + genePool.getSwimbotUtterDuration ( selectedSwimbot )
                 + "<br>"
                 + "food type preference = " + foodPreferenceText
                 + "<br>"

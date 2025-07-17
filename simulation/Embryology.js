@@ -62,12 +62,10 @@ const MAX_SEQUENCE_COUNT    =   5;
 const GREATEST_POSSIBLE_SWIMBOT_MASS = MAX_PARTS * MAX_LENGTH * MAX_WIDTH
 const GREATEST_POSSIBLE_SWIMBOT_LENGTH	= MAX_PARTS * MAX_LENGTH;
 
-const MIN_UTTER_PERIOD 	 = 20;  // in clock time
+const MIN_UTTER_PERIOD 	 = 100;  // in clock time
 const MAX_UTTER_PERIOD 	 = 500; // in clock time
-const MIN_UTTER_DURATION = 5;  	// in clock time
-const MAX_UTTER_DURATION = 100; // in clock time
-const MIN_UTTER_ENERGY 	 = 0.1;	// normaized, 0-1
-const MAX_UTTER_ENERGY 	 = 1.0;	// normaized, 0-1
+const MIN_UTTER_DURATION = 60;  	// in clock time ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
+const MAX_UTTER_DURATION = 90; // in clock time (never larger than MIN_UTTER_PERIOD, otherwise risks non-stop uttering)
 
 //--------------------
 function Embryology()
@@ -276,21 +274,25 @@ let testNoEel = true;
         g++;  
         _geneNames[g] = "utter period";
         phenotype.utterPeriod = MIN_UTTER_PERIOD + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_PERIOD - MIN_UTTER_PERIOD ) );     
-
+        // phenotype.utterPeriod = 300;
         g++;  
         _geneNames[g] = "utter duration";        
 		phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
-     
-		g++;  
+        // phenotype.utterDuration = 5;
+		/*
+        g++;  
 		_geneNames[g] = "utter energy";        
 		phenotype.utterEnergy = MIN_UTTER_ENERGY + _normalizedGenes[g] * ( MAX_UTTER_ENERGY - MIN_UTTER_ENERGY );     
-
-     	let clampAmount = 5;
-		if ( phenotype.utterDuration > phenotype.utterPeriod - clampAmount )
+        */
+        
+     	/*
+         let clampAmount = 5;
+		if ( phenotype.utterDuration > phenotype.utterPeriod + clampAmount ) // if utter duration is too long and would overlap our utter period
 		{
 			phenotype.utterDuration = phenotype.utterPeriod - clampAmount;
 		}
 
+      */
 		/*
      	let clampAmount = 5;
      	if ( phenotype.utterPeriod < clampAmount )

@@ -1186,20 +1186,26 @@ if ( mode === SimulationStartMode.SPECIES )
                 {
                     let eatenFoodBit = _swimbots[s].eatChosenFoodBit();
 
-        	        //------------------------------
-    	            // a sound might be generated.
-	                //------------------------------
+        	       //------------------------------
+    	          // a sound might be generated. if this results in a new sonic phenotype, we'll return it as a JS object literal like this:
+                //  {
+                //    utterNoteSpan: 8,
+                //    utterHighNote: 55,
+                //    utterLowNote: 40,
+                //    utterNoteCount: 20,
+                //    utterModCount: 3
+                // }
+	             //------------------------------
                     let isInView = ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ));
                     _sound.considerSoundEvent
                     ( 
                     	SOUND_EVENT_TYPE_EAT, 
                     	_swimbots[s].getPosition(), 
                     	1,
-                    	1,
                     	s, 
                     	isInView, 
                     	this 
-                    );
+                    );                    
                 }
                 
                 /*
@@ -1217,9 +1223,9 @@ if ( mode === SimulationStartMode.SPECIES )
                 }
                 */
 
-                //-----------------------------------------------
-                // Should we trigger an uttering sound?
-                //-----------------------------------------------
+            //-------------------------------------------------------------
+            // *** TIME TO UTTER!!!*** Should we trigger an uttering sound?
+            //-------------------------------------------------------------
 				if ( _swimbots[s].getIsUttering() )
 				{
 					if ( ! _markedForUtteringSound[s] )
@@ -1227,16 +1233,23 @@ if ( mode === SimulationStartMode.SPECIES )
 						_markedForUtteringSound[s] = true;
 						
 		            	let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-    	            	_sound.considerSoundEvent
+                     // we can retrieve a utterancePhenotype object from considerSoundEvent()
+    	            	let utterancePhenotype = _sound.considerSoundEvent
     	            	( 
     	            		SOUND_EVENT_TYPE_UTTER, 
     	            		_swimbots[s].getPosition(), 
     	            		_swimbots[s].getUtterDuration(), 
-    	            		_swimbots[s].getUtterEnergy(), 
     	            		s, 
     	            		isInView,
     	            		this 
     	            	);
+
+                    if (utterancePhenotype) { // if we got one back, set it
+                        // set swimbot's .utterHighNote etc. properties
+                        _swimbots[s].setUtterancePhenotype(utterancePhenotype);
+                    }
+                        
+                        
 					}
 				}
 				else
@@ -1258,7 +1271,6 @@ if ( mode === SimulationStartMode.SPECIES )
 				    	SOUND_EVENT_TYPE_DEATH, 
 				    	_swimbots[s].getPosition(), 
 				    	1, 
-				    	1,
 				    	s, 
 				    	isInView,
 				    	this 
@@ -1361,7 +1373,6 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
 				                ( 
 				                	SOUND_EVENT_TYPE_BIRTH, 
 				                	_swimbots[s].getPosition(), 
-				                	1,
 				                	1,
 				                	newBornSwimbotIndex, 
 				                	isInView, 
@@ -2496,7 +2507,6 @@ if ( globalTweakers.numFoodTypes === 2 )
         ( 
         	SOUND_EVENT_TYPE_DEATH, 
         	_swimbots[s].getPosition(), 
-        	1,
         	1,
         	ID, 
         	isInView, 
@@ -3640,7 +3650,9 @@ for (let g=0; g<NUM_GENES; g++)
     this.getSwimbotAttractionDescription    = function( ID ) {	return _swimbots[ ID ].getAttractionDescription     (); }
     this.getSwimbotPreferredFoodType        = function( ID ) {	return _swimbots[ ID ].getPreferredFoodType         (); }
     this.getSwimbotDigestibleFoodType       = function( ID ) {	return _swimbots[ ID ].getDigestibleFoodType        (); }
-	this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
+	 this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
+	 this.getSwimbotUtterPeriod              = function( ID ) {	return _swimbots[ ID ].getUtterPeriod               (); }
+	 this.getSwimbotUtterDuration            = function( ID ) {	return _swimbots[ ID ].getUtterDuration             (); }
 
     
     // this is now being initialized from the index.html...

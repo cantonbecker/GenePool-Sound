@@ -753,7 +753,23 @@ _position.copyFrom( position );
     //------------------------------------------------------------------------
 	this.getIsUttering 		= function() { return _uttering; 				}
 	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
-	this.getUtterEnergy 	= function() { return _phenotype.utterEnergy; 	}
+
+    // send this a JS object literal like { utterNoteSpan: 8, utterHighNote: 55 ... }
+    this.setUtterancePhenotype  = function (utterancePhenotype) {
+        // console.log('Received utterancePhenotype of ', utterancePhenotype);
+        _phenotype.utterNoteSpan = utterancePhenotype.utterNoteSpan;
+        _phenotype.utterHighNote = utterancePhenotype.utterHighNote;
+        _phenotype.utterLowNote = utterancePhenotype.utterLowNote;
+        _phenotype.utterNoteCount = utterancePhenotype.utterNoteCount;
+        _phenotype.utterModCount = utterancePhenotype.utterModCount; 
+    }
+
+
+
+
+
+
+
 	
     //---------------------------------------
 	this.setDoneUtteringSound = function()
@@ -1354,11 +1370,13 @@ let partAccelerationY = -strokeForceY;
 	this.getChosenFoodBitIndex          = function() { return _chosenFoodBitIndex;                          }
 	this.getNumOffspring                = function() { return _numOffspring;                                }
 	this.getNumFoodBitsEaten            = function() { return _numFoodBitsEaten;                            }
-    this.getBrainState                  = function() { return _brain.getState();                            }
-    this.getGenotype                    = function() { return _genotype;                                    }
+    this.getBrainState                  = function() { return _brain.getState();                           }
+    this.getGenotype                    = function() { return _genotype;                                   }
 	this.getSelectRadius                = function() { return _selectRadius;                                }
 	this.getPreferredFoodType           = function() { return _phenotype.preferredFoodType;                 }
 	this.getDigestibleFoodType          = function() { return _phenotype.digestibleFoodType;                }
+	this.getUtterPeriod                 = function() { return _phenotype.utterPeriod;                       }
+	this.getUtterDuration               = function() { return _phenotype.utterDuration;                     }
 	
 
 	//---------------------------------------
@@ -1522,7 +1540,7 @@ let partAccelerationY = -strokeForceY;
 
             for (let o=0; o<numNearbySwimbots; o++)
             {	                
-                let babeFactor = nearbySwimbotArray[o].getAttractiveness( this );
+                let babeFactor = nearbySwimbotArray[o].getAttractiveness( this, _phenotype, _index );
 
                 if (( babeFactor > highestBabeFactor )
                 &&  ( babeFactor > TOO_UGLY_TO_CHOOSE )
@@ -1602,7 +1620,7 @@ let partAccelerationY = -strokeForceY;
 	//-----------------------------------------
 	// get attractiveness
 	//-----------------------------------------
-	this.getAttractiveness = function( judge )
+	this.getAttractiveness = function( judge, judge_phenotype, judge_index )
 	{
         let attractiveness = ZERO;
 
@@ -1611,7 +1629,52 @@ let partAccelerationY = -strokeForceY;
 			if ( _uttering )
 			{
 				//console.log( "yes - uttering" );
-				attractiveness = _phenotype.utterEnergy;
+            // TK: later on we should make this dependent on the PHENOTYPE of the singing
+            // When we invoke an utterance, canton's code should send back some kind of
+            // info about the song that was sung (or would have been sung, had it been in view)
+            // for example: how many individual notes in the utterance, how many different notes (frequency range)
+            // how many modulation events, harmonic scale
+            
+            /*
+            this.utterNoteSpan		// when this swimbot's utterance was last composed, how many different pitches did it use?
+            this.utterHighNote		// highest pitch performed
+            this.utterLowNote		   // lowest pitch performed
+            this.utterNoteCount		// how many individual notes?
+            this.utterModCount		// how many control events (e.g. modwheel spinnings)?
+            this.utterPeriod		   // how often does it sing
+            this.utterDuration		// how long does it sing
+            */
+                
+            // calculate differences between judge and this swimbot's utterance properties
+
+            // something to fix is that attractiveness is not symmetrical
+            // Swimbot.js:1680 When comparing swimbot 3 with judge 1 my attractiveness is 0.6493088363954506
+            // Swimbot.js:1680 When comparing swimbot 1 with judge 3 my attractiveness is 0.19720034995625535
+            
+            // console.log ("My judge_phenotype is ",judge_phenotype);
+            
+            const noteSpanDiff   = Math.abs(_phenotype.utterNoteSpan - judge_phenotype.utterNoteSpan) / 9;           // range 1-10, max diff 9
+            const highNoteDiff   = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127;         // range 0-127
+            const lowNoteDiff    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127;           // range 0-127
+        
+            // For counts, use a proportional difference to handle wide-ranging values:
+            const noteCountDiff = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / 
+                Math.max(_phenotype.utterNoteCount, judge_phenotype.utterNoteCount);
+        
+            const modCountDiff = Math.abs(_phenotype.utterModCount - judge_phenotype.utterModCount) / 
+                Math.max(_phenotype.utterModCount, judge_phenotype.utterModCount);
+        
+            // Average the normalized differences:
+            const averageDiff = (noteSpanDiff + highNoteDiff + lowNoteDiff + noteCountDiff + modCountDiff) / 5;
+        
+            // Attractiveness = inverse of average difference
+            attractiveness = 1 - averageDiff;
+        
+            // Ensure attractiveness stays within [0,1] // clamp to make sure
+            attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
+
+            console.log ("When comparing swimbot " + _index + " with judge " + judge_index + " my attractiveness is " + attractiveness);
+
 			}
 		}
 		else
@@ -2151,7 +2214,7 @@ console.log( "contributeToOffspring: _childEnergyRatio = " + _childEnergyRatio )
 	{
 		if ( _uttering )
 		{	
-			_swimbotRenderer.showUttering( _phenotype.utterEnergy );
+			_swimbotRenderer.showUttering( 1 );
 		}
 		
 	    _swimbotRenderer.render

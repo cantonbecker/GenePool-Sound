@@ -13,7 +13,8 @@
 
 "use strict";
 
-const SOUND_UPDATE_PERIOD =  30; // frame counter (not clock time)
+const SOUND_UPDATE_PERIOD =  15; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
+var APPROX_MS_PER_CLOCK = 30; 		// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 
 const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
@@ -26,6 +27,7 @@ const BASE_MIDI_NOTE = 48; // C3
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
+
 // we will round robin through the utter midi channels
 const MIDI_CHANNEL_UTTER_START = 8;
 const MIDI_CHANNEL_UTTER_END = 9;
@@ -168,9 +170,11 @@ function Sound()
 	}
 
 	//------------------------------------------------------------------------------------------------------
-	this.considerSoundEvent = function( type, position, duration, energy, id, isInView, callerFunction )
+	this.considerSoundEvent = function( type, position, duration, id, isInView, callerFunction )
 	{
-		let printString = "considerSoundEvent() for swimbot no. " + id + " | duration=" + duration + " | energy=" + energy;
+		let utterancePhenotype = null;
+		const startTime = performance.now(); // measure performance
+		let printString = "considerSoundEvent() for swimbot no. " + id + " | duration=" + duration;
 		if (type) {
 			printString += " type = ";
 		} else {
@@ -220,21 +224,24 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_UTTER) {
 			printString += "UTTER";			
-			//printString += " (duration = " + duration + "; energy = " + energy + "; )";
-			let utteranceResult = doUtterance(id, isInView, duration, energy, callerFunction );
-			printString += utteranceResult;
+			utterancePhenotype = doUtterance(id, isInView, duration, callerFunction );
 		} // end if sound types
 		 
 		// printString += "; position = " + position.x.toFixed(2) + ", " + position.y.toFixed(2);
 		 
+		const endTime = performance.now(); // end timing
+		const elapsedMs = (endTime - startTime).toFixed(2);
+		printString += ` | execution time = ${elapsedMs} ms`;
+
  		console.log( printString );
+		return utterancePhenotype;
     }
 
-	function doUtterance(id, isInView, duration, energy, callerFunction ) {
+	function doUtterance(id, isInView, duration, callerFunction ) {
 		var midiChannel;
-		const thisLength = duration * 30; // range of 5-100 = 150ms-3000ms
+		const thisLength = duration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 		let playAudio = false; // special conditions have to be met for us to actually play sound
-		let midiSequence;
+		let midiSequence = generateUtteranceSequence(id, thisLength); // do id % 5 to only test a few variations
 		if (Date.now() - last_utterance_time > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && isInView) {
 			last_utterance_time = Date.now();
 			playAudio = true;
@@ -245,13 +252,7 @@ function Sound()
 			}
 			midiChannel = midi_channel_utter_last;
 			console.log ('*** Beginning MIDI utterance for swimbot ' + id + ' ***');
-			// midiSequence = generateUtteranceSequence(id, thisLength);
-			midiSequence = generateUtteranceSequence(id % 10, thisLength); // test only a few variations
 			console.log(midiSequence);
-		} else {
-			midiSequence = [
-				{ delay: thisLength, type: 'done' }
-			];
 		}
 		
 		// schedule each step
@@ -265,15 +266,21 @@ function Sound()
 					callerFunction.setDoneUtteringSound( id );  // always do this, regardless of MIDI status or whether we're in view							
 					// console.log('setDoneUtteringSound for swimbot ' + id);
 					if (playAudio) console.log ('*** Ended MIDI utterance for swimbot ' + id + ' ***');
-	
 				}
 			}, step.delay);
 		} // end for each step
-		if (playAudio) {
-			return (' MIDI sequence on channel ' + midiChannel + ' length ' + thisLength);
-		} else {
-			return (' Silent length ' + thisLength);
-		}
+
+		// analyze the midiSequence to return a sonic phenotype (as a JS object literal)
+		let utterancePhenotype = {
+			utterNoteSpan: Math.floor(1 + Math.random() * 10),
+			utterHighNote: Math.floor(Math.random() * 128),
+			utterLowNote: Math.floor(Math.random() * 128),
+			utterNoteCount: Math.floor(1 + Math.random() * 20),
+			utterModCount: Math.floor(1 + Math.random() * 20)
+		};
+		
+		return (utterancePhenotype);
+
 	} // end function doUtterance()
 		
 	/**
