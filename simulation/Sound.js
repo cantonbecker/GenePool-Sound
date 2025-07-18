@@ -27,12 +27,19 @@ const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
 
-const MIDI_CHANNEL_UTTER_START = 8; // first MIDI channel to round robin through
-const MIDI_CHANNEL_UTTER_END = 12; // last MIDI channel to round robin through
-var MIDI_CHANNEL_UTTER_LAST = 0; // remembers which channel we last used
+// we more or less round-robin through these channels when uttering.
+// (each time we utter, we select the channel used longest ago)
+const MIDI_CHANNELS_FOR_UTTERING = [
+	{	channel: 8,	lastUsed: 0 },
+	{	channel: 9,	lastUsed: 0 },
+	{	channel: 10, lastUsed: 0 },
+	{	channel: 11, lastUsed: 0 },
+	{	channel: 12, lastUsed: 0 }
+];
+
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 3000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
 const MIDI_CHANNEL_GLOBAL = 16;
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 3000 / (MIDI_CHANNEL_UTTER_END - MIDI_CHANNEL_UTTER_START);
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -95,7 +102,6 @@ var IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
 ];
 
 
-var LAST_UTTERANCE_TIME = 0;
 //------------------------------------------
 function Sound()
 {
@@ -219,18 +225,25 @@ function Sound()
 	 // e.g. utterVariablesObj.swimbotInView, utterVariablesObj.utterSequence... 
 
 	 this.doUtterance = function (utterVariablesObj, callerFunction ) {
-		var midiChannel;
-		// special conditions have to be met for us to actually play sound
+		// special conditions will have to be met for us to actually play sound
 		let playAudio = false;
-		if (Date.now() - LAST_UTTERANCE_TIME > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && utterVariablesObj.swimbotInView) {
-			playAudio = true;
-			LAST_UTTERANCE_TIME = Date.now();
-			// pick a MIDI channel to utter on (round robin through the MIDI channels we've set up for uttering)
-			MIDI_CHANNEL_UTTER_LAST +=1;
-			if (MIDI_CHANNEL_UTTER_LAST > MIDI_CHANNEL_UTTER_END || MIDI_CHANNEL_UTTER_LAST < MIDI_CHANNEL_UTTER_START) {
-				MIDI_CHANNEL_UTTER_LAST = MIDI_CHANNEL_UTTER_START;
+		let rightNow = Date.now();
+		
+		// pick a MIDI channel to utter on (select the utter MIDI channel used longest ago)
+		let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
+		for (let i = 1; i < MIDI_CHANNELS_FOR_UTTERING.length; i++) {
+			if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
+				oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
 			}
-			midiChannel = MIDI_CHANNEL_UTTER_LAST;
+		}
+		
+		// Update its lastUsed timestamp
+		let midiChannel = oldestMIDIchannel.channel;
+
+		
+		if (Date.now() - oldestMIDIchannel.lastUsed > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && utterVariablesObj.swimbotInView) {
+			playAudio = true;
+			oldestMIDIchannel.lastUsed = rightNow;
 			let estimatedUtterLength = utterVariablesObj.utterDuration * APPROX_MS_PER_CLOCK;
 			console.log ('*** Beginning ' + estimatedUtterLength + ' ms utterance for swimbot ' + utterVariablesObj.swimbotID + ' on MIDI ch. ' + midiChannel + ' ***');
 			console.log (utterVariablesObj);
