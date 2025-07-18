@@ -294,9 +294,15 @@ let testNoEel = true;
         // and its utterance-related phenotypes (utterHighNote, utterNoteCount, etc.) are determined ...
         //------------------------------------------------------------------------------------------------
 
-        let utterancePhenotypeObj = generateUtterancePhenotypes(_normalizedGenes, _geneNames, phenotype.utterDuration, phenotype.utterPeriod);   
+        let utterancePhenotypeObj = 
+            generateUtterancePhenotypes (
+                genotype.getGenes(),
+                _geneNames,
+                phenotype.utterPeriod,
+                phenotype.utterDuration,
+            );   
              
-        // store all our utterance and sequence-related phenotype data
+        // this gives us back everything we need to store utterance and sequence-related phenotype data:
         phenotype.utterSequence = utterancePhenotypeObj.sequenceData; // the MIDI sequence and done signal
         phenotype.utterNoteSpan = utterancePhenotypeObj.recordNoteSpan; // how many different pitches did we use?
         phenotype.utterHighNote = utterancePhenotypeObj.recordHighNote; // highest pitch performed
