@@ -776,6 +776,7 @@ _position.copyFrom( position );
         {
             //console.log( "swimbot " + _index + " ready to utter!" );
             //_markedForUtteringSound = true;
+            // console.log( "swimbot " + _index + " age=" + _age + " utterPeriod= " + _phenotype.utterPeriod + " ready to utter!" );
             _uttering = true;
         }	
         

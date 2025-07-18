@@ -62,10 +62,10 @@ const MAX_SEQUENCE_COUNT    =   5;
 const GREATEST_POSSIBLE_SWIMBOT_MASS = MAX_PARTS * MAX_LENGTH * MAX_WIDTH
 const GREATEST_POSSIBLE_SWIMBOT_LENGTH	= MAX_PARTS * MAX_LENGTH;
 
-const MIN_UTTER_PERIOD 	 = 100;  // in clock time
+const MIN_UTTER_PERIOD 	 = 200;  // in clock time
 const MAX_UTTER_PERIOD 	 = 500; // in clock time
-const MIN_UTTER_DURATION = 60;  	// in clock time ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
-const MAX_UTTER_DURATION = 90; // in clock time (never larger than MIN_UTTER_PERIOD, otherwise risks non-stop uttering)
+const MIN_UTTER_DURATION = 55;  	// in clock time ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
+const MAX_UTTER_DURATION = 120; // in clock time (never larger than MIN_UTTER_PERIOD, otherwise risks non-stop uttering)
 
 //--------------------
 function Embryology()
