@@ -260,7 +260,8 @@ function GenePool()
 		//------------------------------------
 		// start with a random simulation
 		//------------------------------------
-        this.startSimulation( SimulationStartMode.RANDOM );
+        // this.startSimulation( SimulationStartMode.RANDOM ); // if you prefer to start with a random pool
+        this.startSimulation( SimulationStartMode.EMPTY ); // if you prefer to start with blank canvas
         
         _millisecondsPerUpdate = DEFAULT_MILLISECONDS_PER_UPDATE;
         

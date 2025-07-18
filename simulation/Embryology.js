@@ -168,8 +168,8 @@ let testNoEel = true;
 		for (let g=0; g<NUM_GENES; g++)
 		{
             _normalizedGenes[g] = genotype.getGeneValue(g) / BYTE_SIZE;
-		    assert( _normalizedGenes[g] >= ZERO, "normalizedGenes[g] >= ZERO" );
-		    assert( _normalizedGenes[g] <= ONE,  "normalizedGenes[g] <= ONE"  );
+		    assert( _normalizedGenes[g] >= ZERO, "normalizedGenes[g] >= ZERO with gene position " + g + " having value " + _normalizedGenes[g] );
+		    assert( _normalizedGenes[g] <= ONE,  "normalizedGenes[g] <= ONE with gene position " + g + " having value " + _normalizedGenes[g] );
 		}
 
         //------------------------------------------------------------
