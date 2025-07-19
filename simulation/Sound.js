@@ -29,6 +29,7 @@ const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
 const MIDI_CHANNEL_GLOBAL = 16;
 
+
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
 
@@ -37,7 +38,8 @@ const MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 9,	lastUsed: 0 },
 	{	channel: 10, lastUsed: 0 },
 	{	channel: 11, lastUsed: 0 },
-	{	channel: 12, lastUsed: 0 }
+	{	channel: 12, lastUsed: 0 },
+	{	channel: 13, lastUsed: 0 }
 ];
 
 
@@ -60,11 +62,15 @@ const MIDI_NOTE_INTERVAL_SETS = [
 
 // Pick one of the above for the global / non-diagetic sound interval set, used for things like birth/death/eating
 const GLOBAL_INTERVAL_SET_NAME = '5ths';
+console.log('*** STARTING UP WITH MIDI INTERVAL SET ' + GLOBAL_INTERVAL_SET_NAME + ' ***');
 
 const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === GLOBAL_INTERVAL_SET_NAME).intervals;
 assert(	GLOBAL_NOTE_INTERVALS.length === 9,
   			"Sound.js: GLOBAL_NOTE_INTERVALS should have exactly 9 intervals. Current: [" + GLOBAL_NOTE_INTERVALS.join(", ") + "]"
 );
+
+const GLOBAL_MIN_REVERB = 15; // 0-127
+const GLOBAL_MAX_REVERB = 85;
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -181,22 +187,22 @@ function Sound()
 
 		SOUND_UPDATE_COUNTER +=1;
 		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
-		
+
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
-		let _p3_scaled = Math.max(5, Math.min(127, Math.round((_parameter_3 - 500) * 127 / (3000 - 500))));
-		let _p3_scaled_inverse = 127 - _p3_scaled;
+		let _p3_scaled = Math.max(GLOBAL_MIN_REVERB, Math.min(GLOBAL_MAX_REVERB, Math.round((_parameter_3 - 500) * GLOBAL_MAX_REVERB / (3000 - 500))));
+		let _p3_scaled_inverse = GLOBAL_MAX_REVERB - _p3_scaled;
 		if (midiOutput && MIDI_OUTPUT_GLOBAL) {
-			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL);
-			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL);
-			// console.log( "Global CC 21: " + _parameter_3_scaled);
+			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL); // dry/wet global reverb level
+			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL); // cutoff metaphysical function B (rhythmic background)
 		}
 		
 		// every minute, tweak background sound just for variation
 		if (midiOutput && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {
-			let controlAdjustment18 = (Math.floor(Math.random() * (3)) * 32) + 32; // one of 32, 64, 96
-			sendCC(18, controlAdjustment18, MIDI_CHANNEL_GLOBAL);
+			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
+			sendCC(18, controlAdjustment18, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
+			
 			let controlAdjustment19 = (Math.floor(Math.random() * (4)) * 25) + 25; // one of 25, 50, 75, or 100
-			sendCC(19, controlAdjustment19, MIDI_CHANNEL_GLOBAL);
+			sendCC(19, controlAdjustment19, MIDI_CHANNEL_GLOBAL); // 4th histogram section A of metaphysical function B (twanginess?)
 		}
 	}
 
