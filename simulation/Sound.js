@@ -15,6 +15,7 @@
 
 const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
+var SOUND_UPDATE_COUNTER = 0;
 
 const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
@@ -22,7 +23,7 @@ const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 
 // MIDI channels are 1-16 (not zero indexed!)
-const MIDI_BASE_NOTE = 48; // C3
+const MIDI_BASE_NOTE = 45; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
@@ -30,6 +31,7 @@ const MIDI_CHANNEL_GLOBAL = 16;
 
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
+
 const MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 8,	lastUsed: 0 },
 	{	channel: 9,	lastUsed: 0 },
@@ -37,6 +39,7 @@ const MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 11, lastUsed: 0 },
 	{	channel: 12, lastUsed: 0 }
 ];
+
 
 // these are here so we can selectively disable some sounds during testing
 var MIDI_OUTPUT_UTTER 	= true;
@@ -51,12 +54,17 @@ const MIDI_NOTE_INTERVAL_SETS = [
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
     { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
     { name: "whole-tone", 				intervals: [-10, -8, -6, -4, 0, +2, +4, +6, +8] },
-    { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] }
+    { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] },
+	 { name: "5ths", 						intervals: [-14, -7, -14, -7, 0, +7, +14, +7, +14] }
 ];
 
-// Global / background note interval set, used for things like birth/death/eating
-const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === "minor pentatonic").intervals;
+// Pick one of the above for the global / non-diagetic sound interval set, used for things like birth/death/eating
+const GLOBAL_INTERVAL_SET_NAME = '5ths';
 
+const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === GLOBAL_INTERVAL_SET_NAME).intervals;
+assert(	GLOBAL_NOTE_INTERVALS.length === 9,
+  			"Sound.js: GLOBAL_NOTE_INTERVALS should have exactly 9 intervals. Current: [" + GLOBAL_NOTE_INTERVALS.join(", ") + "]"
+);
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -170,6 +178,9 @@ function Sound()
 		_parameter_1 = p1;
 		_parameter_2 = p2;
 		_parameter_3 = p3; // camera zoom, ranges from about 500 to 8000
+
+		SOUND_UPDATE_COUNTER +=1;
+		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
 		
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
 		let _p3_scaled = Math.max(5, Math.min(127, Math.round((_parameter_3 - 500) * 127 / (3000 - 500))));
@@ -178,6 +189,14 @@ function Sound()
 			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL);
 			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL);
 			// console.log( "Global CC 21: " + _parameter_3_scaled);
+		}
+		
+		// every minute, tweak background sound just for variation
+		if (midiOutput && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {
+			let controlAdjustment18 = (Math.floor(Math.random() * (3)) * 32) + 32; // one of 32, 64, 96
+			sendCC(18, controlAdjustment18, MIDI_CHANNEL_GLOBAL);
+			let controlAdjustment19 = (Math.floor(Math.random() * (4)) * 25) + 25; // one of 25, 50, 75, or 100
+			sendCC(19, controlAdjustment19, MIDI_CHANNEL_GLOBAL);
 		}
 	}
 
@@ -315,12 +334,15 @@ console.log('Genes:',genes);
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 
 	// Pick our interval scale
-	// const pickIntervalIndex = Math.floor(rng() * MIDI_NOTE_INTERVAL_SETS.length);
-	const pickIntervalIndex = 1;
+	/*
+	const pickIntervalIndex = Math.floor(rng() * MIDI_NOTE_INTERVAL_SETS.length);
 	const pickIntervalSet = MIDI_NOTE_INTERVAL_SETS[pickIntervalIndex];
 	const MIDI_intervalName = pickIntervalSet.name;
 	var myNoteIntervals = pickIntervalSet.intervals;
 	console.log('Picked ' + MIDI_intervalName);
+	*/
+	
+	var myNoteIntervals = GLOBAL_NOTE_INTERVALS;
 
 
 	// use our DNA or other phenotype info to mutate some of our markov chain probabilities
