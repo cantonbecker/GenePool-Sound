@@ -21,11 +21,12 @@ const SOUND_EVENT_TYPE_EAT  	=  1;
 const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 
-// Define your MIDI channels as 1-16 (not zero indexed)
+// MIDI channels are 1-16 (not zero indexed!)
 const MIDI_BASE_NOTE = 48; // C3
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
+const MIDI_CHANNEL_GLOBAL = 16;
 
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
@@ -37,10 +38,25 @@ const MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 12, lastUsed: 0 }
 ];
 
+// these are here so we can selectively disable some sounds during testing
+var MIDI_OUTPUT_UTTER 	= true;
+var MIDI_OUTPUT_EAT 		= true;
+var MIDI_OUTPUT_BIRTH 	= true;
+var MIDI_OUTPUT_DEATH 	= true;
+var MIDI_OUTPUT_GLOBAL 	= true;
 
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 3000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
-const MIDI_CHANNEL_GLOBAL = 16;
+const MIDI_NOTE_INTERVAL_SETS = [
+    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
+    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
+    { name: "whole-tone", 				intervals: [-10, -8, -6, -4, 0, +2, +4, +6, +8] },
+    { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] }
+];
+
+// Global / background note interval set, used for things like birth/death/eating
+const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === "minor pentatonic").intervals;
+
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -61,29 +77,6 @@ var IOI_DURATION_PROBABILITY_MATRIX = [
   [0.6, 0.2,  0.2 ],  // currently medium? chances of switching short | staying medium | switching long
   [0.1, 0.6,  0.3 ]	// currently long? chances of switching short | switching medium | staying long
 ];
-
-const MIDI_NOTE_INTERVAL_SETS = [
-    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
-    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
-    { name: "whole-tone", 				intervals: [-10, -8, -6, -4, 0, +2, +4, +6, +8] },
-    { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] }
-];
-
-// Pentatonic
-// const MIDI_NOTE_INTERVALS = [-10, -8, -5, -3, 0, +2, +4, +7, +9];
-
-// Minor pentatonic
-var MIDI_NOTE_INTERVALS = [-9, -7, -5, -2, 0, +3, +5, +7, +10];
-
-// Whole-tone
-// const MIDI_NOTE_INTERVALS = [-10, -8, -6, -4, 0, +2, +4, +6, +8];
-
-// Chromatic cluster
-// const MIDI_NOTE_INTERVALS = [-4, -3, -2, -1, 0, +1, +2, +3, +4];
-
-
-
-
 
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
 // each set of numbers needs to add up to 1
@@ -181,7 +174,7 @@ function Sound()
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
 		let _p3_scaled = Math.max(5, Math.min(127, Math.round((_parameter_3 - 500) * 127 / (3000 - 500))));
 		let _p3_scaled_inverse = 127 - _p3_scaled;
-		if (midiOutput) {
+		if (midiOutput && MIDI_OUTPUT_GLOBAL) {
 			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL);
 			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL);
 			// console.log( "Global CC 21: " + _parameter_3_scaled);
@@ -196,7 +189,7 @@ function Sound()
 		
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
 			printString += 'EAT';
-			if (midiOutput) {
+			if (midiOutput && MIDI_OUTPUT_EAT) {
 				let midiChannel = MIDI_CHANNEL_EAT;
 				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
 				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
@@ -206,25 +199,25 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
 			printString += 'BIRTH';
-			if (midiOutput) {
+			if (midiOutput && MIDI_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
-				let maxDegrees = MIDI_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
+				let maxDegrees = GLOBAL_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
 				let idToDegrees = swimbotID % maxDegrees;
-				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
-				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
-				let midiNote = MIDI_BASE_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
+				let degree = idToDegrees % GLOBAL_NOTE_INTERVALS.length;
+				let octave = Math.floor(idToDegrees / GLOBAL_NOTE_INTERVALS.length);
+				let midiNote = MIDI_BASE_NOTE + (octave * 12) + GLOBAL_NOTE_INTERVALS[degree];
 				sendNote(midiNote, 127, 1000, midiChannel);
 				printString += " sent MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
 			printString += 'DEATH';
-			if (midiOutput) {
+			if (midiOutput && MIDI_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
-				let maxDegrees = MIDI_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
+				let maxDegrees = GLOBAL_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
 				let idToDegrees = swimbotID % maxDegrees;
-				let degree = idToDegrees % MIDI_NOTE_INTERVALS.length;
-				let octave = Math.floor(idToDegrees / MIDI_NOTE_INTERVALS.length);
-				let midiNote = MIDI_BASE_NOTE + (octave * 12) + MIDI_NOTE_INTERVALS[degree];
+				let degree = idToDegrees % GLOBAL_NOTE_INTERVALS.length;
+				let octave = Math.floor(idToDegrees / GLOBAL_NOTE_INTERVALS.length);
+				let midiNote = MIDI_BASE_NOTE + (octave * 12) + GLOBAL_NOTE_INTERVALS[degree];
 				sendNote(midiNote, 127, 1000, midiChannel);
 				printString += " sent MIDI note " + midiNote;
 			}
@@ -254,9 +247,8 @@ function Sound()
 		
 		// Update its lastUsed timestamp
 		let midiChannel = oldestMIDIchannel.channel;
-
 		
-		if (Date.now() - oldestMIDIchannel.lastUsed > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && utterVariablesObj.swimbotInView) {
+		if (Date.now() - oldestMIDIchannel.lastUsed > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
 			playAudio = true;
 			oldestMIDIchannel.lastUsed = rightNow;
 			let estimatedUtterLength = utterVariablesObj.utterDuration * APPROX_MS_PER_CLOCK;
@@ -264,7 +256,6 @@ function Sound()
 			console.log (utterVariablesObj);
 			// console.log(utterVariablesObj.utterSequence); // dump MIDI
 		}
-		
 
 		// now walk through the utter MIDI sequence
 		for (const step of utterVariablesObj.utterSequence) {		
