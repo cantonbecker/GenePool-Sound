@@ -62,10 +62,12 @@ const MAX_SEQUENCE_COUNT    =   5;
 const GREATEST_POSSIBLE_SWIMBOT_MASS = MAX_PARTS * MAX_LENGTH * MAX_WIDTH
 const GREATEST_POSSIBLE_SWIMBOT_LENGTH	= MAX_PARTS * MAX_LENGTH;
 
-const MIN_UTTER_PERIOD 	 = 200;  // in clock time
-const MAX_UTTER_PERIOD 	 = 500; // in clock time
-const MIN_UTTER_DURATION = 55;  	// in clock time ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
-const MAX_UTTER_DURATION = 120; // in clock time (never larger than MIN_UTTER_PERIOD, otherwise risks non-stop uttering)
+// Utter constants, all in clock time. To think of these in ms, multiply by APPROX_MS_PER_CLOCK (declared in Sound.js)
+
+const MIN_UTTER_PERIOD 	 = 80;    // min time between utterances
+const MAX_UTTER_PERIOD 	 = 80*4;   // max time between utterances
+const MIN_UTTER_DURATION = 20;  	   // min utter length ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
+const MAX_UTTER_DURATION = 20*4;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
 
 //--------------------
 function Embryology()
@@ -303,12 +305,12 @@ let testNoEel = true;
             );   
              
         // this gives us back everything we need to store utterance and sequence-related phenotype data:
-        phenotype.utterSequence = utterancePhenotypeObj.sequenceData; // the MIDI sequence and done signal
-        phenotype.utterNoteSpan = utterancePhenotypeObj.recordNoteSpan; // how many different pitches did we use?
-        phenotype.utterHighNote = utterancePhenotypeObj.recordHighNote; // highest pitch performed
-        phenotype.utterLowNote = utterancePhenotypeObj.recordLowNote; // lowest pitch performed
-        phenotype.utterNoteCount = utterancePhenotypeObj.recordNoteCount; // how many individual notes?
-        phenotype.utterModCount = utterancePhenotypeObj.recordModCount; // how many control events (e.g. modwheel spinnings)?
+        phenotype.utterSequence     = utterancePhenotypeObj.sequenceData;       // the MIDI sequence and done signal
+        phenotype.utterNotes        = utterancePhenotypeObj.recordNotesUsed;    // array of unique note pitches we used
+        phenotype.utterHighNote     = utterancePhenotypeObj.recordHighNote;     // highest pitch performed
+        phenotype.utterLowNote      = utterancePhenotypeObj.recordLowNote;      // lowest pitch performed
+        phenotype.utterNoteCount    = utterancePhenotypeObj.recordNoteCount;    // how many individual notes?
+        phenotype.utterModCount     = utterancePhenotypeObj.recordModCount;     // how many control events (e.g. modwheel spins)?
 
         console.log('*** A SWIMBOT IS BORN! ***', phenotype);
 

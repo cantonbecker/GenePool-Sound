@@ -1349,7 +1349,7 @@ let partAccelerationY = -strokeForceY;
     this.getDigestibleFoodType          = function() { return _phenotype.digestibleFoodType;                }
     this.getUtterPeriod                 = function() { return _phenotype.utterPeriod;                       }
     this.getUtterDuration               = function() { return _phenotype.utterDuration;                     }
-    this.getUtterNoteSpan               = function() { return _phenotype.utterNoteSpan;                     }
+    this.getUtterNotes                  = function() { return _phenotype.utterNotes;                        }
     this.getUtterHighNote               = function() { return _phenotype.utterHighNote;                     }
     this.getUtterLowNote                = function() { return _phenotype.utterLowNote;                      }
     this.getUtterNoteCount              = function() { return _phenotype.utterNoteCount;                    }
@@ -1606,63 +1606,77 @@ let partAccelerationY = -strokeForceY;
 		{
 			if ( _uttering )
 			{
-				//console.log( "yes - uttering" );
-            // TK: later on we should make this dependent on the PHENOTYPE of the singing
-            // When we invoke an utterance, canton's code should send back some kind of
-            // info about the song that was sung (or would have been sung, had it been in view)
-            // for example: how many individual notes in the utterance, how many different notes (frequency range)
-            // how many modulation events, harmonic scale
+            // console.log ("My _phenotype is ",_phenotype);
+            // console.log ("judge_phenotype is ",judge_phenotype);
+
+            /*** LET'S CALCULATE PHENOTYPICAL ATTRACTIVENESS BETWEEN THIS SWIMBOT AND A JUDGE SWIMBOT! ***/
+            // we might get more interesting results by narrowing what's considered attractive, for example
+            // only consider note overlap, or highest pitch / lowest pitch...
             
             /*
-            this.utterNoteSpan		// when this swimbot's utterance was last composed, how many different pitches did it use?
+            this.utterNotes		   // array of all the different note pitches used
             this.utterHighNote		// highest pitch performed
             this.utterLowNote		   // lowest pitch performed
             this.utterNoteCount		// how many individual notes?
-            this.utterModCount		// how many control events (e.g. modwheel spinnings)?
+            this.utterModCount		// how many control events (e.g. modwheel spins)?
             this.utterPeriod		   // how often does it sing
             this.utterDuration		// how long does it sing
             */
-                
-            // calculate differences between judge and this swimbot's utterance properties
-
-            // something to fix is that attractiveness is not symmetrical
-            // Swimbot.js:1680 When comparing swimbot 3 with judge 1 my attractiveness is 0.6493088363954506
-            // Swimbot.js:1680 When comparing swimbot 1 with judge 3 my attractiveness is 0.19720034995625535
+                                        
+            // *** Figure out "utterNoteOverlap" 0-1 ***
+            // How similar are the two swimbot utterances, in terms of what note pitches they use? 
+            // Do their utterances use all the same pitches -- even if in a different order or rhythm)
+            // Or do their utterances use completely different notes?
+            // utterNoteOverlap is calculated from 1 (all note pitches are identical) to 0 (no shared note pitches at all)
             
-            // console.log ("My judge_phenotype is ",judge_phenotype);
+            const setA = new Set(_phenotype.utterNotes);
+            const setB = new Set(judge_phenotype.utterNotes);
+            const intersection = [...setA].filter(x => setB.has(x));
+            const union = new Set([..._phenotype.utterNotes, ...judge_phenotype.utterNotes]);
+            const utterNoteOverlap = union.size === 0 ? 0 : intersection.length / union.size;
             
-            const noteSpanDiff   = Math.abs(_phenotype.utterNoteSpan - judge_phenotype.utterNoteSpan) / 9;           // range 1-10, max diff 9
-            const highNoteDiff   = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127;         // range 1-127
-            const lowNoteDiff    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127;           // range 1-127
-        
-            // For note counts and mod countes, use a proportional difference to handle wide-ranging values:
-            let noteCountDiff;
+                    
+            // *** Figure out "noteCountSimilarity" 0-1 ***
+            // How similar are the utterances in terms of complexity, i.e. how many individual notes were played?
+            let noteCountSimilarity;
             const maxNoteCount = Math.max(_phenotype.utterNoteCount, judge_phenotype.utterNoteCount);
             if (maxNoteCount === 0) {
-                noteCountDiff = 0;
+                noteCountSimilarity = 0;
             } else {
-                noteCountDiff = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / maxNoteCount;
+                noteCountSimilarity = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / maxNoteCount;
             }
+            noteCountSimilarity = 1 - noteCountSimilarity; // invert so 0=least similar, 1=most similar
             
-            let modCountDiff;
+            
+            // Compare how wiggly the utterances were in terms of how many mod wheel etc. control values were sent
+            let modCountSimilarity;
             const maxModCount = Math.max(_phenotype.utterModCount, judge_phenotype.utterModCount);
             if (maxModCount === 0) {
-                modCountDiff = 0;
+                modCountSimilarity = 0;
             } else {
-                modCountDiff = Math.abs(_phenotype.utterModCount - judge_phenotype.utterModCount) / maxModCount;
-            }        
+                modCountSimilarity = Math.abs(_phenotype.utterModCount - judge_phenotype.utterModCount) / maxModCount;
+            }
+            modCountSimilarity = 1 - modCountSimilarity; // invert so 0=least similar, 1=most similar
+
+            // compare the highest note sung, 0-1
+            let highNoteSimilarity = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127; // assumes note range of 1-127
+            highNoteSimilarity = 1 - highNoteSimilarity; // invert so 0=least similar, 1=most similar
             
-            // Average the normalized differences:
-            const averageDiff = (noteSpanDiff + highNoteDiff + lowNoteDiff + noteCountDiff + modCountDiff) / 5;
-        
-            // Attractiveness = inverse of average difference
-            attractiveness = 1 - averageDiff;
-        
+            // compare the lowest note sung, 0-1
+            let lowNoteSimilarity    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127; // assumes note range of 1-127
+            lowNoteSimilarity = 1 - lowNoteSimilarity; // invert so 0=least similar, 1=most similar           
+
+            
+            // *** AVERAGE ALL OUR NORMALIZED CALCULATIONS TO COME UP WITH OUR ATTRACTIVENESS ***
+            attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 5;
+                
             // Ensure attractiveness stays within [0,1] // clamp to make sure
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
-            // console.log ("When comparing swimbot " + _index + " with judge " + judge_index + " my attractiveness is " + attractiveness);
-            // console.log ("E.g. utterNoteCount " + _phenotype.utterNoteCount + " vs. " + judge_phenotype.utterNoteCount);
+            console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
+            console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
+            console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
+            console.log ("noteCountSimilarity=" + noteCountSimilarity + ", modCountSimilarity=" + modCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
 
             if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
                 console.log("ALERT: Setting attractiveness to zero because " + attractiveness + " was NaN or out of range 0-1 when comparing swimbot " + _index + " with judge " + judge_index);

@@ -1209,7 +1209,7 @@ if ( mode === SimulationStartMode.SPECIES )
                         swimbotInView:      isInView,
                         swimbotPosition:    _swimbots[s].getPosition(),
                         utterDuration:      _swimbots[s].getUtterDuration(),
-                        utterNoteSpan:      _swimbots[s].getUtterNoteSpan(),
+                        utterNotes:         _swimbots[s].getUtterNotes(),
                         utterHighNote:      _swimbots[s].getUtterHighNote(),
                         utterLowNote:       _swimbots[s].getUtterLowNote(),
                         utterNoteCount:     _swimbots[s].getUtterNoteCount(),

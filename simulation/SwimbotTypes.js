@@ -189,13 +189,13 @@ function Phenotype()
 	this.mass               = ZERO;
 	this.preferredFoodType  = 0;
 	this.digestibleFoodType = 0;
-	this.utterPeriod			= 0;
-	this.utterDuration		= 0;
-	this.utterNoteSpan		= 0; // when this swimbot's utterance was last composed, how many different pitches did it use?
-	this.utterHighNote		= 0; // highest pitch performed
-	this.utterLowNote		   = 0; // lowest pitch performed
-	this.utterNoteCount		= 0; // how many individual notes?
-	this.utterModCount		= 0; // how many control events (e.g. modwheel spinnings)?
+	this.utterPeriod			= 0;	// space between utterances (in clocks)
+	this.utterDuration		= 0;	// length of utterance (in clocks)
+	this.utterHighNote		= 0;	// highest note pitch performed
+	this.utterLowNote		   = 0;	// lowest note pitch performed
+	this.utterNoteCount		= 0;	// how many individual notes?
+	this.utterModCount		= 0;	// how many control events (e.g. modwheel spinnings)?
+	this.utterNotes			= []; // array of the unique notes pitches used in the performance
 	this.utterSequence		= []; // this will store our swimbot's MIDI sequence when it is generated at birth
 	
 	for (let p=0; p<MAX_PARTS; p++)

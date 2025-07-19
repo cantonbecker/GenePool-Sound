@@ -13,8 +13,8 @@
 
 "use strict";
 
-const SOUND_UPDATE_PERIOD =  30; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
-var APPROX_MS_PER_CLOCK = 20; 		// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
+const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
+var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 
 const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
@@ -37,17 +37,19 @@ const MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 12, lastUsed: 0 }
 ];
 
+
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 3000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
 const MIDI_CHANNEL_GLOBAL = 16;
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
+	For more typically rhythmic phrases, set identical min/max for each length so each length is identical
 */
 var SEQUENCE_DURATION_STATES = [
-  { name: 'short',  min: 30,  max: 60 },   // short notes will range from 30 to 60 ms
-  { name: 'medium', min: 100, max: 250 },
-  { name: 'long',   min: 300, max: 500 }
+  { name: 'short',  min: 30,  max: 30 }, // for example, 30ms is 64th notes played at 125bpm
+  { name: 'medium', min: 120, max: 120 }, // 120ms is 16th notes at 125bpm, 160ms is a fairly swung 16th note (late)
+  { name: 'long',   min: 480, max: 480 } // 480ms is a quarter note at 125bpm
 ];
 
 
@@ -59,6 +61,14 @@ var IOI_DURATION_PROBABILITY_MATRIX = [
   [0.6, 0.2,  0.2 ],  // currently medium? chances of switching short | staying medium | switching long
   [0.1, 0.6,  0.3 ]	// currently long? chances of switching short | switching medium | staying long
 ];
+
+const MIDI_NOTE_INTERVAL_SETS = [
+    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
+    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
+    { name: "whole-tone", 				intervals: [-10, -8, -6, -4, 0, +2, +4, +6, +8] },
+    { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] }
+];
+
 // Pentatonic
 // const MIDI_NOTE_INTERVALS = [-10, -8, -5, -3, 0, +2, +4, +7, +9];
 
@@ -70,6 +80,9 @@ var MIDI_NOTE_INTERVALS = [-9, -7, -5, -2, 0, +3, +5, +7, +10];
 
 // Chromatic cluster
 // const MIDI_NOTE_INTERVALS = [-4, -3, -2, -1, 0, +1, +2, +3, +4];
+
+
+
 
 
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
@@ -166,9 +179,11 @@ function Sound()
 		_parameter_3 = p3; // camera zoom, ranges from about 500 to 8000
 		
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
-		let _parameter_3_scaled = Math.max(5, Math.min(127, Math.round((_parameter_3 - 500) * 127 / (3000 - 500))));
+		let _p3_scaled = Math.max(5, Math.min(127, Math.round((_parameter_3 - 500) * 127 / (3000 - 500))));
+		let _p3_scaled_inverse = 127 - _p3_scaled;
 		if (midiOutput) {
-			sendCC(21, _parameter_3_scaled, MIDI_CHANNEL_GLOBAL);
+			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL);
+			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL);
 			// console.log( "Global CC 21: " + _parameter_3_scaled);
 		}
 	}
@@ -290,6 +305,11 @@ function Sound()
 
 
 
+
+
+
+
+
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
 
 
@@ -303,6 +323,15 @@ console.log('Genes:',genes);
 	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 
+	// Pick our interval scale
+	// const pickIntervalIndex = Math.floor(rng() * MIDI_NOTE_INTERVAL_SETS.length);
+	const pickIntervalIndex = 1;
+	const pickIntervalSet = MIDI_NOTE_INTERVAL_SETS[pickIntervalIndex];
+	const MIDI_intervalName = pickIntervalSet.name;
+	var myNoteIntervals = pickIntervalSet.intervals;
+	console.log('Picked ' + MIDI_intervalName);
+
+
 	// use our DNA or other phenotype info to mutate some of our markov chain probabilities
 	let idx = _geneNames.indexOf('frequency');
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")
@@ -314,14 +343,12 @@ console.log('Genes:',genes);
     const mutatedIoiProbabilityMatrix = createMutatedMatrix(IOI_DURATION_PROBABILITY_MATRIX, rng, 0.8);
     console.log('Original Durations:', IOI_DURATION_PROBABILITY_MATRIX);
     console.log('Mutated Durations:', mutatedIoiProbabilityMatrix);
-	 IOI_DURATION_PROBABILITY_MATRIX = mutatedIoiProbabilityMatrix;
+	 // IOI_DURATION_PROBABILITY_MATRIX = mutatedIoiProbabilityMatrix;
 	 
 	 const mutatedIntervalProbabilityMatrix = createMutatedMatrix(IOI_MIDI_NOTE_PROBABILITY_MATRIX, rng, 0.9);
     console.log('Original Intervals:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
     console.log('Mutated Intervals:', mutatedIntervalProbabilityMatrix);
 	 IOI_MIDI_NOTE_PROBABILITY_MATRIX = mutatedIntervalProbabilityMatrix;
-	 
-
 	 // IOI_DURATION_PROBABILITY_MATRIX = mutatedIoiProbabilityMatrix;
 	
 	let sequenceTime = 0; // keep track of our timeline for composing (in ms)
@@ -337,12 +364,12 @@ console.log('Genes:',genes);
 	// how much mod wheel wiggling should there be between notes? (Increase the exponent to further weigh towards zero)
 	let chanceOfModulation = rng() ** 4;
 	
-	// Markov Chain time! Pick initial Interval State (note)
-	let lastInt = Math.floor(rng() * MIDI_NOTE_INTERVALS.length); // pick starting interval
+	// Markov Chain time! Pick an initial Interval State (note)
+	let lastInt = Math.floor(rng() * myNoteIntervals.length); // pick starting interval
 	
 	// Now pick the initial Inter-Onset Interval (duration)
 	let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
-	if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
+	// if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
 	
 	
 	// program synth (CC 18) with a random value
@@ -401,12 +428,12 @@ console.log('Genes:',genes);
 	
 		// ——— pick next interval state ———
 		p = rng(); cumulativeProb = 0; let nextIntState;
-		for (let i = 0; i < MIDI_NOTE_INTERVALS.length; i++) {
+		for (let i = 0; i < myNoteIntervals.length; i++) {
 			cumulativeProb += IOI_MIDI_NOTE_PROBABILITY_MATRIX[lastInt][i];
 			if (p < cumulativeProb) { nextIntState = i; break; }
 		}
-		if (nextIntState === undefined) nextIntState = MIDI_NOTE_INTERVALS.length - 1;
-		const thisNoteShift = MIDI_NOTE_INTERVALS[nextIntState];
+		if (nextIntState === undefined) nextIntState = myNoteIntervals.length - 1;
+		const thisNoteShift = myNoteIntervals[nextIntState];
 		let thisNoteNumber = MIDI_BASE_NOTE + octaveNoteShift + thisNoteShift;
 		
 		// remember some phenotypical info
@@ -455,11 +482,9 @@ console.log('Genes:',genes);
 		];
 	*/
 
-	
-	let recordNoteSpan = recordNotesUsed.length;
-	
+		
 	// return our object of phenotypes
-	let utterancePhenotypeObj = { sequenceData, recordNoteSpan, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
+	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
 	return (utterancePhenotypeObj);
 }
 
