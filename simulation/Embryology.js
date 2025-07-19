@@ -64,10 +64,10 @@ const GREATEST_POSSIBLE_SWIMBOT_LENGTH	= MAX_PARTS * MAX_LENGTH;
 
 // Utter constants, all in clock time. To think of these in ms, multiply by APPROX_MS_PER_CLOCK (declared in Sound.js)
 
-const MIN_UTTER_PERIOD 	 = 80;    // min time between utterances
-const MAX_UTTER_PERIOD 	 = 80*4;   // max time between utterances
+const MIN_UTTER_PERIOD 	 = 200;    // min time between utterances
+const MAX_UTTER_PERIOD 	 = MIN_UTTER_PERIOD * 2;   // max time between utterances
 const MIN_UTTER_DURATION = 20;  	   // min utter length ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
-const MAX_UTTER_DURATION = 20*4;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
+const MAX_UTTER_DURATION = 80;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
 
 //--------------------
 function Embryology()

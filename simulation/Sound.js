@@ -43,7 +43,7 @@ const MIDI_CHANNELS_FOR_UTTERING = [
 ];
 
 
-// these are here so we can selectively disable some sounds during testing
+// these are here in case we want to selectively disable some sounds during testing
 var MIDI_OUTPUT_UTTER 	= true;
 var MIDI_OUTPUT_EAT 		= true;
 var MIDI_OUTPUT_BIRTH 	= true;
@@ -57,11 +57,12 @@ const MIDI_NOTE_INTERVAL_SETS = [
     { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
     { name: "whole-tone", 				intervals: [-10, -8, -6, -4, 0, +2, +4, +6, +8] },
     { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] },
-	 { name: "5ths", 						intervals: [-14, -7, -14, -7, 0, +7, +14, +7, +14] }
+	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
+	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
 ];
 
 // Pick one of the above for the global / non-diagetic sound interval set, used for things like birth/death/eating
-const GLOBAL_INTERVAL_SET_NAME = '5ths';
+const GLOBAL_INTERVAL_SET_NAME = 'minor pentatonic';
 console.log('*** STARTING UP WITH MIDI INTERVAL SET ' + GLOBAL_INTERVAL_SET_NAME + ' ***');
 
 const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === GLOBAL_INTERVAL_SET_NAME).intervals;
@@ -76,40 +77,25 @@ const GLOBAL_MAX_REVERB = 85;
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
 	For more typically rhythmic phrases, set identical min/max for each length so each length is identical
 */
-var SEQUENCE_DURATION_STATES = [
-  { name: 'short',  min: 30,  max: 30 }, // for example, 30ms is 64th notes played at 125bpm
-  { name: 'medium', min: 120, max: 120 }, // 120ms is 16th notes at 125bpm, 160ms is a fairly swung 16th note (late)
-  { name: 'long',   min: 480, max: 480 } // 480ms is a quarter note at 125bpm
+const SEQUENCE_DURATION_STATES = [
+	{ name: 'short',  min: 30,  max: 60 },    // 30ms is a 64th note at 125 BPM, 60 is a 32nd
+	{ name: 'medium', min: 120, max: 120 },   // 120ms is an 8th note at 125 BPM
+	{ name: 'long',   min: 240, max: 480 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 ];
 
+//	3 x 3 probability matrix of how likely it is we will transition from one state to another.
+//	Each set of numbers needs to add up to 1 (100%).
 
-/*	3 x 3 probability matrix of how likely it is we will transition from one state to another.
-	Each set of numbers needs to add up to 1 (100%).
-*/
-var IOI_DURATION_PROBABILITY_MATRIX = [
-  [0.8, 0.1, 0.1],  // currently short? chances of staying short | switching medium | switching long 
-  [0.6, 0.2,  0.2 ],  // currently medium? chances of switching short | staying medium | switching long
-  [0.1, 0.6,  0.3 ]	// currently long? chances of switching short | switching medium | staying long
+const IOI_DURATION_PROBABILITY_MATRIX = [
+  [0.8, 0.1, 0.1],  		// currently short? chances of staying short | switching medium | switching long 
+  [0.6, 0.2, 0.2 ],		// currently medium? chances of switching short | staying medium | switching long
+  [0.1, 0.6, 0.3 ]		// currently long? chances of switching short | switching medium | staying long
 ];
 
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
-// each set of numbers needs to add up to 1
-/*
-var IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
-  [0.10, 0.15, 0.20, 0.25, 0.10, 0.10, 0.05, 0.03, 0.02],
-  [0.05, 0.10, 0.20, 0.30, 0.10, 0.10, 0.10, 0.03, 0.02],
-  [0.04, 0.10, 0.20, 0.30, 0.20, 0.10, 0.03, 0.02, 0.01],
-  [0.03, 0.07, 0.10, 0.30, 0.30, 0.10, 0.05, 0.03, 0.02],
-  [0.02, 0.05, 0.10, 0.30, 0.30, 0.10, 0.10, 0.02, 0.01], // middle interval
-  [0.02, 0.03, 0.05, 0.10, 0.30, 0.30, 0.10, 0.07, 0.03],
-  [0.01, 0.02, 0.03, 0.10, 0.20, 0.30, 0.20, 0.10, 0.04],
-  [0.02, 0.03, 0.05, 0.10, 0.10, 0.10, 0.20, 0.30, 0.10],
-  [0.02, 0.05, 0.10, 0.20, 0.20, 0.15, 0.10, 0.10, 0.08]
-];
-*/
+// each set of numbers needs to add up to 1 (100%). Default is bell-curve like around middle note
 
-// bell-curveish around the middle note
-var IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
+const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
   /* from -5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
   /* from -3 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
   /* from -2 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
@@ -191,13 +177,13 @@ function Sound()
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
 		let _p3_scaled = Math.max(GLOBAL_MIN_REVERB, Math.min(GLOBAL_MAX_REVERB, Math.round((_parameter_3 - 500) * GLOBAL_MAX_REVERB / (3000 - 500))));
 		let _p3_scaled_inverse = GLOBAL_MAX_REVERB - _p3_scaled;
-		if (midiOutput && MIDI_OUTPUT_GLOBAL) {
+		if (doingMidiOutput() && MIDI_OUTPUT_GLOBAL) {
 			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL); // dry/wet global reverb level
 			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL); // cutoff metaphysical function B (rhythmic background)
 		}
 		
 		// every minute, tweak background sound just for variation
-		if (midiOutput && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {
+		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {
 			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
 			sendCC(18, controlAdjustment18, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
 			
@@ -214,7 +200,7 @@ function Sound()
 		
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
 			printString += 'EAT';
-			if (midiOutput && MIDI_OUTPUT_EAT) {
+			if (doingMidiOutput() && MIDI_OUTPUT_EAT) {
 				let midiChannel = MIDI_CHANNEL_EAT;
 				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
 				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
@@ -224,7 +210,7 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
 			printString += 'BIRTH';
-			if (midiOutput && MIDI_OUTPUT_BIRTH) {
+			if (doingMidiOutput() && MIDI_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
 				let maxDegrees = GLOBAL_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
 				let idToDegrees = swimbotID % maxDegrees;
@@ -236,7 +222,7 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
 			printString += 'DEATH';
-			if (midiOutput && MIDI_OUTPUT_DEATH) {
+			if (doingMidiOutput() && MIDI_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
 				let maxDegrees = GLOBAL_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
 				let idToDegrees = swimbotID % maxDegrees;
@@ -273,7 +259,7 @@ function Sound()
 		// Update its lastUsed timestamp
 		let midiChannel = oldestMIDIchannel.channel;
 		
-		if (Date.now() - oldestMIDIchannel.lastUsed > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && midiOutput && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
+		if (doingMidiOutput() && Date.now() - oldestMIDIchannel.lastUsed > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
 			playAudio = true;
 			oldestMIDIchannel.lastUsed = rightNow;
 			let estimatedUtterLength = utterVariablesObj.utterDuration * APPROX_MS_PER_CLOCK;
@@ -298,6 +284,14 @@ function Sound()
 		
 	} // end function doUtterance()
 		
+	function doingMidiOutput() {
+		if (midiOutput) {
+			return true;
+		} else {
+      	return false;
+		}
+	}
+
 
 
 	// Actually send a MIDI note on (and schedule a note off) to the IAC bus. 
@@ -323,23 +317,32 @@ function Sound()
 
 
 
-
+/**
+ * generateUtterancePhenotypes
+ * ---------------------------
+ * Given gene values, gene names, and utterance timing parameters,
+ * generates a musically structured sequence of MIDI-like events (notes and CCs)
+ * using Markov chains and gene-influenced random mutation.
+ * Tracks features of the generated sequence (notes used, highest/lowest note, etc.).
+ * Returns an object containing the sequence data and phenotype stats.
+ * Used for simulating swimbot "songs" in a deterministic, gene-driven way.
+ * Called exclusively from Embryology.js as part of the birth process.
+ */
 
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
 
-
 /*
-for (let i = 0; i < _geneNames.length; i++) {
-    console.log(_geneNames[i], genes[i]);
-}
+for (let i = 0; i < _geneNames.length; i++) { console.log(_geneNames[i], genes[i]); }
 console.log('Genes:',genes);
 */
 
 	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
+	// const rng = aleaPRNG('always the same');
+	
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 
-	// Pick our interval scale
+	// One option is that we can swap out our interval scale
 	/*
 	const pickIntervalIndex = Math.floor(rng() * MIDI_NOTE_INTERVAL_SETS.length);
 	const pickIntervalSet = MIDI_NOTE_INTERVAL_SETS[pickIntervalIndex];
@@ -348,6 +351,7 @@ console.log('Genes:',genes);
 	console.log('Picked ' + MIDI_intervalName);
 	*/
 	
+	// or just keep our global scale
 	var myNoteIntervals = GLOBAL_NOTE_INTERVALS;
 
 
@@ -357,19 +361,22 @@ console.log('Genes:',genes);
 	const geneticFrequency = genes[idx]; // 0-1, more or less how fast it wiggles
 
 
-    // Create a mutated copy of the base matrix for this specific utterance,
-    // passing the gene-seeded RNG to make the mutation deterministic.
-    const mutatedIoiProbabilityMatrix = createMutatedMatrix(IOI_DURATION_PROBABILITY_MATRIX, rng, 0.8);
-    console.log('Original Durations:', IOI_DURATION_PROBABILITY_MATRIX);
-    console.log('Mutated Durations:', mutatedIoiProbabilityMatrix);
-	 // IOI_DURATION_PROBABILITY_MATRIX = mutatedIoiProbabilityMatrix;
+	/*** Assign and mutate duration probability matrix ***/
+	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
+	myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.5);
+   console.log('Original Duration Probability Matrix:', IOI_DURATION_PROBABILITY_MATRIX);
+   console.log('Mutated Duration Probability Matrix:', myDurationProbabilities);
+
+
+	/*** Assign and mutate note probability matrix ***/
+	let myNoteProbabilities = IOI_MIDI_NOTE_PROBABILITY_MATRIX; // make a copy we can mess with
+	for (let i = 0; i < 3; i++) { // the more times we mutate it, the more we stray from the default bell-curve
+		myNoteProbabilities = createMutatedMatrix(myNoteProbabilities, rng, 0.5);
+	}
+   console.log('Original Note Probability Matrix:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
+   console.log('Mutated Note Probability Matrix:', myNoteProbabilities);
 	 
-	 const mutatedIntervalProbabilityMatrix = createMutatedMatrix(IOI_MIDI_NOTE_PROBABILITY_MATRIX, rng, 0.9);
-    console.log('Original Intervals:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
-    console.log('Mutated Intervals:', mutatedIntervalProbabilityMatrix);
-	 IOI_MIDI_NOTE_PROBABILITY_MATRIX = mutatedIntervalProbabilityMatrix;
-	 // IOI_DURATION_PROBABILITY_MATRIX = mutatedIoiProbabilityMatrix;
-	
+	 
 	let sequenceTime = 0; // keep track of our timeline for composing (in ms)
 	
 	const sequenceData = [];
@@ -433,7 +440,7 @@ console.log('Genes:',genes);
 		// pick next inter-onset interval
 		let p = rng(), cumulativeProb = 0, nextIOI;
 		for (let i = 0; i < SEQUENCE_DURATION_STATES.length; i++) {
-			cumulativeProb += IOI_DURATION_PROBABILITY_MATRIX[lastIOI][i];
+			cumulativeProb += myDurationProbabilities[lastIOI][i];
 			if (p < cumulativeProb) { nextIOI = i; break; }
 		}
 		// fallback if rounding/FP left nextIOI undefined
@@ -448,7 +455,7 @@ console.log('Genes:',genes);
 		// ——— pick next interval state ———
 		p = rng(); cumulativeProb = 0; let nextIntState;
 		for (let i = 0; i < myNoteIntervals.length; i++) {
-			cumulativeProb += IOI_MIDI_NOTE_PROBABILITY_MATRIX[lastInt][i];
+			cumulativeProb += myNoteProbabilities[lastInt][i];
 			if (p < cumulativeProb) { nextIntState = i; break; }
 		}
 		if (nextIntState === undefined) nextIntState = myNoteIntervals.length - 1;
@@ -514,17 +521,17 @@ console.log('Genes:',genes);
  *
  * @param {number[][]} sourceMatrix The original probability matrix.
  * @param {function} rng A function that returns a random number between 0 and 1.
- * @param {number} maxDelta The maximum probability value to be transferred.
+ * @param {number} maxDelta the maximum change in probability we might mutate between the two cells we pick
  * @returns {number[][]} The new, mutated, and rounded matrix.
  */
 function createMutatedMatrix(sourceMatrix, rng, maxDelta = 0.1) {
     // Create a deep copy to work on, leaving the original unchanged.
     const newMatrix = JSON.parse(JSON.stringify(sourceMatrix));
 
-    for (const row of newMatrix) {
+    for (const row of newMatrix) { // iterate through rows, and try to mutate *each row*
         if (row.length < 2) continue; // Can't transfer with fewer than 2 elements.
 
-        // 1. Pick two different indices.
+        // 1. Pick two different indices at random (so if this is a 9x9 table, we're only going to be messing with two values)
         let i = Math.floor(rng() * row.length);
         let j;
         do {
@@ -545,7 +552,6 @@ function createMutatedMatrix(sourceMatrix, rng, maxDelta = 0.1) {
         }
     }
 
-    // --- New Rounding Logic ---
     // Apply rounding to each row to ensure two decimal places while preserving the sum of 1.
     for (const row of newMatrix) {
         const precision = 100; // For two decimal places
