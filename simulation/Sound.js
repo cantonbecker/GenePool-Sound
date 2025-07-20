@@ -33,14 +33,27 @@ const MIDI_CHANNEL_GLOBAL = 16;
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
 
+
 const MIDI_CHANNELS_FOR_UTTERING = [
+	{	channel: 7,	lastUsed: 0 },
 	{	channel: 8,	lastUsed: 0 },
 	{	channel: 9,	lastUsed: 0 },
 	{	channel: 10, lastUsed: 0 },
 	{	channel: 11, lastUsed: 0 },
 	{	channel: 12, lastUsed: 0 },
-	{	channel: 13, lastUsed: 0 }
+	{	channel: 13, lastUsed: 0 },
+	{	channel: 14, lastUsed: 0 }
 ];
+
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // throttle: we don't ask any individual uttering channel to utter more often than this
+
+
+/*
+const MIDI_CHANNELS_FOR_UTTERING = [
+	{	channel: 8,	lastUsed: 0 },
+];
+*/
+
 
 
 // these are here in case we want to selectively disable some sounds during testing
@@ -50,7 +63,6 @@ var MIDI_OUTPUT_BIRTH 	= true;
 var MIDI_OUTPUT_DEATH 	= true;
 var MIDI_OUTPUT_GLOBAL 	= true;
 
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 3000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
 const MIDI_NOTE_INTERVAL_SETS = [
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
@@ -70,15 +82,15 @@ assert(	GLOBAL_NOTE_INTERVALS.length === 9,
   			"Sound.js: GLOBAL_NOTE_INTERVALS should have exactly 9 intervals. Current: [" + GLOBAL_NOTE_INTERVALS.join(", ") + "]"
 );
 
-const GLOBAL_MIN_REVERB = 15; // 0-127
-const GLOBAL_MAX_REVERB = 85;
+const GLOBAL_MIN_REVERB = 10; // 0-127
+const GLOBAL_MAX_REVERB = 80;
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
 	For more typically rhythmic phrases, set identical min/max for each length so each length is identical
 */
 const SEQUENCE_DURATION_STATES = [
-	{ name: 'short',  min: 30,  max: 60 },    // 30ms is a 64th note at 125 BPM, 60 is a 32nd
+	{ name: 'short',  min: 60,  max: 60 },    // 30ms is a 64th note at 125 BPM, 60 is a 32nd
 	{ name: 'medium', min: 120, max: 120 },   // 120ms is an 8th note at 125 BPM
 	{ name: 'long',   min: 240, max: 480 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 ];
@@ -95,17 +107,47 @@ const IOI_DURATION_PROBABILITY_MATRIX = [
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
 // each set of numbers needs to add up to 1 (100%). Default is bell-curve like around middle note
 
-const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [
-  /* from -5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from -3 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from -2 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from -1 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from  0 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from +1 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from +2 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from +3 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02],
-  /* from +5 */ [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02]
+/*
+const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // BELL CURVE
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -4
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -3
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -2
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -1
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from 0
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from +1
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from +2
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from +3
+  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02]  // from +4
 ];
+*/
+
+/*
+const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // SHARP BELL CURVE
+  [0.80, 0.15, 0.03, 0.01, 0.005, 0.003, 0.001, 0.0005, 0.0005], // from -4
+  [0.15, 0.70, 0.10, 0.03, 0.01, 0.005, 0.003, 0.001, 0.001], // from -3
+  [0.03, 0.10, 0.65, 0.15, 0.05, 0.01, 0.005, 0.003, 0.002], // from -2
+  [0.01, 0.03, 0.15, 0.60, 0.15, 0.07, 0.015, 0.007, 0.003], // from -1
+  [0.005, 0.01, 0.05, 0.15, 0.50, 0.15, 0.05, 0.01, 0.005], // from 0
+  [0.003, 0.007, 0.015, 0.07, 0.15, 0.60, 0.15, 0.03, 0.01], // from +1
+  [0.002, 0.003, 0.005, 0.01, 0.05, 0.15, 0.65, 0.10, 0.03], // from +2
+  [0.001, 0.001, 0.003, 0.005, 0.01, 0.03, 0.10, 0.70, 0.15], // from +3
+  [0.0005, 0.0005, 0.001, 0.003, 0.005, 0.01, 0.03, 0.15, 0.80]  // from +4
+];
+*/
+
+const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // REALLY SHARP BELL CURVE
+  //         -4      -3      -2      -1       0      +1      +2      +3      +4
+  [0.93,   0.06,   0.009, 0.001, 0,     0,     0,     0,     0   ], // from -4
+  [0.06,   0.90,   0.03,  0.009, 0.001, 0,     0,     0,     0   ], // from -3
+  [0.009,  0.03,   0.85,  0.03,  0.009, 0.001, 0,     0,     0   ], // from -2
+  [0.001,  0.009,  0.03,  0.80,  0.15,  0.009, 0.001, 0,     0   ], // from -1
+  [0.001,  0.004,  0.01,  0.015, 0.95,  0.015, 0.01,  0.004, 0.001], // from  0
+  [0,      0.001,  0.009, 0.15,  0.80,  0.03,  0.009, 0.001, 0   ], // from +1
+  [0,      0,      0.001, 0.009, 0.009, 0.03,  0.85,  0.03,  0.009], // from +2
+  [0,      0,      0,     0.001, 0.001, 0.009, 0.03,  0.90,  0.06 ], // from +3
+  [0,      0,      0,     0,     0.001, 0.009, 0.06,  0.93,  0.06 ]  // from +4
+];
+
 
 
 //------------------------------------------
@@ -259,7 +301,9 @@ function Sound()
 		// Update its lastUsed timestamp
 		let midiChannel = oldestMIDIchannel.channel;
 		
-		if (doingMidiOutput() && Date.now() - oldestMIDIchannel.lastUsed > MIN_WAIT_BETWEEN_MIDI_UTTERANCES && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
+		// a lot of things have to be true before we'll actuall utter out to MIDI...
+		let min_wait_slop = Math.floor(Math.random() * 250); // prevents our available channels from syncing up
+		if (doingMidiOutput() && Date.now() - oldestMIDIchannel.lastUsed >( MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop) && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
 			playAudio = true;
 			oldestMIDIchannel.lastUsed = rightNow;
 			let estimatedUtterLength = utterVariablesObj.utterDuration * APPROX_MS_PER_CLOCK;
@@ -360,21 +404,19 @@ console.log('Genes:',genes);
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")
 	const geneticFrequency = genes[idx]; // 0-1, more or less how fast it wiggles
 
-
-	/*** Assign and mutate duration probability matrix ***/
+	/*** Assign duration and note probability matrices ***/
 	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
-	myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.5);
-   console.log('Original Duration Probability Matrix:', IOI_DURATION_PROBABILITY_MATRIX);
-   console.log('Mutated Duration Probability Matrix:', myDurationProbabilities);
-
-
-	/*** Assign and mutate note probability matrix ***/
 	let myNoteProbabilities = IOI_MIDI_NOTE_PROBABILITY_MATRIX; // make a copy we can mess with
-	for (let i = 0; i < 3; i++) { // the more times we mutate it, the more we stray from the default bell-curve
-		myNoteProbabilities = createMutatedMatrix(myNoteProbabilities, rng, 0.5);
+
+	/*** Mutate them? ***/
+	let mutationFactor = Math.floor((rng() ** 7) * 11);
+	for (let i = 0; i < mutationFactor; i++) { // the more times we mutate it, the more we stray from the default bell-curve
+		myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.3);
+		myNoteProbabilities = createMutatedMatrix(myNoteProbabilities, rng, 0.3);
 	}
-   console.log('Original Note Probability Matrix:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
-   console.log('Mutated Note Probability Matrix:', myNoteProbabilities);
+	
+   logProbabilityMatrix('Original Note Probability Matrix:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
+   logProbabilityMatrix('Mutated x' + mutationFactor + ' Note Probability Matrix:', myNoteProbabilities);
 	 
 	 
 	let sequenceTime = 0; // keep track of our timeline for composing (in ms)
@@ -385,55 +427,32 @@ console.log('Genes:',genes);
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 	
 	// is our swimbot a baritone or a soprano?
-	let octaveNoteShift = 32 + (12 * (Math.floor(rng() * 3)));  // octaves above the MIDI base note
+	let octaveNoteShift = 12 * (Math.floor(rng() * 4));  // octaves above the MIDI base note
 	
 	// how much mod wheel wiggling should there be between notes? (Increase the exponent to further weigh towards zero)
-	let chanceOfModulation = rng() ** 4;
+	// let chanceOfModulation = rng() ** 4;
+	let chanceOfModulation = .5;
 	
 	// Markov Chain time! Pick an initial Interval State (note)
-	let lastInt = Math.floor(rng() * myNoteIntervals.length); // pick starting interval
+	let lastInt = Math.floor(rng() * myNoteIntervals.length); // pick a random starting interval
 	
 	// Now pick the initial Inter-Onset Interval (duration)
 	let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
 	// if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
 	
 	
-	// program synth (CC 18) with a random value
-	sequenceTime += 10; // add 10ms
-	sequenceData.push({
-		delay: sequenceTime,
-		type: 'cc',
-		cc: 18,
-		value: Math.floor(rng() * 127) // 0-127, equal weight
-	});
-	
-	
-	// program synth (CC 19) with a random value
-	sequenceTime += 10; // add 10ms
-	sequenceData.push({
-		delay: sequenceTime,
-		type: 'cc',
-		cc: 19,
-		value: 20 + Math.floor((rng() ** 2) * 64) // 0-64, weighed towards lower end
-	});
-	
-	// program synth (CC 20) with a random value
-	sequenceTime += 10; // add 10ms
-	sequenceData.push({
-		delay: sequenceTime,
-		type: 'cc',
-		cc: 20,
-		value: Math.floor((rng() ** 2) * 64) // 0-64, weighed towards lower end
-	});
-	
-	// initialize mod CC (1) with a random value
-	sequenceTime += 10; // add 10ms
-	sequenceData.push({
-		delay: sequenceTime,
-		type: 'cc',
-		cc: 1,
-		value: Math.floor((rng() ** 3) * 128) // 0-127, weighed towards lower end
-	});
+	// initialize synth controls 15,16,17,19,20 with a random value from 0-127
+	const controlNumbers = [15, 16, 17, 19, 20];
+	for (let ccNum of controlNumbers) {
+		sequenceTime += 10; // add 10ms
+		let myCCval = Math.floor(rng() * 127) // 0-127, equal weight;
+		sequenceData.push({
+			delay: sequenceTime,
+			type: 'cc',
+			cc: ccNum,
+			value: Math.floor(rng() * 127) // 0-127, equal weight
+		});
+	}	
 	
 	sequenceTime += 10; // wait 10ms before composing main utterance
 	while (sequenceTime < utterSequenceLength) {
@@ -450,7 +469,8 @@ console.log('Genes:',genes);
 		const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
 	
 		// stretch durations to 100–200% of the gap, with a floor of 50ms
-		const thisNoteDuration = Math.max( Math.round(interOnsetIntervalMs * (1 + rng() * 1)), 50 );
+		// const thisNoteDuration = Math.max( Math.round(interOnsetIntervalMs * (1 + rng() * 1)), 50 );
+		const thisNoteDuration = interOnsetIntervalMs / 2;
 	
 		// ——— pick next interval state ———
 		p = rng(); cumulativeProb = 0; let nextIntState;
@@ -479,12 +499,13 @@ console.log('Genes:',genes);
 		
 		// push in random MIDI mod expressions
 		if (rng() < chanceOfModulation) {
-			let modVal = Math.floor(rng()*128); // equal weighted random 0-127
+			let ccVal = Math.floor(rng()*128); // equal weighted random 0-127
+			let ccNo = Math.floor(rng()*2) + 15; // cc 15 or 16
 			sequenceData.push({
 				delay: sequenceTime + 10,  // in ms
 				type: 'cc',
-				cc: 1,
-				value: modVal
+				cc: ccNo,
+				value: ccVal
 			});
 			recordModCount ++;
 		}
@@ -551,41 +572,14 @@ function createMutatedMatrix(sourceMatrix, rng, maxDelta = 0.1) {
             row[i] += delta;
         }
     }
-
-    // Apply rounding to each row to ensure two decimal places while preserving the sum of 1.
-    for (const row of newMatrix) {
-        const precision = 100; // For two decimal places
-        let sumOfFloored = 0;
-
-        // Store numbers with their original index and fractional part.
-        const items = row.map((value, index) => {
-            const scaledValue = value * precision;
-            const flooredValue = Math.floor(scaledValue);
-            sumOfFloored += flooredValue;
-            return {
-                index: index,
-                floored: flooredValue,
-                remainder: scaledValue - flooredValue
-            };
-        });
-
-        // Calculate how much was lost due to flooring.
-        let remainderToDistribute = precision - sumOfFloored;
-
-        // Sort items by their fractional part in descending order.
-        items.sort((a, b) => b.remainder - a.remainder);
-
-        // Distribute the lost remainder points to the numbers with the largest fractions.
-        for (let i = 0; i < remainderToDistribute; i++) {
-            items[i].floored += 1;
-        }
-        
-        // Sort back to original order and update the row with the new rounded values.
-        items.sort((a, b) => a.index - b.index);
-        for (let i = 0; i < row.length; i++) {
-            row[i] = items[i].floored / precision;
-        }
-    }
-
     return newMatrix;
+}
+
+function logProbabilityMatrix(label, matrix) {
+    console.log(label);
+    for (const row of matrix) {
+        // Format each number as a string with 3 decimals, zero-padded.
+        const formatted = row.map(num => num.toFixed(3).padStart(5, '0'));
+        console.log('  [', formatted.join(', '), ']');
+    }
 }
