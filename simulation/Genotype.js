@@ -409,9 +409,6 @@ g++; _genes[g] = 255;
             //-----------------------------------
             if ( gpRandom() < MUTATION_RATE ) 
             {
-console.log ('About to mutate gene no. ' + g);
-console.log ('parent_0',parent_0.getGenes());
-console.log ('parent_1', parent_1.getGenes());
                 this.mutateGene(g);
             }
             

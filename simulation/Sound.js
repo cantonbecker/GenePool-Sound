@@ -34,7 +34,7 @@ const MIDI_CHANNEL_GLOBAL = 16;
 // (each time we utter, we select the channel used longest ago)
 
 
-const MIDI_CHANNELS_FOR_UTTERING = [
+var MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 7,	lastUsed: 0 },
 	{	channel: 8,	lastUsed: 0 },
 	{	channel: 9,	lastUsed: 0 },
@@ -45,7 +45,9 @@ const MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 14, lastUsed: 0 }
 ];
 
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // throttle: we don't ask any individual uttering channel to utter more often than this
+// MIDI_CHANNELS_FOR_UTTERING = [ { channel: 7, lastUsed: 0 } ]; // test on 7
+
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
 
 /*
@@ -74,7 +76,7 @@ const MIDI_NOTE_INTERVAL_SETS = [
 ];
 
 // Pick one of the above for the global / non-diagetic sound interval set, used for things like birth/death/eating
-const GLOBAL_INTERVAL_SET_NAME = 'minor pentatonic';
+const GLOBAL_INTERVAL_SET_NAME = 'pentatonic';
 console.log('*** STARTING UP WITH MIDI INTERVAL SET ' + GLOBAL_INTERVAL_SET_NAME + ' ***');
 
 const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === GLOBAL_INTERVAL_SET_NAME).intervals;
@@ -89,10 +91,13 @@ const GLOBAL_MAX_REVERB = 80;
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
 	For more typically rhythmic phrases, set identical min/max for each length so each length is identical
 */
+
+const SHORTEST_NOTE_MS = 40;
+
 const SEQUENCE_DURATION_STATES = [
-	{ name: 'short',  min: 60,  max: 60 },    // 30ms is a 64th note at 125 BPM, 60 is a 32nd
-	{ name: 'medium', min: 120, max: 120 },   // 120ms is an 8th note at 125 BPM
-	{ name: 'long',   min: 240, max: 480 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
+	{ name: 'short',  min: 80,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS 
+	{ name: 'medium', min: 160, max: 160 },   // 120ms is an 8th note at 125 BPM
+	{ name: 'long',   min: 320, max: 640 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 ];
 
 //	3 x 3 probability matrix of how likely it is we will transition from one state to another.
@@ -379,6 +384,11 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 /*
 for (let i = 0; i < _geneNames.length; i++) { console.log(_geneNames[i], genes[i]); }
 console.log('Genes:',genes);
+
+let idx = _geneNames.indexOf('frequency');
+if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")
+const geneticFrequency = genes[idx]; // 0-1
+
 */
 
 	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
@@ -398,26 +408,22 @@ console.log('Genes:',genes);
 	// or just keep our global scale
 	var myNoteIntervals = GLOBAL_NOTE_INTERVALS;
 
-
-	// use our DNA or other phenotype info to mutate some of our markov chain probabilities
-	let idx = _geneNames.indexOf('frequency');
-	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")
-	const geneticFrequency = genes[idx]; // 0-1, more or less how fast it wiggles
-
 	/*** Assign duration and note probability matrices ***/
 	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
 	let myNoteProbabilities = IOI_MIDI_NOTE_PROBABILITY_MATRIX; // make a copy we can mess with
 
-	/*** Mutate them? ***/
-	let mutationFactor = Math.floor((rng() ** 7) * 11);
+	/*** Mutate our markov tables? if so how much? ***/
+
+	let mutationFactor = Math.floor((rng() ** 7) * 11); // loop through up to 10 times, weighted towards less
 	for (let i = 0; i < mutationFactor; i++) { // the more times we mutate it, the more we stray from the default bell-curve
-		myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.3);
+		// myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.3);
 		myNoteProbabilities = createMutatedMatrix(myNoteProbabilities, rng, 0.3);
 	}
 	
+	/*
    logProbabilityMatrix('Original Note Probability Matrix:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
    logProbabilityMatrix('Mutated x' + mutationFactor + ' Note Probability Matrix:', myNoteProbabilities);
-	 
+	*/
 	 
 	let sequenceTime = 0; // keep track of our timeline for composing (in ms)
 	
@@ -427,11 +433,18 @@ console.log('Genes:',genes);
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 	
 	// is our swimbot a baritone or a soprano?
-	let octaveNoteShift = 12 * (Math.floor(rng() * 4));  // octaves above the MIDI base note
+	let octaveNoteShift = 12 * (Math.ceil(rng() * 4));  // octaves above the MIDI base note
+	
+	// how long are our notes?
+	const noteLengthOptions = ['click', 'legato', 'complex'];
+	const noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];
+	console.log ("noteLengthStyle is " + noteLengthStyle);
+	
 	
 	// how much mod wheel wiggling should there be between notes? (Increase the exponent to further weigh towards zero)
-	// let chanceOfModulation = rng() ** 4;
-	let chanceOfModulation = .5;
+	let chanceOfModulation = rng();
+	const modulationStrength = Math.floor(rng() * 32); // how fast to twist knobs
+	
 	
 	// Markov Chain time! Pick an initial Interval State (note)
 	let lastInt = Math.floor(rng() * myNoteIntervals.length); // pick a random starting interval
@@ -439,20 +452,34 @@ console.log('Genes:',genes);
 	// Now pick the initial Inter-Onset Interval (duration)
 	let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
 	// if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
+
+	// SET UP THE SYNTHESIZER AT THE BEGINNING OF THE UTTERANCE		
+	// initialize synthesizer controls with a range of min to max.
+	// 'variable' means yes you can twiddle this knob during the sequence
+	// in which case the variableWidth is how much you can twiddle it
+	let myControls = [
+		{ cc: 15, min: 0,		max: 127,	initalVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
+		{ cc: 16, min: 32,	max: 127,	initalVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
+		{ cc: 14, min: 94,	max: 97,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// wave
+		{ cc: 17, min: 50,	max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" 
+		{ cc: 19, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  },	// "level 2"
+		{ cc: 20, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  } // "level 3"
+	];
 	
-	
-	// initialize synth controls 15,16,17,19,20 with a random value from 0-127
-	const controlNumbers = [15, 16, 17, 19, 20];
-	for (let ccNum of controlNumbers) {
+	for (let setting of myControls) {
 		sequenceTime += 10; // add 10ms
-		let myCCval = Math.floor(rng() * 127) // 0-127, equal weight;
+		const range = setting.max - setting.min + 1;
+		let myCCval = Math.floor(rng() * range) + setting.min;
+		setting.initalVal = myCCval; // remember our initial home position
+		setting.lastVal = myCCval; // this will also be our last known position
+		if (rng() > .5) setting.lastDir = 'down'; // randomly override initial spin direction
 		sequenceData.push({
 			delay: sequenceTime,
 			type: 'cc',
-			cc: ccNum,
-			value: Math.floor(rng() * 127) // 0-127, equal weight
+			cc: setting.cc,
+			value: myCCval
 		});
-	}	
+	}
 	
 	sequenceTime += 10; // wait 10ms before composing main utterance
 	while (sequenceTime < utterSequenceLength) {
@@ -468,9 +495,13 @@ console.log('Genes:',genes);
 		const band = SEQUENCE_DURATION_STATES[nextIOI];
 		const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
 	
-		// stretch durations to 100–200% of the gap, with a floor of 50ms
-		// const thisNoteDuration = Math.max( Math.round(interOnsetIntervalMs * (1 + rng() * 1)), 50 );
-		const thisNoteDuration = interOnsetIntervalMs / 2;
+		// HOW LONG SHOULD THIS NOTE PLAY?
+		let thisNoteDuration = SHORTEST_NOTE_MS; // default AKA 'click'
+		if (noteLengthStyle == 'legato') {
+			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs - (SHORTEST_NOTE_MS * 2)); // leave some space between notes
+		} else if (noteLengthStyle == 'complex') {
+			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs * Math.floor(rng()));
+		}
 	
 		// ——— pick next interval state ———
 		p = rng(); cumulativeProb = 0; let nextIntState;
@@ -482,12 +513,12 @@ console.log('Genes:',genes);
 		const thisNoteShift = myNoteIntervals[nextIntState];
 		let thisNoteNumber = MIDI_BASE_NOTE + octaveNoteShift + thisNoteShift;
 		
-		// remember some phenotypical info
+		// record some phenotypical info
 		if (thisNoteNumber > recordHighNote) recordHighNote = thisNoteNumber; // we hit our highest note yet
 		if (thisNoteNumber < recordLowNote) recordLowNote = thisNoteNumber; // we hit our lowest note yet
 		if (!recordNotesUsed.includes(thisNoteNumber)) recordNotesUsed.push(thisNoteNumber); // we used a new note
 	
-		// ——— emit note event ———
+		// push event into sequencer
 		sequenceData.push({
 			delay:    sequenceTime,  // in ms
 			type:     'note',
@@ -498,16 +529,48 @@ console.log('Genes:',genes);
 		recordNoteCount ++;
 		
 		// push in random MIDI mod expressions
+		
 		if (rng() < chanceOfModulation) {
-			let ccVal = Math.floor(rng()*128); // equal weighted random 0-127
-			let ccNo = Math.floor(rng()*2) + 15; // cc 15 or 16
+			// 1. Filter controls to those with variable: true
+			const variableControls = myControls.filter(c => c.variable);
+		
+			// 2. Randomly pick one
+			const idx = Math.floor(rng() * variableControls.length);
+			const setting = variableControls[idx];
+		
+			// 3. Calculate modulation range
+			const halfWidth = setting.variableWidth / 2;
+			const ccMin = Math.max(setting.min, setting.initalVal - halfWidth);
+			const ccMax = Math.min(setting.max, setting.initalVal + halfWidth);
+		
+			// 4. Modulate value up or down depending on lastDir
+			let ccVal, newDir = setting.lastDir;
+			if (setting.lastDir === 'up') {
+				ccVal = setting.lastVal + modulationStrength;
+				if (ccVal > ccMax) {
+						ccVal = ccMax;
+						newDir = 'down';
+				}
+			} else { // lastDir is 'down'
+				ccVal = setting.lastVal - modulationStrength;
+				if (ccVal < ccMin) {
+						ccVal = ccMin;
+						newDir = 'up';
+				}
+			}
+		
+			// 5. Update lastVal and lastDir
+			setting.lastVal = ccVal;
+			setting.lastDir = newDir;
+		
+			// 6. Push the event
 			sequenceData.push({
 				delay: sequenceTime + 10,  // in ms
 				type: 'cc',
-				cc: ccNo,
+				cc: setting.cc,
 				value: ccVal
 			});
-			recordModCount ++;
+			recordModCount += modulationStrength;
 		}
 	
 		// advance time & states

@@ -1648,11 +1648,13 @@ let partAccelerationY = -strokeForceY;
             // Ensure attractiveness stays within [0,1] // clamp to make sure
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
+            /*
             console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
             console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
             console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
             console.log ("noteCountSimilarity=" + noteCountSimilarity + ", modCountSimilarity=" + modCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
-
+            */
+            
             if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
                 console.log("ALERT: Setting attractiveness to zero because " + attractiveness + " was NaN or out of range 0-1 when comparing swimbot " + _index + " with judge " + judge_index);
                 console.log("_phenotype:", _phenotype);
