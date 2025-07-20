@@ -279,23 +279,19 @@ let testNoEel = true;
         //  
         // 
         //-----------------------------------------------------------------------------------------
-        
         g++;  
         _geneNames[g] = "utter period";
         phenotype.utterPeriod = MIN_UTTER_PERIOD + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_PERIOD - MIN_UTTER_PERIOD ) );     
-        // phenotype.utterPeriod = 300;
         
         g++;  
         _geneNames[g] = "utter duration";        
 		  phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
-        // phenotype.utterDuration = 5;
         
         //------------------------------------------------------------------------------------------------
         // *** generate the markov-chained utterance sequence ***
         // when a swimbot is born, its unique and individual life-long MIDI "song" is composed
         // and its utterance-related phenotypes (utterHighNote, utterNoteCount, etc.) are determined ...
         //------------------------------------------------------------------------------------------------
-
         let utterancePhenotypeObj = 
             generateUtterancePhenotypes (
                 genotype.getGenes(),
@@ -313,37 +309,6 @@ let testNoEel = true;
         phenotype.utterModCount     = utterancePhenotypeObj.recordModCount;     // how many control events (e.g. modwheel spins)?
 
         console.log('*** A SWIMBOT IS BORN! ***', phenotype);
-
-		/*
-        g++;  
-		_geneNames[g] = "utter energy";        
-		phenotype.utterEnergy = MIN_UTTER_ENERGY + _normalizedGenes[g] * ( MAX_UTTER_ENERGY - MIN_UTTER_ENERGY );     
-        */
-        
-     	/*
-         let clampAmount = 5;
-		if ( phenotype.utterDuration > phenotype.utterPeriod + clampAmount ) // if utter duration is too long and would overlap our utter period
-		{
-			phenotype.utterDuration = phenotype.utterPeriod - clampAmount;
-		}
-
-      */
-		/*
-     	let clampAmount = 5;
-     	if ( phenotype.utterPeriod < clampAmount )
-     	{
-	     	phenotype.utterDuration = clampAmount - 1;
-     	}
-     	else 
-     	{		
-			let clampedDuration = phenotype.utterPeriod - 3;
-			if ( phenotype.utterDuration > clampedDuration )
-			{
-				phenotype.utterDuration = clampedDuration;
-			}
-		}
-		*/
-		
 		
         /*
         let preferredFoodType  = 0;

@@ -65,7 +65,6 @@ const PROTOTYPING_SOUND = true;
 	let _numFoodBitsEaten   = 0;
 	//let _maximumLifeSpan    = 0;
 	let _markedForDeath		= false;
-	//let _markedForUtteringSound	= false;
 	let _index              = NULL_INDEX;
 	let _chosenMateIndex    = NULL_INDEX;
 	let _chosenFoodBitIndex = NULL_INDEX;
@@ -732,15 +731,11 @@ _position.copyFrom( position );
 		return _markedForDeath;
 	}
 
-	
     //------------------------------------------------------------------------
     // utterance attributes...
     //------------------------------------------------------------------------
 	this.getIsUttering 		= function() { return _uttering; 				}
 	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
-
-
-
 	
     //---------------------------------------
 	this.setDoneUtteringSound = function()
@@ -774,28 +769,9 @@ _position.copyFrom( position );
         //-----------------------------------
         if ( _age % _phenotype.utterPeriod === 0 )
         {
-            //console.log( "swimbot " + _index + " ready to utter!" );
-            //_markedForUtteringSound = true;
             // console.log( "swimbot " + _index + " age=" + _age + " utterPeriod= " + _phenotype.utterPeriod + " ready to utter!" );
             _uttering = true;
         }	
-        
-        // the Sound.js system determines when uttering stops
-        /*
-        if ( _age % _phenotype.utterPeriod === _phenotype.utterDuration )
-        {
-            //console.log( "swimbot " + _index + " ready to utter!" );
-            //_markedForUtteringSound = true;
-			_uttering = false;
-        }	
-        */
-        
-        /*
-        if ( _uttering ) 
-        {
-        	_energy -= _phenotype.utterEnergy * ENERGY_USED_UP_UTTERING;
-		}
-		*/
 		
         //-------------------------------------
         // I wanna eat my chosen food bit...
@@ -1355,7 +1331,6 @@ let partAccelerationY = -strokeForceY;
     this.getUtterNoteCount              = function() { return _phenotype.utterNoteCount;                    }
     this.getUtterModCount               = function() { return _phenotype.utterModCount;                     }
     this.getUtterSequence               = function() { return _phenotype.utterSequence;                     }
-	
 
 	//---------------------------------------
     this.getGoalDescription = function() 
@@ -2223,7 +2198,15 @@ console.log( "contributeToOffspring: _childEnergyRatio = " + _childEnergyRatio )
 	{
 		if ( _uttering )
 		{	
-			_swimbotRenderer.showUttering( 1 );
+			_swimbotRenderer.showUttering
+			(
+				_phenotype.utterNotes,
+				_phenotype.utterHighNote,
+				_phenotype.utterLowNote,
+				_phenotype.utterNoteCount,
+				_phenotype.utterModCount,
+				_phenotype.utterSequence 
+			);
 		}
 		
 	    _swimbotRenderer.render
@@ -2236,8 +2219,6 @@ console.log( "contributeToOffspring: _childEnergyRatio = " + _childEnergyRatio )
 	        _focusDirection,
 	        levelOfDetail
 	    );
-
-              
 
 
 /// debug test!!!!! 

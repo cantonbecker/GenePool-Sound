@@ -38,6 +38,18 @@ var    flopperYV = 0;
     const DEFAULT_SPLINE_FACTOR = 0.4;
     const UTTER_EFFECT_SIZE 	= 70;
     const EGG_SIZE = 5.0;
+    
+
+	function Utter()
+	{	
+		this.showing	= false;
+		this.notes		= 0;
+		this.highNote	= 0;
+		this.lowNote	= 0;
+		this.noteCount	= 0;
+		this.modCount	= 0;
+		this.sequence 	= 0;
+	}
 
 	//--------------------------------
 	// variables
@@ -47,11 +59,11 @@ var    flopperYV = 0;
 	let _growthScale    = ZERO;
 	let _focusDirection = new Vector2D();
 	let _brain          = new Brain();
+	let _utter			= new Utter();
 	let _age            = 1000;
 	let _energy         = ZERO;
 	let _splineFactor   = ZERO;
-	let _showUttering	= false;
-	let _utteringEnergy	= ZERO;
+
 	let _renderingGenitalsAndMouths = false;
 
 	//----------------------------------------------------
@@ -76,13 +88,25 @@ var    flopperYV = 0;
 	    _renderingGenitalsAndMouths = r;
     }
 
-	//-------------------------------------------
-	// set uttering
-	//-------------------------------------------
-	this.showUttering = function( energy )
+	//-----------------------------
+	this.showUttering = function
+	(
+		notes,
+		highNote,
+		lowNote,
+		noteCount,
+		modCount,
+		sequence 
+	)
 	{	
-		_utteringEnergy = energy;
-		_showUttering = true;
+		_utter.showing = true;
+	
+		_utter.notes		= notes;
+		_utter.highNote		= highNote;
+		_utter.lowNote		= lowNote;
+		_utter.noteCount	= noteCount;
+		_utter.modCount		= modCount;
+		_utter.sequence 	= sequence;
     }
     
 	//-----------------------
@@ -106,26 +130,37 @@ var    flopperYV = 0;
     	_growthScale    = growthScale;
     	_focusDirection = focusDirection;
     	
-		if ( _showUttering )
+		if ( _utter.showing )
 		{
 		    let p = 1;
+			let res = 10;
+			let angle = 0.2 + _utter.noteCount * 0.02;
 			
-			let radius = _utteringEnergy * UTTER_EFFECT_SIZE - 5.0 * Math.random();
+			for (let i=0; i<res; i++)
+			{
+				let frac = i / res;
+				
+				let s = 0.5 + 0.5 * Math.sin( frac * 5 + _age * _utter.lowNote * 0.2 );
+				let arc = frac * angle + 0.4 * s;
+			
+				let wobble = 0.5 + 0.5 * Math.cos( _age * 3 * frac * 0.1) * 5;
+			
+				let radius = UTTER_EFFECT_SIZE * frac + wobble;
 
-			canvas.fillStyle = "rgba( 100, 100, 200, 0.2 )";	
-            canvas.beginPath();
-            canvas.arc( _phenotype.parts[p].position.x, _phenotype.parts[p].position.y, radius, 0, PI2, false );
-            canvas.fill();
-            canvas.closePath();	    	
+				let alpha = 0.3 + 0.1 * Math.sin( frac * 5 + _age * _utter.modCount * 2 );
 
-			canvas.lineWidth = 1;
-			canvas.strokeStyle = "rgba( 255, 255, 255, 0.5 )";	
-            canvas.beginPath();
-            canvas.arc( _phenotype.parts[p].position.x, _phenotype.parts[p].position.y, radius, 0, PI2, false );
-            canvas.stroke();
-            canvas.closePath();	  
+				canvas.lineWidth = 3;
+				canvas.strokeStyle = "rgba( 255, 255, 255, " + alpha + " )";	
+				canvas.beginPath();
+				canvas.arc( _phenotype.parts[p].position.x, _phenotype.parts[p].position.y, radius, -arc, arc, false );
+				canvas.stroke();
+
+				canvas.beginPath();
+				canvas.arc( _phenotype.parts[p].position.x, _phenotype.parts[p].position.y, radius, Math.PI -arc, Math.PI + arc, false );
+				canvas.stroke();
+			}			
             
-            _showUttering = false;  //reset for next time...
+            _utter.showing = false;  //reset for next time...
 		}
         
 		if ( levelOfDetail == SWIMBOT_LEVEL_OF_DETAIL_DOT )

@@ -1194,33 +1194,32 @@ if ( mode === SimulationStartMode.SPECIES )
                 } // end eating
                 
                 
-            //-----------------------------
-            // *** IS IT TIME TO UTTER? ***
-            //-----------------------------
+            	//-----------------------------
+            	// *** IS IT TIME TO UTTER? ***
+            	//-----------------------------
 				if ( _swimbots[s].getIsUttering() )
 				{
-                if ( ! _markedForUtteringSound[s] )
-                {
-                    _markedForUtteringSound[s] = true;
-                    let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                    
-                    let utterVariablesObj = {
-                        swimbotID:          s,
-                        swimbotInView:      isInView,
-                        swimbotPosition:    _swimbots[s].getPosition(),
-                        utterDuration:      _swimbots[s].getUtterDuration(),
-                        utterNotes:         _swimbots[s].getUtterNotes(),
-                        utterHighNote:      _swimbots[s].getUtterHighNote(),
-                        utterLowNote:       _swimbots[s].getUtterLowNote(),
-                        utterNoteCount:     _swimbots[s].getUtterNoteCount(),
-                        utterModCount:      _swimbots[s].getUtterModCount(),
-                        utterSequence:      _swimbots[s].getUtterSequence(),
-                    };
-                
-                    // actually send out the MIDI for the utterance, or, at least, schedule when to stop uttering 
-                    _sound.doUtterance (utterVariablesObj, this);
-                                
-                }
+					if ( ! _markedForUtteringSound[s] )
+					{
+						_markedForUtteringSound[s] = true;
+						let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+					
+						let utterVariablesObj = {
+							swimbotID:          s,
+							swimbotInView:      isInView,
+							swimbotPosition:    _swimbots[s].getPosition(),
+							utterDuration:      _swimbots[s].getUtterDuration(),
+							utterNotes:         _swimbots[s].getUtterNotes(),
+							utterHighNote:      _swimbots[s].getUtterHighNote(),
+							utterLowNote:       _swimbots[s].getUtterLowNote(),
+							utterNoteCount:     _swimbots[s].getUtterNoteCount(),
+							utterModCount:      _swimbots[s].getUtterModCount(),
+							utterSequence:      _swimbots[s].getUtterSequence(),
+						};
+				
+						// actually send out the MIDI for the utterance, or, at least, schedule when to stop uttering 
+						_sound.doUtterance (utterVariablesObj, this);
+					}
 				}
 				else
 				{
@@ -1391,9 +1390,7 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
             }
         }
         
-        
         //console.log( "num living swimbots = " + testNumLiving.toString() );            
-
     }
     
     
@@ -3596,9 +3593,9 @@ for (let g=0; g<NUM_GENES; g++)
     this.getSwimbotAttractionDescription    = function( ID ) {	return _swimbots[ ID ].getAttractionDescription     (); }
     this.getSwimbotPreferredFoodType        = function( ID ) {	return _swimbots[ ID ].getPreferredFoodType         (); }
     this.getSwimbotDigestibleFoodType       = function( ID ) {	return _swimbots[ ID ].getDigestibleFoodType        (); }
-	 this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
-	 this.getSwimbotUtterPeriod              = function( ID ) {	return _swimbots[ ID ].getUtterPeriod               (); }
-	 this.getSwimbotUtterDuration            = function( ID ) {	return _swimbots[ ID ].getUtterDuration             (); }
+	this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
+	this.getSwimbotUtterPeriod              = function( ID ) {	return _swimbots[ ID ].getUtterPeriod               (); }
+	this.getSwimbotUtterDuration            = function( ID ) {	return _swimbots[ ID ].getUtterDuration             (); }
 
     
     // this is now being initialized from the index.html...
