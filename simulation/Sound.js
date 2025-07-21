@@ -35,6 +35,8 @@ const MIDI_CHANNEL_GLOBAL = 16;
 
 
 var MIDI_CHANNELS_FOR_UTTERING = [
+	{	channel: 5,	lastUsed: 0 },
+	{	channel: 6,	lastUsed: 0 },
 	{	channel: 7,	lastUsed: 0 },
 	{	channel: 8,	lastUsed: 0 },
 	{	channel: 9,	lastUsed: 0 },
@@ -45,16 +47,12 @@ var MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 14, lastUsed: 0 }
 ];
 
+// var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
+
 // MIDI_CHANNELS_FOR_UTTERING = [ { channel: 7, lastUsed: 0 } ]; // test on 7
 
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
-
-/*
-const MIDI_CHANNELS_FOR_UTTERING = [
-	{	channel: 8,	lastUsed: 0 },
-];
-*/
 
 
 
@@ -259,11 +257,7 @@ function Sound()
 			printString += 'BIRTH';
 			if (doingMidiOutput() && MIDI_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
-				let maxDegrees = GLOBAL_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
-				let idToDegrees = swimbotID % maxDegrees;
-				let degree = idToDegrees % GLOBAL_NOTE_INTERVALS.length;
-				let octave = Math.floor(idToDegrees / GLOBAL_NOTE_INTERVALS.length);
-				let midiNote = MIDI_BASE_NOTE + (octave * 12) + GLOBAL_NOTE_INTERVALS[degree];
+				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
 				sendNote(midiNote, 127, 1000, midiChannel);
 				printString += " sent MIDI note " + midiNote;
 			}
@@ -271,11 +265,7 @@ function Sound()
 			printString += 'DEATH';
 			if (doingMidiOutput() && MIDI_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
-				let maxDegrees = GLOBAL_NOTE_INTERVALS.length * 3;  // 2 octaves of our scale
-				let idToDegrees = swimbotID % maxDegrees;
-				let degree = idToDegrees % GLOBAL_NOTE_INTERVALS.length;
-				let octave = Math.floor(idToDegrees / GLOBAL_NOTE_INTERVALS.length);
-				let midiNote = MIDI_BASE_NOTE + (octave * 12) + GLOBAL_NOTE_INTERVALS[degree];
+				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
 				sendNote(midiNote, 127, 1000, midiChannel);
 				printString += " sent MIDI note " + midiNote;
 			}
