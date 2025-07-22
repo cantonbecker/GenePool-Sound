@@ -160,6 +160,19 @@ var    flopperYV = 0;
 				canvas.stroke();
 			}			
             
+
+
+
+			canvas.lineWidth = 1;
+			canvas.strokeStyle = "rgba( 200, 255, 200, 0.5 )";	
+			canvas.beginPath();
+			canvas.arc( _phenotype.parts[p].midPosition.x, _phenotype.parts[p].midPosition.y, SWIMBOT_VIEW_RADIUS, 0, PI2, false );
+			canvas.stroke();
+			canvas.closePath();	
+
+
+
+
             _utter.showing = false;  //reset for next time...
 		}
         

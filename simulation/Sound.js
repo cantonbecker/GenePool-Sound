@@ -22,10 +22,17 @@ const SOUND_EVENT_TYPE_EAT  	=  1;
 const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 
-// MIDI channels are 1-16 (not zero indexed!)
-var MIDI_BASE_NOTE = 45; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
-const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 5; // every this many minutes, the entire universe shifts one more step along the circle of 5ths
+// INITIAL TONAL CENTER
+var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 
+// Our tonal center is not fixed! Every so often, the entire universe shifts one step the the right along the circle of 5ths
+// the shorter this time, the more overlapping generations of tonal centers. (Too short and it will be utter cacophony)
+// Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
+// simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
+
+const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 3;
+
+// MIDI channels are 1-16 (not zero indexed!)
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
@@ -218,13 +225,23 @@ function Sound()
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
 		let _p3_scaled = Math.max(GLOBAL_MIN_REVERB, Math.min(GLOBAL_MAX_REVERB, Math.round((_parameter_3 - 500) * GLOBAL_MAX_REVERB / (3000 - 500))));
 		let _p3_scaled_inverse = GLOBAL_MAX_REVERB - _p3_scaled;
+		
+		// FREQUENT GLOBAL MIDI UPDATES
 		if (doingMidiOutput() && MIDI_OUTPUT_GLOBAL) {
 			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL); // dry/wet global reverb level
 			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL); // cutoff metaphysical function B (rhythmic background)
+
+			// DRONE: controls 16 & 17 of metaphysical function B reaktor are pitch knobs that should match our base note
+			let controlAdjustment16 = MIDI_BASE_NOTE -6 ;
+			sendCC(16, controlAdjustment16, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
+			let controlAdjustment17 = MIDI_BASE_NOTE +6 ;
+			sendCC(17, controlAdjustment17, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
+
 		}
 		
 		// every minute, tweak background sound just for variation
-		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {
+		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {			
+			
 			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
 			sendCC(18, controlAdjustment18, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
 			
@@ -402,7 +419,7 @@ const geneticFrequency = genes[idx]; // 0-1
 
 
 	// WHAT ARE OUR RANDOM FACTORS?
-	const chanceOfJumpingFifths = .02; // the universe cycles through the 5ths slowly, but sometimes a swimbot will jump early
+	const chanceOfJumpingFifths = .05; // the universe cycles through the 5ths slowly, but sometimes a swimbot will jump early
 	const numberOfIntervalRotations = Math.floor(rng() * 3); // 0-3: adjusts how many times we shift our center-weighted note interval set so we don't all start on the same note
 	const mutationFactor = Math.floor((rng() ** 7) * 11); // 0-10: how many times our music note and duration markov chain matrices will be mutated, weighted towards less
 
@@ -431,7 +448,7 @@ const geneticFrequency = genes[idx]; // 0-1
 	*/
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
-	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0];
+	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[1];
 	const myIntervalSetName = myNoteIntervalSet.name;
 	let myNoteIntervals = myNoteIntervalSet.intervals;
 
@@ -743,7 +760,7 @@ function getPitchHistogram() {
 	if (maxCount === 0) maxCount = 1; // Prevent division by zero
 	
 	// Build table rows, from top to bottom
-	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">Note frequencies past minute</th></tr>';
+	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + totalNotes + ' notes in last minute</th></tr>';
 	for (let row = 0; row < maxHeight; row++) {
 		tableHTML += '<tr>';
 		for (const { noteCount } of histogram) {
