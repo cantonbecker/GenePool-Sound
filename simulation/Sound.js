@@ -23,12 +23,16 @@ const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 
 // MIDI channels are 1-16 (not zero indexed!)
-const MIDI_BASE_NOTE = 45; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
+var MIDI_BASE_NOTE = 45; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
+const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 5; // every this many minutes, the entire universe shifts one more step along the circle of 5ths
+
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
 const MIDI_CHANNEL_GLOBAL = 16;
 
+
+var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
 
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
@@ -49,11 +53,7 @@ var MIDI_CHANNELS_FOR_UTTERING = [
 
 // var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
 
-// MIDI_CHANNELS_FOR_UTTERING = [ { channel: 7, lastUsed: 0 } ]; // test on 7
-
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000; // throttle: we don't ask any individual uttering channel to utter more often than this
-
-
 
 
 // these are here in case we want to selectively disable some sounds during testing
@@ -65,22 +65,18 @@ var MIDI_OUTPUT_GLOBAL 	= true;
 
 
 const MIDI_NOTE_INTERVAL_SETS = [
-    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
     { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
-    { name: "whole-tone", 				intervals: [-10, -8, -6, -4, 0, +2, +4, +6, +8] },
-    { name: "chromatic cluster", 	intervals: [-4, -3, -2, -1, 0, +1, +2, +3, +4] },
+    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
 ];
 
-// Pick one of the above for the global / non-diagetic sound interval set, used for things like birth/death/eating
-const GLOBAL_INTERVAL_SET_NAME = 'pentatonic';
-console.log('*** STARTING UP WITH MIDI INTERVAL SET ' + GLOBAL_INTERVAL_SET_NAME + ' ***');
-
-const GLOBAL_NOTE_INTERVALS = MIDI_NOTE_INTERVAL_SETS.find(set => set.name === GLOBAL_INTERVAL_SET_NAME).intervals;
-assert(	GLOBAL_NOTE_INTERVALS.length === 9,
-  			"Sound.js: GLOBAL_NOTE_INTERVALS should have exactly 9 intervals. Current: [" + GLOBAL_NOTE_INTERVALS.join(", ") + "]"
-);
+// startup idiot check
+for (const set of MIDI_NOTE_INTERVAL_SETS) {
+    if (set.intervals.length !== 9) {
+        throw new Error(`MIDI_NOTE_INTERVAL_SETS: set named "${set.name}" has an incorrect number of intervals (${set.intervals.length}) -- should be 9.`);
+    }
+}
 
 const GLOBAL_MIN_REVERB = 10; // 0-127
 const GLOBAL_MAX_REVERB = 80;
@@ -235,6 +231,22 @@ function Sound()
 			let controlAdjustment19 = (Math.floor(Math.random() * (4)) * 25) + 25; // one of 25, 50, 75, or 100
 			sendCC(19, controlAdjustment19, MIDI_CHANNEL_GLOBAL); // 4th histogram section A of metaphysical function B (twanginess?)
 		}
+
+
+		// THE UNIVERSE moves along the circle of 5ths. Every so many minutes, we modulate all new births accordingly.
+		// Remember that a swimbot's utterance is burned into its phenotype forever, so this doesn't impact living bots.
+		if (SOUND_UPDATE_COUNTER % (soundUpdatesPerMinute * MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT) === 0) {
+			MIDI_BASE_NOTE = MIDI_BASE_NOTE + 7; // up a 5th ...
+			if (MIDI_BASE_NOTE > 47) MIDI_BASE_NOTE = MIDI_BASE_NOTE - 12; // ... but staying within the 3rd octave
+			console.log ("*** UNIVERSE SHIFTED MIDI_BASE_NOTE to " + MIDI_BASE_NOTE + " ***");
+		}
+
+		if (SOUND_UPDATE_COUNTER % 10 === 0) {
+			const { histogram, totalNotes, tableHTML } = getPitchHistogram();
+			document.getElementById('saveLoadPanel').innerHTML = tableHTML;
+		}
+
+
 	}
 
 	//------------------------------------------------------------------------------------------------------
@@ -272,7 +284,7 @@ function Sound()
 		} // end if sound types
 		 
 		// printString += "; swimbotPosition = " + swimbotPosition.x.toFixed(2) + ", " + swimbotPosition.y.toFixed(2);
- 		console.log( printString );
+ 		// console.log( printString );
 		return false;
     }
 
@@ -296,14 +308,14 @@ function Sound()
 		// Update its lastUsed timestamp
 		let midiChannel = oldestMIDIchannel.channel;
 		
-		// a lot of things have to be true before we'll actuall utter out to MIDI...
+		// a lot of things have to be true before we'll actually utter out to MIDI...
 		let min_wait_slop = Math.floor(Math.random() * 250); // prevents our available channels from syncing up
 		if (doingMidiOutput() && Date.now() - oldestMIDIchannel.lastUsed >( MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop) && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
 			playAudio = true;
 			oldestMIDIchannel.lastUsed = rightNow;
 			let estimatedUtterLength = utterVariablesObj.utterDuration * APPROX_MS_PER_CLOCK;
-			console.log ('*** Beginning ' + estimatedUtterLength + ' ms utterance for swimbot ' + utterVariablesObj.swimbotID + ' on MIDI ch. ' + midiChannel + ' ***');
-			console.log (utterVariablesObj);
+			// console.log ('*** Beginning ' + estimatedUtterLength + ' ms utterance for swimbot ' + utterVariablesObj.swimbotID + ' on MIDI ch. ' + midiChannel + ' ***');
+			// console.log (utterVariablesObj);
 			// console.log(utterVariablesObj.utterSequence); // dump MIDI
 		}
 
@@ -311,7 +323,10 @@ function Sound()
 		for (const step of utterVariablesObj.utterSequence) {		
 			setTimeout(() => {
 				if (step.type === 'note') {
-					if (playAudio) sendNote(step.note, step.velocity, step.duration, midiChannel);
+					if (playAudio) {
+						sendNote(step.note, step.velocity, step.duration, midiChannel);
+						RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() }); // keep a record of all utterance notes. we'll prune this elsewhere.
+					}
 				} else if (step.type === 'cc') {
 					if (playAudio) sendCC(step.cc, step.value, midiChannel);
 				} else if (step.type === 'done') { // always do this, even if we're not playing audio	
@@ -331,8 +346,6 @@ function Sound()
 		}
 	}
 
-
-
 	// Actually send a MIDI note on (and schedule a note off) to the IAC bus. 
 	function sendNote(noteNumber, velocity, durationMs, midiChannel) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
@@ -350,6 +363,7 @@ function Sound()
 		const cc = 0xB0 | zeroIndexMidiChannel;
 		midiOutput.send([cc, controllerNumber, value]);
 	}
+	
 } // end function Sound
 
 
@@ -371,6 +385,9 @@ function Sound()
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
 
+	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
+	// const rng = aleaPRNG('always the same');
+
 /*
 for (let i = 0; i < _geneNames.length; i++) { console.log(_geneNames[i], genes[i]); }
 console.log('Genes:',genes);
@@ -381,10 +398,28 @@ const geneticFrequency = genes[idx]; // 0-1
 
 */
 
-	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
-	// const rng = aleaPRNG('always the same');
-	
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
+
+
+	// WHAT ARE OUR RANDOM FACTORS?
+	const chanceOfJumpingFifths = .02; // the universe cycles through the 5ths slowly, but sometimes a swimbot will jump early
+	const numberOfIntervalRotations = Math.floor(rng() * 3); // 0-3: adjusts how many times we shift our center-weighted note interval set so we don't all start on the same note
+	const mutationFactor = Math.floor((rng() ** 7) * 11); // 0-10: how many times our music note and duration markov chain matrices will be mutated, weighted towards less
+
+	// WHAT IS MY MIDI BASE NOTE?
+	let myMIDIBaseNote = MIDI_BASE_NOTE;
+
+	// Are we going to jump the circle of 5ths early?
+	if (rng() < chanceOfJumpingFifths) {
+		if (rng() > .5) {
+			myMIDIBaseNote = myMIDIBaseNote + 7;
+		} else {
+			myMIDIBaseNote = myMIDIBaseNote -5;
+		}
+	}
+
+
+	/* WHAT NOTES ARE WE ALLOWED TO PLAY? */
 
 	// One option is that we can swap out our interval scale
 	/*
@@ -394,20 +429,30 @@ const geneticFrequency = genes[idx]; // 0-1
 	var myNoteIntervals = pickIntervalSet.intervals;
 	console.log('Picked ' + MIDI_intervalName);
 	*/
+	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
+
+	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0];
+	const myIntervalSetName = myNoteIntervalSet.name;
+	let myNoteIntervals = myNoteIntervalSet.intervals;
+
 	
-	// or just keep our global scale
-	var myNoteIntervals = GLOBAL_NOTE_INTERVALS;
+	// IMPORTANT! To make sure everyone doesn't start on the same note, we randomly rotate the intervals
+	// for example, this:		[-10, -8, -5, -3, 0, +2, +4, +7, +9];
+	// might turn into this:	[+7, +9, -10, -8, -5, -3, 0, +2, +4]; (rotated two positions)
+	for (let i = 0; i < numberOfIntervalRotations; i++) {
+		myNoteIntervals.unshift(myNoteIntervals.pop());
+	}
+		
+	console.log ("myNoteIntervals based on " + myIntervalSetName + " are " + myNoteIntervals);
 
 	/*** Assign duration and note probability matrices ***/
 	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
 	let myNoteProbabilities = IOI_MIDI_NOTE_PROBABILITY_MATRIX; // make a copy we can mess with
 
 	/*** Mutate our markov tables? if so how much? ***/
-
-	let mutationFactor = Math.floor((rng() ** 7) * 11); // loop through up to 10 times, weighted towards less
 	for (let i = 0; i < mutationFactor; i++) { // the more times we mutate it, the more we stray from the default bell-curve
-		// myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.3);
-		myNoteProbabilities = createMutatedMatrix(myNoteProbabilities, rng, 0.3);
+		myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.2);
+		myNoteProbabilities = createMutatedMatrix(myNoteProbabilities, rng, 0.2);
 	}
 	
 	/*
@@ -422,26 +467,30 @@ const geneticFrequency = genes[idx]; // 0-1
 	// these vars will keep a record of the phenotypical attributes of our new MIDI sequence
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 	
-	// is our swimbot a baritone or a soprano?
-	let octaveNoteShift = 12 * (Math.ceil(rng() * 4));  // octaves above the MIDI base note
+	// what octave do we sing in? bell-curveish with fewer basses and sopranos
+	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,36,48];
+	let myOctaveNoteShift = octaveShiftOptions[Math.floor(rng() * octaveShiftOptions.length)];
 	
 	// how long are our notes?
 	const noteLengthOptions = ['click', 'legato', 'complex'];
 	const noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];
-	console.log ("noteLengthStyle is " + noteLengthStyle);
 	
-	
-	// how much mod wheel wiggling should there be between notes? (Increase the exponent to further weigh towards zero)
-	let chanceOfModulation = rng();
-	const modulationStrength = Math.floor(rng() * 32); // how fast to twist knobs
-	
-	
+	// how strong should our mod wheel wiggling be, and how often should we do it?
+	const modulationStrength = Math.floor(rng() * 16) * 4; // how fast to twist knobs
+	const modChanceOptions = [0,0,0,.2,.2,.2,.5,.5,.5,.5,.5,.7,.7,.7,1,1,1]; // weighed towards middle and high chance of wiggle
+	let chanceOfModulation = modChanceOptions[Math.floor(rng() * modChanceOptions.length)];
+
+
+		
 	// Markov Chain time! Pick an initial Interval State (note)
-	let lastInt = Math.floor(rng() * myNoteIntervals.length); // pick a random starting interval
-	
+	// in most cases, we choose the middle-most note of the interval set, because that's the one that's stickiest
+	// and hardest to drift from. Encourages repeated single-note morse-code type utterances.
+	let lastInt = 4;
+		
 	// Now pick the initial Inter-Onset Interval (duration)
 	let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
 	// if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
+		
 
 	// SET UP THE SYNTHESIZER AT THE BEGINNING OF THE UTTERANCE		
 	// initialize synthesizer controls with a range of min to max.
@@ -451,25 +500,41 @@ const geneticFrequency = genes[idx]; // 0-1
 		{ cc: 15, min: 0,		max: 127,	initalVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
 		{ cc: 16, min: 32,	max: 127,	initalVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
 		{ cc: 14, min: 94,	max: 97,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// wave
-		{ cc: 17, min: 50,	max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" 
-		{ cc: 19, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  },	// "level 2"
+		{ cc: 17, min: 70,	max: 95,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, 	// "tone" 
+		{ cc: 19, min: 0,		max: 70,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  },	// "level 2" resonance
 		{ cc: 20, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  } // "level 3"
 	];
 	
 	for (let setting of myControls) {
-		sequenceTime += 10; // add 10ms
 		const range = setting.max - setting.min + 1;
 		let myCCval = Math.floor(rng() * range) + setting.min;
 		setting.initalVal = myCCval; // remember our initial home position
 		setting.lastVal = myCCval; // this will also be our last known position
 		if (rng() > .5) setting.lastDir = 'down'; // randomly override initial spin direction
+	}
+	
+	// VOCAL SYNTH IS TOO QUIET IF CC15 plus CC16 DON'T ADD UP TO AT LEAST 100, so reroll those values if necessary:
+	let cc15, cc16;
+	do {
+		cc15 = Math.floor(rng() * (myControls[0].max - myControls[0].min + 1)) + myControls[0].min;
+		cc16 = Math.floor(rng() * (myControls[1].max - myControls[1].min + 1)) + myControls[1].min;
+	} while (cc15 + cc16 < 100);
+	
+	myControls[0].initalVal = myControls[0].lastVal = cc15;
+	myControls[1].initalVal = myControls[1].lastVal = cc16;
+
+	// Now that we picked our synth settings, queue them up in the sequence itself to initialize the synth
+	for (let setting of myControls) {
+		sequenceTime += 10; // add 10ms
 		sequenceData.push({
 			delay: sequenceTime,
 			type: 'cc',
 			cc: setting.cc,
-			value: myCCval
+			value: setting.initalVal
 		});
 	}
+
+	
 	
 	sequenceTime += 10; // wait 10ms before composing main utterance
 	while (sequenceTime < utterSequenceLength) {
@@ -501,7 +566,7 @@ const geneticFrequency = genes[idx]; // 0-1
 		}
 		if (nextIntState === undefined) nextIntState = myNoteIntervals.length - 1;
 		const thisNoteShift = myNoteIntervals[nextIntState];
-		let thisNoteNumber = MIDI_BASE_NOTE + octaveNoteShift + thisNoteShift;
+		let thisNoteNumber = myMIDIBaseNote + myOctaveNoteShift + thisNoteShift;
 		
 		// record some phenotypical info
 		if (thisNoteNumber > recordHighNote) recordHighNote = thisNoteNumber; // we hit our highest note yet
@@ -581,10 +646,10 @@ const geneticFrequency = genes[idx]; // 0-1
 			{ delay: 1000, type: 'done' }
 		];
 	*/
-
 		
 	// return our object of phenotypes
 	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
+	console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " myOctaveNoteShift=" + myOctaveNoteShift + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength);
 	return (utterancePhenotypeObj);
 }
 
@@ -635,4 +700,74 @@ function logProbabilityMatrix(label, matrix) {
         const formatted = row.map(num => num.toFixed(3).padStart(5, '0'));
         console.log('  [', formatted.join(', '), ']');
     }
+}
+
+function pruneOldNotes() {
+    const now = Date.now();
+    const cutoff = now - 60000; // 60 seconds ago
+    // Remove old notes from the start (assuming notes arrive in order)
+    while (RECENT_NOTES_DB.length && RECENT_NOTES_DB[0].time < cutoff) {
+        RECENT_NOTES_DB.shift();
+    }
+}
+
+function getPitchHistogram() {
+	pruneOldNotes();
+	let totalNotes = 0;
+	const histogram = [
+		{ noteNumber: 0, noteName: 'C', noteCount: 0 },
+		{ noteNumber: 1, noteName: 'C#', noteCount: 0 },
+		{ noteNumber: 2, noteName: 'D', noteCount: 0 },
+		{ noteNumber: 3, noteName: 'D#', noteCount: 0 },
+		{ noteNumber: 4, noteName: 'E', noteCount: 0 },
+		{ noteNumber: 5, noteName: 'F', noteCount: 0 },
+		{ noteNumber: 6, noteName: 'F#', noteCount: 0 },
+		{ noteNumber: 7, noteName: 'G', noteCount: 0 },
+		{ noteNumber: 8, noteName: 'G#', noteCount: 0 },
+		{ noteNumber: 9, noteName: 'A', noteCount: 0 },
+		{ noteNumber: 10, noteName: 'A#', noteCount: 0 },
+		{ noteNumber: 11, noteName: 'B', noteCount: 0 }];
+	
+	for (const { note } of RECENT_NOTES_DB) {
+		totalNotes += 1;
+      histogram[note].noteCount += 1;
+	}
+		
+	const maxHeight = 14; // 14 colored bar rows, 1 label row
+	let maxCount = 0;
+	
+	// Find the maximum count to scale the bars
+	for (const { noteCount } of histogram) {
+		if (noteCount > maxCount) maxCount = noteCount;
+	}
+	if (maxCount === 0) maxCount = 1; // Prevent division by zero
+	
+	// Build table rows, from top to bottom
+	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">Note frequencies past minute</th></tr>';
+	for (let row = 0; row < maxHeight; row++) {
+		tableHTML += '<tr>';
+		for (const { noteCount } of histogram) {
+			const barHeight = Math.round((noteCount / maxCount) * maxHeight);
+			// Rows go from top (0) to bottom (maxHeight-1), so check if this cell should be colored
+			if (maxHeight - row <= barHeight) {
+					tableHTML += '<td style="width:11px;height:11px;background:#4b8fff;"></td>';
+			} else {
+					tableHTML += '<td style="width:11px;height:11px;background:#eee;"></td>';
+			}
+		}
+		tableHTML += '</tr>';
+	}
+	// Now add the labels row at the bottom, coloring if any notes are present
+	tableHTML += '<tr>';
+	for (const { noteName, noteCount } of histogram) {
+		if (noteCount > 0) {
+			tableHTML += `<td style="padding:0; background:#28b245; color:#fff; font-weight:bold;">${noteName}</td>`;
+		} else {
+			tableHTML += `<td style="padding:0; background:#fff; color:#444;">${noteName}</td>`;
+		}
+	}
+	tableHTML += '</tr>';	
+	tableHTML += '</tbody></table>';	
+
+	return { totalNotes, histogram, tableHTML }; // return as an object
 }
