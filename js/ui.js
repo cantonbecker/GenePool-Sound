@@ -1058,7 +1058,7 @@ function notifyGeneTweakPanelMouseDown()
     
     if ( selectedSwimbotID === -1 )
     {
-        console.log( "NULL" );
+        // console.log( "NULL" );
         closeTweakGenesPanel();
     }
     else

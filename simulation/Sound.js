@@ -343,7 +343,7 @@ function Sound()
 				if (step.type === 'note') {
 					if (playAudio) {
 						sendNote(step.note, step.velocity, step.duration, midiChannel);
-						RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() }); // keep a record of all utterance notes. we'll prune this elsewhere.
+						RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() }); // keep a record of all utterance notes (C=0 ... B=11). we'll prune this elsewhere.
 					}
 				} else if (step.type === 'cc') {
 					if (playAudio) sendCC(step.cc, step.value, midiChannel);
