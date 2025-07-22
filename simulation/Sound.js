@@ -13,6 +13,7 @@
 
 "use strict";
 
+const DEBUGGING_UTTERANCE_EVENT_HORIZON = true; // let's see how far we can be heard
 const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
@@ -420,8 +421,19 @@ const geneticFrequency = genes[idx]; // 0-1
 
 	// WHAT ARE OUR RANDOM FACTORS?
 	const chanceOfJumpingFifths = .05; // the universe cycles through the 5ths slowly, but sometimes a swimbot will jump early
-	const numberOfIntervalRotations = Math.floor(rng() * 3); // 0-3: adjusts how many times we shift our center-weighted note interval set so we don't all start on the same note
-	const mutationFactor = Math.floor((rng() ** 7) * 11); // 0-10: how many times our music note and duration markov chain matrices will be mutated, weighted towards less
+	
+	// numberOfIntervalRotations adjusts how far away our *starting* note might drift from the center note.
+	// * 0 means "always start on the center"
+	// * 1 means "start at the center note, or up to one interval away"
+	// * 5 means "start as the center note, or any of the possible 5 intervals"
+	const numberOfIntervalRotations = Math.floor(rng() * 3);
+
+	// 0-10: mutationFactor determines how many times our music note and duration markov chain matrices will be mutated, weighted towards less
+	const mutationFactor = Math.floor((rng() ** 7) * 11);
+
+	// WHAT IS OUR SCALE?
+	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // maybe in a future composition we migrate from one scale to another?
+	const myIntervalSetName = myNoteIntervalSet.name;
 
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
@@ -448,8 +460,6 @@ const geneticFrequency = genes[idx]; // 0-1
 	*/
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
-	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[1];
-	const myIntervalSetName = myNoteIntervalSet.name;
 	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
 
 	
@@ -460,8 +470,7 @@ const geneticFrequency = genes[idx]; // 0-1
 		myNoteIntervals.unshift(myNoteIntervals.pop());
 	}
 		
-	console.log ("myNoteIntervals based on " + myIntervalSetName + " are " + myNoteIntervals);
-	console.log ('Originally ' + MIDI_NOTE_INTERVAL_SETS[1].intervals);
+	// console.log ("myNoteIntervals based on " + myIntervalSetName + " are " + myNoteIntervals);
 
 	/*** Assign duration and note probability matrices ***/
 	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
@@ -667,7 +676,7 @@ const geneticFrequency = genes[idx]; // 0-1
 		
 	// return our object of phenotypes
 	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
-	console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " myOctaveNoteShift=" + myOctaveNoteShift + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength);
+	console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength);
 	return (utterancePhenotypeObj);
 }
 
