@@ -450,7 +450,7 @@ const geneticFrequency = genes[idx]; // 0-1
 
 	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[1];
 	const myIntervalSetName = myNoteIntervalSet.name;
-	let myNoteIntervals = myNoteIntervalSet.intervals;
+	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
 
 	
 	// IMPORTANT! To make sure everyone doesn't start on the same note, we randomly rotate the intervals
@@ -461,6 +461,7 @@ const geneticFrequency = genes[idx]; // 0-1
 	}
 		
 	console.log ("myNoteIntervals based on " + myIntervalSetName + " are " + myNoteIntervals);
+	console.log ('Originally ' + MIDI_NOTE_INTERVAL_SETS[1].intervals);
 
 	/*** Assign duration and note probability matrices ***/
 	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
@@ -514,9 +515,9 @@ const geneticFrequency = genes[idx]; // 0-1
 	// 'variable' means yes you can twiddle this knob during the sequence
 	// in which case the variableWidth is how much you can twiddle it
 	let myControls = [
+		{ cc: 14, min: 94,	max: 97,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// wave
 		{ cc: 15, min: 0,		max: 127,	initalVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
 		{ cc: 16, min: 32,	max: 127,	initalVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
-		{ cc: 14, min: 94,	max: 97,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// wave
 		{ cc: 17, min: 70,	max: 95,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, 	// "tone" 
 		{ cc: 19, min: 0,		max: 70,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  },	// "level 2" resonance
 		{ cc: 20, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  } // "level 3"
