@@ -161,7 +161,7 @@ var    flopperYV = 0;
 			}			
             
 
-        if (DEBUGGING_UTTERANCE_EVENT_HORIZON) {    
+        if (DEBUGGING_UTTERANCE_EVENT_HORIZON) { // set in Sound.js
             canvas.lineWidth = 1;
             canvas.strokeStyle = "rgba( 200, 255, 200, 0.5 )";	
             canvas.beginPath();
