@@ -1452,33 +1452,11 @@ let partAccelerationY = -strokeForceY;
         return _chosenFoodBitIndex;
     }
     
-    
-
-	//--------------------------------------------
-	// setEnvironmentalStimuli
-	//--------------------------------------------
-	this.setEnvironmentalStimuli = function( numNearbySwimbots, nearbySwimbotArray, foodBitWasFound, theFoodBit )
+	//---------------------------------------------------------------------------
+	this.setUtterStimuli = function( numNearbySwimbots, nearbySwimbotArray )
     {
-        //------------------------------------------------------------
-        // if looking for a food bit, choose the one that was found
-        //------------------------------------------------------------
-        _chosenFoodBit = null;
-        _chosenFoodBitIndex = NULL_INDEX;
-        
-        if (( _brain.getState() == BRAIN_STATE_LOOKING_FOR_FOOD )
-        ||  ( _brain.getState() == BRAIN_STATE_PURSUING_FOOD ))
-        {
-            _brain.setFoundFoodBit( foodBitWasFound );
-    
-            if ( foodBitWasFound )
-            {
-                //console.log( "foodBitWasFound" );            
-                assert( theFoodBit != null, "swimbot.js: setEnvironmentalStimuli: theFoodBit != null" );
-                _chosenFoodBit = theFoodBit;	
-                _chosenFoodBitIndex = _chosenFoodBit.getIndex();
-            }
-        }
-
+    	//console.log( "setUtterStimuli" );
+    	
         //------------------------------------------------------------------------------------------------
         // if looking for mate, scan the nearby swimbots and choose the most attractive...
         //------------------------------------------------------------------------------------------------	
@@ -1547,14 +1525,39 @@ let partAccelerationY = -strokeForceY;
                 _chosenMateIndex = NULL_INDEX;
             }
         }
+    }
+    
 
+	//--------------------------------------------------------------
+	this.setFoodStimuli = function( foodBitWasFound, theFoodBit )
+    {
+    	//console.log( "setFoodStimuli" );
+
+        //------------------------------------------------------------
+        // if looking for a food bit, choose the one that was found
+        //------------------------------------------------------------
+        _chosenFoodBit = null;
+        _chosenFoodBitIndex = NULL_INDEX;
+        
+        if (( _brain.getState() == BRAIN_STATE_LOOKING_FOR_FOOD )
+        ||  ( _brain.getState() == BRAIN_STATE_PURSUING_FOOD ))
+        {
+            _brain.setFoundFoodBit( foodBitWasFound );
+    
+            if ( foodBitWasFound )
+            {
+                //console.log( "foodBitWasFound" );            
+                assert( theFoodBit != null, "swimbot.js: setFoodStimuli: theFoodBit != null" );
+                _chosenFoodBit = theFoodBit;	
+                _chosenFoodBitIndex = _chosenFoodBit.getIndex();
+            }
+        }
+        
     	//--------------------------------------------
     	// reset this to false for next time around
     	//--------------------------------------------
     	_readyforSensoryInputToBrain = false;
-    	
-    } //setEnvironmentalStimuli
-
+    }
     
     
 	//-----------------------------------------

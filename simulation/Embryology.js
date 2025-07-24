@@ -286,6 +286,18 @@ let testNoEel = true;
         g++;  
         _geneNames[g] = "utter duration";        
 		  phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
+
+        g++;  
+        _geneNames[g] = "utter spin";        
+
+        g++;  
+        _geneNames[g] = "utter charm";        
+
+        g++;  
+        _geneNames[g] = "utter strangeness";        
+
+
+
         
         //------------------------------------------------------------------------------------------------
         // *** generate the markov-chained utterance sequence ***
@@ -308,7 +320,7 @@ let testNoEel = true;
         phenotype.utterNoteCount    = utterancePhenotypeObj.recordNoteCount;    // how many individual notes?
         phenotype.utterModCount     = utterancePhenotypeObj.recordModCount;     // how many control events (e.g. modwheel spins)?
 
-        console.log('*** A SWIMBOT IS BORN! ***', phenotype);
+        //console.log('*** A SWIMBOT IS BORN! ***', phenotype);
 		
         /*
         let preferredFoodType  = 0;

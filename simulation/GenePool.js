@@ -1149,16 +1149,10 @@ if ( mode === SimulationStartMode.SPECIES )
 	//--------------------------------
 	this.updateSwimbots = function()
 	{		
-
-//let testNumLiving = 0;	
-	
         for (let s=0; s<MAX_SWIMBOTS; s++)
         {
             if ( _swimbots[s].getAlive() )
             {
-            
-//testNumLiving ++;
-            
                 _swimbots[s].update();
                 
                 //-----------------------------------------------------------------
@@ -1166,8 +1160,13 @@ if ( mode === SimulationStartMode.SPECIES )
                 //-----------------------------------------------------------------
                 if ( _swimbots[s].getIsLookingForSensoryInput() )
                 {
-                    this.giveSwimbotNearbyEnvironmentalStimuli(s);
+                    this.giveSwimbotNearbyFoodStimuli(s);
                 }
+                
+                //--------------------------------------------------------------------------------
+				// detection of uttering needs continual sensing, unlike the code above...
+                //--------------------------------------------------------------------------------
+				this.giveSwimbotNearbyUtteringStimuli(s);
 
                 //--------------------------------------------------------------------------------------------------------
                 // check for obstacle collision....
@@ -1389,12 +1388,7 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                 _viewTracking.stopTracking();
             }
         }
-        
-        //console.log( "num living swimbots = " + testNumLiving.toString() );            
     }
-    
-    
-    
 
     //--------------------------------------------------------
 	this.getJunkDnaSimilarity = function( genotype1, genotype2 )
@@ -1459,8 +1453,9 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
     }
 
 
+
     //--------------------------------------------------------
-	this.giveSwimbotNearbyEnvironmentalStimuli = function(s)
+	this.giveSwimbotNearbyUtteringStimuli = function(s)
 	{		
 	    //------------------------------------------------------
 	    // collect the array of nearby visible swimbots...
@@ -1484,87 +1479,15 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                 }
             }
         }
-        
-        //console.log( "_numNearbySwimbots = " + _numNearbySwimbots );
-        
-        
-        /*
-	    //----------------------------------
-	    // find the closest food bit...
-	    //----------------------------------
-        let foundFoodBit = false;
-        let smallestFoodBitDistanceSquared = 100000.0;
-        for (let f=0; f<MAX_FOODBITS; f++)
-        {
-            if ( _foodBits[f].getAlive() )
-            {
-                let distanceSquared = _swimbots[s].getMouthPosition().getDistanceSquaredTo( _foodBits[f].getPosition() );
-                if ( distanceSquared < smallestFoodBitDistanceSquared )
-                {
-                    if ( !_obstacle.getObstruction( _swimbots[s].getMouthPosition(), _foodBits[f].getPosition() ) )
-                    { 
-                        smallestFoodBitDistanceSquared = distanceSquared;
-                        _chosenFoodBit = _foodBits[f];
-                        foundFoodBit = true;
-                    }
-                }
-            }
-        }
-        */
 
-        /*
+        _swimbots[s].setUtterStimuli( _numNearbySwimbots, _nearbySwimbotsArray );
+	}
 
-        let foundFoodBit = false;
-        let smallestDistance = Number.MAX_SAFE_INTEGER;
 
-        //if ( TEMP_USING_TWO_FOOD_COLORS )
-        {
-            //------------------------------------------------------
-            // find the closest food bit that is also closest 
-            // to the swimbot's preferred nutrition profile (food type)
-            //------------------------------------------------------
-            for (let f=0; f<MAX_FOODBITS; f++)
-            {
-                if ( _foodBits[f].getAlive() )
-                {
-                    let viewDistance = _swimbots[s].getMouthPosition().getDistanceTo( _foodBits[f].getPosition() );
-                
-                    if ( viewDistance < SWIMBOT_VIEW_RADIUS )
-                    {                                
-                        let distance = viewDistance / SWIMBOT_VIEW_RADIUS;
-                    
-                    
-                        //----------------------------------------------------------------------------------
-                        // take into account the desire for a food type profile (shown as color)
-                        //----------------------------------------------------------------------------------
-                        //let xx = _foodBits[f].getNutrition1() - 0.0;
-                        //let yy = _foodBits[f].getNutrition2() - 0.0;
-                        //let nutritionDistance = ( Math.abs( xx ) + Math.abs( yy ) ) * SWIMBOT_NUTRITION_FOOD_CHOICE_BIAS;
-                        //distance += nutritionDistance;
-                    
-                                        
-                        if ( distance < smallestDistance )
-                        {
-                            if ( !_obstacle.getObstruction( _swimbots[s].getMouthPosition(), _foodBits[f].getPosition() ) )
-                            { 
-                                smallestDistance = distance;
-                                _chosenFoodBit = _foodBits[f];
-                                foundFoodBit = true;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        */
-        
-        /*
-        else
-        {
-        */
-        
-        
-
+	
+    //--------------------------------------------------------
+	this.giveSwimbotNearbyFoodStimuli = function(s)
+	{		
         //------------------------------------------------------
         // find the closest food bit
         //------------------------------------------------------
@@ -1608,40 +1531,9 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                     }
                 }
             }
-        
-            /*
-            //------------------------------------------------------
-            // find the closest food bit
-            //------------------------------------------------------
-            for (let f=0; f<MAX_FOODBITS; f++)
-            { 
-                if ( _foodBits[f].getAlive() )
-                {
-                    let viewDistance = _swimbots[s].getMouthPosition().getDistanceTo( _foodBits[f].getPosition() );
-            
-                    if ( viewDistance < SWIMBOT_VIEW_RADIUS )
-                    {                                
-                        let distance = viewDistance / SWIMBOT_VIEW_RADIUS;
-                
-                        if ( distance < smallestDistance )
-                        {
-                            if ( !_obstacle.getObstruction( _swimbots[s].getMouthPosition(), _foodBits[f].getPosition() ) )
-                            { 
-                                smallestDistance = distance;
-                                _chosenFoodBit = _foodBits[f];
-                                foundFoodBit = true;
-                            }
-                        }
-                    }
-                }
-            }
-            */   
         }     
         
-	    //------------------------------------------------------------------------------
-	    // pass these environmental stimuli along to the swimbot...
-	    //------------------------------------------------------------------------------
-        _swimbots[s].setEnvironmentalStimuli( _numNearbySwimbots, _nearbySwimbotsArray, foundFoodBit, _chosenFoodBit );
+        _swimbots[s].setFoodStimuli(foundFoodBit, _chosenFoodBit );
      }
      
     
@@ -2338,6 +2230,9 @@ if ( globalTweakers.numFoodTypes === 2 )
     
     
 	//-------------------------------------
+    // TK: when we invoke this, all the junk DNA is set to random values (instead of zeros) which
+    // (for some reason) makes it unable to mate with other swimbots
+    
 	this.makeNewRandomSwimbot = function()
 	{		
 	    let index = this.findLowestDeadSwimbotInArray();
@@ -2349,7 +2244,7 @@ if ( globalTweakers.numFoodTypes === 2 )
             let initialEnergy   = DEFAULT_SWIMBOT_HUNGER_THRESHOLD;
         
             _myGenotype.randomize();
-        
+
             _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
 
             //--------------------------------------------------

@@ -406,15 +406,19 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
 	// const rng = aleaPRNG('always the same');
 
-/*
-for (let i = 0; i < _geneNames.length; i++) { console.log(_geneNames[i], genes[i]); }
-console.log('Genes:',genes);
 
-let idx = _geneNames.indexOf('frequency');
+for (let i = 0; i < _geneNames.length; i++) { 
+    if (_geneNames[i].includes('utter')) {
+        console.log(_geneNames[i], genes[i]);
+    }
+}
+// console.log('Genes:',genes);
+
+let idx = _geneNames.indexOf('utter spin');
 if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")
-const geneticFrequency = genes[idx]; // 0-1
+const utterSpin = genes[idx]; // 0-1
+console.log("utter spin is " + utterSpin);
 
-*/
 
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 
