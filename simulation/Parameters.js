@@ -85,7 +85,7 @@ const MAX_FOODBITS_PER_TYPE  = 1000; // make this one-half of MAX_FOODBITS (beca
 const INITIAL_NUM_FOODBITS   = 1000; // original version
 //const INITIAL_NUM_FOODBITS = 2000; // research version
 
-const NON_REPRODUCING_JUNK_DNA_LIMIT    = 0.9; 
+const NON_REPRODUCING_JUNK_DNA_LIMIT = 0; // essentially disabled by CB for sonified genepool  
 //0.9 appears to be a good threshold for species differences. Any less and it takes way too long
 // for species to separate out and any more and the species appear the same to the user.
 

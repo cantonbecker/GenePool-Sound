@@ -808,6 +808,7 @@ _position.copyFrom( position );
                 let yy = _chosenMate.getGenitalPosition().y - this.getGenitalPosition().y;
                 let distance = Math.sqrt( xx*xx + yy*yy );
 
+                // console.log('distance=' + distance + ' and SWIMBOT_GENITAL_LENGTH=' + SWIMBOT_GENITAL_LENGTH);
                 if ( distance < SWIMBOT_GENITAL_LENGTH )
 
                 /*

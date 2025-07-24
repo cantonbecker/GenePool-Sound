@@ -412,7 +412,7 @@ for (let i = 0; i < _geneNames.length; i++) {
         console.log(_geneNames[i], genes[i]);
     }
 }
-// console.log('Genes:',genes);
+// console.log('Genes: ' + genes.toString());
 
 let idx = _geneNames.indexOf('utter spin');
 if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")

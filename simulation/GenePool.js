@@ -1268,16 +1268,16 @@ if ( mode === SimulationStartMode.SPECIES )
                             //------------------------------------------------------------------------------
                             _myGenotype = _swimbots[s].getGenotype();
                             _mateGenotype = _potentialMate.getGenotype();
-                             
+                                                         
                             //------------------------------------------------------------------------------
                             // if the junk dna of each swimbot are similar enough...
                             //------------------------------------------------------------------------------
-if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_JUNK_DNA_LIMIT )
-{
-    console.log( "attempting to mate but junk dna too dissimilar!" );
-}
+                                                            
                             if ( this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_JUNK_DNA_LIMIT )
                             {
+
+                                console.log("getJunkDnaSimilarity exceeds NON_REPRODUCING_JUNK_DNA_LIMIT");
+
                                 //-----------------------------------
                                 // recombine genes for the child 
                                 //-----------------------------------
@@ -1334,10 +1334,15 @@ if ( !this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_
                                 //--------------------------------------------------
                                 _familyTree.addNode( newBornSwimbotIndex, s, chosenMateIndex, _clock, this.getSwimbotGenes( newBornSwimbotIndex ) );
 
+                                // we succeeded in making a baby!
+                                // we should do something here to stop trying to mate, because getIsTryingToMate may get
+                                // called several times in quick succession. Maybe we can immediately set BRAIN_STATE_RESTING ? 
+                                
+                                
                             }// if ( getJunkDnaDistance( _myGenotype, _mateGenotype ) > NON_REPRODUCING_JUNK_DNA_LIMIT )
                             else 
                             {
-                                //console.log( "reproduction not possible because junk dna is too dissimilar!" );
+                                console.log( "Reproduction not possible because junk dna is too dissimilar!" );
                             }
                         }   //  if ( _potentialMate.getAlive() )                     
                     }      //   if (( newBornSwimbotIndex != -1 ) &&  ( swimbot[s].getChosenMateIndex() != -1 ))
@@ -2229,7 +2234,7 @@ if ( globalTweakers.numFoodTypes === 2 )
     
     
     
-	//-------------------------------------
+	 //-------------------------------------
     // TK: when we invoke this, all the junk DNA is set to random values (instead of zeros) which
     // (for some reason) makes it unable to mate with other swimbots
     
@@ -2242,9 +2247,9 @@ if ( globalTweakers.numFoodTypes === 2 )
             let initialAge      = YOUNG_AGE_DURATION;          
             let initialAngle    = getRandomAngleInDegrees(); //-180.0 + gpRandom() * 360.0;
             let initialEnergy   = DEFAULT_SWIMBOT_HUNGER_THRESHOLD;
-        
-            _myGenotype.randomize();
 
+            _myGenotype.randomize();
+            
             _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
 
             //--------------------------------------------------
