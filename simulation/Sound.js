@@ -398,59 +398,23 @@ function Sound()
  * Returns an object containing the sequence data and phenotype stats.
  * Used for simulating swimbot "songs" in a deterministic, gene-driven way.
  * Called exclusively from Embryology.js as part of the birth process.
+ *
+ * Genes that influence our songs are:
+ * "utter spin" 0-255
+ * "utter charm" 0-255
+ * "utter strangeness" 0-255, and of course
+ * "utter duration" 0-255 which is simply how many clock ticks long the utterance should be
+ *
  */
 
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
-
+	let idx; // our generic index which we re-use a lot
 	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
 	// const rng = aleaPRNG('always the same');
 
-
-for (let i = 0; i < _geneNames.length; i++) { 
-    if (_geneNames[i].includes('utter')) {
-        console.log(_geneNames[i], genes[i]);
-    }
-}
-// console.log('Genes: ' + genes.toString());
-
-let idx = _geneNames.indexOf('utter spin');
-if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'frequency' from genes")
-const utterSpin = genes[idx]; // 0-1
-console.log("utter spin is " + utterSpin);
-
-
-	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
-
-
-	// WHAT ARE OUR RANDOM FACTORS?
-	const chanceOfJumpingFifths = .05; // the universe cycles through the 5ths slowly, but sometimes a swimbot will jump early
-	
-	// numberOfIntervalRotations adjusts how far away our *starting* note might drift from the center note.
-	// * 0 means "always start on the center"
-	// * 1 means "start at the center note, or up to one interval away"
-	// * 5 means "start as the center note, or any of the possible 5 intervals"
-	const numberOfIntervalRotations = Math.floor(rng() * 3);
-
-	// 0-10: mutationFactor determines how many times our music note and duration markov chain matrices will be mutated, weighted towards less
-	const mutationFactor = Math.floor((rng() ** 7) * 11);
-
-	// WHAT IS OUR SCALE?
-	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // maybe in a future composition we migrate from one scale to another?
-	const myIntervalSetName = myNoteIntervalSet.name;
-
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
-
-	// Are we going to jump the circle of 5ths early?
-	if (rng() < chanceOfJumpingFifths) {
-		if (rng() > .5) {
-			myMIDIBaseNote = myMIDIBaseNote + 7;
-		} else {
-			myMIDIBaseNote = myMIDIBaseNote -5;
-		}
-	}
-
 
 	/* WHAT NOTES ARE WE ALLOWED TO PLAY? */
 
@@ -464,7 +428,70 @@ console.log("utter spin is " + utterSpin);
 	*/
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
+	// WHAT IS OUR SCALE?
+	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // maybe in a future composition we migrate from one scale to another?
+	const myIntervalSetName = myNoteIntervalSet.name;
 	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
+
+
+/*
+for (let i = 0; i < _geneNames.length; i++) { 
+    if (_geneNames[i].includes('utter')) console.log(_geneNames[i], genes[i]);
+}
+// console.log('Genes: ' + genes.toString());
+*/
+
+	idx = _geneNames.indexOf('utter duration');
+	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter duration' from genes")
+	const utterDurationVal = genes[idx]; // 0-255
+	
+	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
+	console.log("utter duration is " + utterDurationVal + " which maps to " + utterDuration + " clocks, approx. " + utterSequenceLength + "ms");
+
+	// USE UTTER STRANGENESS GENE TO DETERMINE DEVIANT SWIMBOTS THAT JUMP THE CIRCLE OF 5ths EARLY
+	// the universe cycles through the 5ths slowly, but sometimes (rarely) a swimbot will jump early
+	idx = _geneNames.indexOf('utter strangeness');
+	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter strangeness' from genes")
+	const utterStrangeness = genes[idx]; // 0-255
+	const chanceOfJumpingFifths = (utterStrangeness/255) ** 12; // heavily weighted towards "nope"
+	console.log("utter strangeness is " + utterStrangeness + " and our probability of jumping 5ths is " + (chanceOfJumpingFifths * 100).toFixed(2) + "%");
+	if (rng() < chanceOfJumpingFifths) {
+		if (rng() > .5) { // are we going to jump up or down?
+			myMIDIBaseNote = myMIDIBaseNote + 7;
+			console.log("-> Rolled to jump UP a fifth!");
+		} else {
+			myMIDIBaseNote = myMIDIBaseNote -5;
+			console.log("-> Rolled to jump DOWN a fifth!");
+		}
+	} 
+	
+	// USE UTTER SPIN GENE TO DETERMINE OUR OCTAVE
+	// what octave do we sing in? bell-curveish with fewer basses and sopranos
+	idx = _geneNames.indexOf('utter spin');
+	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter spin' from genes")
+	const utterSpin = genes[idx]; // 0-255
+	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,36,48];
+	idx = Math.floor(utterSpin / 255 * (octaveShiftOptions.length - 1));
+	let myOctaveNoteShift = octaveShiftOptions[idx];
+	console.log("utter spin is " + utterSpin + " which corresponds to octave +" + myOctaveNoteShift/12);
+
+	// USE UTTER CHARM TO DETERMINE HOW MUCH WE MUTATE OUR RHYTHMS
+	// 0-10: mutationFactor determines how many times our music note and duration markov chain matrices will be mutated, weighted towards less
+	idx = _geneNames.indexOf('utter charm');
+	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter charm' from genes")
+	const utterCharm = genes[idx]; // 0-255
+	const mutationFactorOptions = [0,0,0,0,0,0,,1,1,1,2,2,5,8,10,20]; // mostly no mutation, or a little bit, a few outliers
+	idx = Math.floor(utterCharm / 255 * (mutationFactorOptions.length - 1));
+	let mutationFactor = mutationFactorOptions[idx];
+	console.log("utter charm is " + utterCharm + ", which encourages us to mutate our rhythm and interval probabilities " + mutationFactor + "/10 times.");
+	
+	// numberOfIntervalRotations adjusts how far away our *starting* note might drift from the center note
+	// we don't use a gene to determine this, all swimbots have an equal inclination/disinclination in this regard
+	// * 0 means "always start on the center"
+	// * 1 means "start at the center note, or up to one interval away"
+	// * 5 means "start as the center note, or any of the possible 5 intervals"
+	const numberOfIntervalRotations = Math.floor(rng() * 3);
+
 
 	
 	// IMPORTANT! To make sure everyone doesn't start on the same note, we randomly rotate the intervals
@@ -497,11 +524,7 @@ console.log("utter spin is " + utterSpin);
 	
 	// these vars will keep a record of the phenotypical attributes of our new MIDI sequence
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
-	
-	// what octave do we sing in? bell-curveish with fewer basses and sopranos
-	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,36,48];
-	let myOctaveNoteShift = octaveShiftOptions[Math.floor(rng() * octaveShiftOptions.length)];
-	
+		
 	// how long are our notes?
 	const noteLengthOptions = ['click', 'legato', 'complex'];
 	const noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];
