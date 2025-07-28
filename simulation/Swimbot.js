@@ -1647,8 +1647,9 @@ let partAccelerationY = -strokeForceY;
 
             
             // *** AVERAGE ALL OUR NORMALIZED CALCULATIONS TO COME UP WITH OUR ATTRACTIVENESS ***
-            attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 5;
-                
+            // attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 5;
+            attractiveness = utterNoteOverlap; // what happens if all we care about is note overlap?
+            
             // Ensure attractiveness stays within [0,1] // clamp to make sure
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
