@@ -1203,12 +1203,16 @@ document.onkeydown = function(e)
     if ( e.keyCode === 187 ) { cameraNavAction = CameraNavigationAction.IN;      } // plus key
     if ( e.keyCode === 189 ) { cameraNavAction = CameraNavigationAction.OUT;     } // minus key
 
+    if ( e.keyCode === 48 ) { genePool.panCameraToPresetSwimbot(0); }
     if ( e.keyCode === 49 ) { genePool.panCameraToPresetSwimbot(1); }
     if ( e.keyCode === 50 ) { genePool.panCameraToPresetSwimbot(2); }
     if ( e.keyCode === 51 ) { genePool.panCameraToPresetSwimbot(3); }
     if ( e.keyCode === 52 ) { genePool.panCameraToPresetSwimbot(4); }
     if ( e.keyCode === 53 ) { genePool.panCameraToPresetSwimbot(5); }
     if ( e.keyCode === 54 ) { genePool.panCameraToPresetSwimbot(6); }
+    if ( e.keyCode === 55 ) { genePool.panCameraToPresetSwimbot(7); }
+    if ( e.keyCode === 56 ) { genePool.panCameraToPresetSwimbot(8); }
+    if ( e.keyCode === 57 ) { genePool.panCameraToPresetSwimbot(9); }    
     
     if ( cameraNavAction != -1 )
     {

@@ -1232,14 +1232,12 @@ if ( mode === SimulationStartMode.SPECIES )
 							_utteranceRenderer.startUtterance
 							( 
 								s,
-								_swimbots[s].getPosition(), 
+								_swimbots[s].getMouthPosition(), 
 								_swimbots[s].getUtterDuration(),
-								_swimbots[s].getUtterNotes(),
 								_swimbots[s].getUtterHighNote(),
 								_swimbots[s].getUtterLowNote(),
 								_swimbots[s].getUtterNoteCount(),
-								_swimbots[s].getUtterModCount(),
-								_swimbots[s].getUtterSequence(),
+								_swimbots[s].getUtterModCount()
 							);
 						}
 					}
@@ -1302,6 +1300,8 @@ if ( mode === SimulationStartMode.SPECIES )
                                                             
                             if ( this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_JUNK_DNA_LIMIT )
                             {
+
+                                // console.log("getJunkDnaSimilarity exceeds NON_REPRODUCING_JUNK_DNA_LIMIT");
 
                                 //-----------------------------------
                                 // recombine genes for the child 
@@ -2511,7 +2511,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 				{ 				
 					if ( _swimbots[s].getIsUttering() )
 					{				
-						_utteranceRenderer.updatePosition( s, _swimbots[s].getPosition() );
+						_utteranceRenderer.updatePosition( s, _swimbots[s].getMouthPosition() );
 					}				
 
                     _swimbots[s].render( _levelOfDetail );
@@ -3007,18 +3007,13 @@ if ( globalTweakers.numFoodTypes === 2 )
 	
 	
 	//-----------------------------------------------
-    this.panCameraToPresetSwimbot = function(p)
+    this.panCameraToPresetSwimbot = function(s)
     {
     	_viewTracking.stopTracking();
     
     	this.stopCameraNavigation();
-
-    		 if ( p === 1 ) { _selectedSwimbot = 1; }
-    	else if ( p === 2 ) { _selectedSwimbot = 2; }
-    	else if ( p === 3 ) { _selectedSwimbot = 3; }
-    	else if ( p === 4 ) { _selectedSwimbot = 4; }
-    	else if ( p === 5 ) { _selectedSwimbot = 5; }
-    	else if ( p === 6 ) { _selectedSwimbot = 6; }
+    	
+    	_selectedSwimbot = s;
     	
         _viewTracking.setMode( ViewTrackingMode.SELECTED, _camera.getPosition(), _camera.getScale(), _selectedSwimbot );
     }
@@ -3343,7 +3338,7 @@ if ( globalTweakers.numFoodTypes === 2 )
                     
 	    return num;	
 	}
-
+	
 
 	//------------------------------
 	this.getNumUttering = function()
@@ -3378,6 +3373,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 	    return num;	
 	}
 	
+
 
 	//----------------------------
 	this.getPoolData = function()
