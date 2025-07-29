@@ -153,6 +153,7 @@ function GenePool()
 	let _myGenotype             = new Genotype();
     let _mateGenotype           = new Genotype();
     let _childGenotype          = new Genotype();
+    let _utteranceRenderer		= new UtteranceRenderer();
     let _neighborhoodX          = new Array();
     let _neighborhoodY          = new Array();
     let _neighborhoodAxis       = new Array();
@@ -193,6 +194,10 @@ function GenePool()
     let _windowHeight           = 0;
     
     let hhh = 0;	
+	
+    let _tempCameraShift = new Vector2D();
+	
+	
 	
 	//-------------------------------------
 	// create fixed-sized swimbot array
@@ -284,7 +289,7 @@ function GenePool()
 	//---------------------------------------
 	this.setDoneUtteringSound = function( id )
 	{	
-		_swimbots[ id ].setDoneUtteringSound(); 
+		//_swimbots[ id ].setDoneUtteringSound(); 
 	}	
 	
 	//------------------------------------------
@@ -302,7 +307,10 @@ function GenePool()
 		//----------------------------------
 		_seconds = ( (new Date).getTime() - _startTime ) / MILLISECONDS_PER_SECOND;
 	    _pool.initialize( _seconds );
-
+	    
+	    
+	    _utteranceRenderer.clearAllUtterances();
+	    
         //-------------------------
         // initialize camera
         //-------------------------
@@ -1218,11 +1226,28 @@ if ( mode === SimulationStartMode.SPECIES )
 				
 						// actually send out the MIDI for the utterance, or, at least, schedule when to stop uttering 
 						_sound.doUtterance (utterVariablesObj, this);
+						
+                    	if ( isInView ) 
+                    	{						
+							_utteranceRenderer.startUtterance
+							( 
+								s,
+								_swimbots[s].getPosition(), 
+								_swimbots[s].getUtterDuration(),
+								_swimbots[s].getUtterNotes(),
+								_swimbots[s].getUtterHighNote(),
+								_swimbots[s].getUtterLowNote(),
+								_swimbots[s].getUtterNoteCount(),
+								_swimbots[s].getUtterModCount(),
+								_swimbots[s].getUtterSequence(),
+							);
+						}
 					}
 				}
 				else
 				{
 					_markedForUtteringSound[s] = false;
+					_utteranceRenderer.stop(s);
 				}
 				
                 //-------------------------------------
@@ -1234,6 +1259,8 @@ if ( mode === SimulationStartMode.SPECIES )
                     if( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
                         _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[s].getPosition(), s);
                     }
+                    
+					_utteranceRenderer.stop(s);
                     
                     _swimbots[s].die();
                 }
@@ -2250,7 +2277,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 
             _myGenotype.randomize();
             
-            _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
+             _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
 
             //--------------------------------------------------
             // add the new swimbot to the family tree
@@ -2483,7 +2510,12 @@ if ( globalTweakers.numFoodTypes === 2 )
 			if ( _swimbots[s].getAlive() )
 			{			
                 if ( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() ) )
-				{ 
+				{ 				
+					if ( _swimbots[s].getIsUttering() )
+					{				
+						_utteranceRenderer.updatePosition( s, _swimbots[s].getPosition() );
+					}				
+
                     _swimbots[s].render( _levelOfDetail );
       
                     if (( s === _mousedOverSwimbot )
@@ -2515,6 +2547,8 @@ if ( globalTweakers.numFoodTypes === 2 )
 				}
 			}
 		}
+		
+		_utteranceRenderer.updateAndRender();
 		
 		//-----------------------------------------------------------------------
 		// when view is in mutual love mode, show a line between the lovers...
@@ -2579,7 +2613,7 @@ if ( globalTweakers.numFoodTypes === 2 )
                 else if ( viewTrackingMode === ViewTrackingMode.EFFICIENT  ) { modeString = "viewing most efficient"     }
                 else if ( viewTrackingMode === ViewTrackingMode.VIRGIN     ) { modeString = "viewing oldest virgin"      }
                 else if ( viewTrackingMode === ViewTrackingMode.HUNGRY     ) { modeString = "viewing glutton"            }
-            
+                
                 _canvas.font = "14px Arial";
                 _canvas.fillStyle = "rgba( 255, 255, 255, 0.5 )";		
                 _canvas.fillText( modeString, _canvasWidth - 170, _canvasHeight - 30 );        
@@ -2962,7 +2996,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 	//-----------------------------------------------
 	// stop camera Navigation
 	//-----------------------------------------------
-    this.stopCameraNavigation = function( action )
+    this.stopCameraNavigation = function()
     {
         _panningLeft    = false;	
         _panningRight   = false;
@@ -2971,6 +3005,25 @@ if ( globalTweakers.numFoodTypes === 2 )
         _zoomingIn      = false;
         _zoomingOut     = false;
 	}
+	
+	
+	
+	//-----------------------------------------------
+    this.panCameraToPresetSwimbot = function(p)
+    {
+    	_viewTracking.stopTracking();
+    
+    	this.stopCameraNavigation();
+
+    		 if ( p === 1 ) { _selectedSwimbot = 1; }
+    	else if ( p === 2 ) { _selectedSwimbot = 2; }
+    	else if ( p === 3 ) { _selectedSwimbot = 3; }
+    	else if ( p === 4 ) { _selectedSwimbot = 4; }
+    	else if ( p === 5 ) { _selectedSwimbot = 5; }
+    	else if ( p === 6 ) { _selectedSwimbot = 6; }
+    	
+        _viewTracking.setMode( ViewTrackingMode.SELECTED, _camera.getPosition(), _camera.getScale(), _selectedSwimbot );
+    }
 
 	//-------------------------------
 	this.clearViewMode = function()

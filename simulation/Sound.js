@@ -13,7 +13,7 @@
 
 "use strict";
 
-const DEBUGGING_UTTERANCE_EVENT_HORIZON = true; // let's see how far we can be heard
+const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
@@ -362,7 +362,7 @@ function Sound()
 			setTimeout(() => {
 				// The 'done' event is crucial for simulation state and must always be handled.
 				if (step.type === 'done') {
-					callerFunction.setDoneUtteringSound(utterVariablesObj.swimbotID);
+					// callerFunction.setDoneUtteringSound(utterVariablesObj.swimbotID); // no longer our job
 					return;
 				}
 

@@ -1204,6 +1204,13 @@ document.onkeydown = function(e)
     //apparently, Chrome and Safari  use different key codes...
     if ( e.keyCode === 187 ) { cameraNavAction = CameraNavigationAction.IN;      } // plus key
     if ( e.keyCode === 189 ) { cameraNavAction = CameraNavigationAction.OUT;     } // minus key
+
+    if ( e.keyCode === 49 ) { genePool.panCameraToPresetSwimbot(1); }
+    if ( e.keyCode === 50 ) { genePool.panCameraToPresetSwimbot(2); }
+    if ( e.keyCode === 51 ) { genePool.panCameraToPresetSwimbot(3); }
+    if ( e.keyCode === 52 ) { genePool.panCameraToPresetSwimbot(4); }
+    if ( e.keyCode === 53 ) { genePool.panCameraToPresetSwimbot(5); }
+    if ( e.keyCode === 54 ) { genePool.panCameraToPresetSwimbot(6); }
     
     if ( cameraNavAction != -1 )
     {
@@ -1243,12 +1250,12 @@ document.onkeydown = function(e)
 //------------------------------
 document.onkeyup = function(e) 
 {
-    genePool.stopCameraNavigation( CameraNavigationAction.LEFT  );
-    genePool.stopCameraNavigation( CameraNavigationAction.RIGHT );
-    genePool.stopCameraNavigation( CameraNavigationAction.UP    );
-    genePool.stopCameraNavigation( CameraNavigationAction.DOWN  );
-    genePool.stopCameraNavigation( CameraNavigationAction.IN    );
-    genePool.stopCameraNavigation( CameraNavigationAction.LEFT  );
+    genePool.stopCameraNavigation();
+    genePool.stopCameraNavigation();
+    genePool.stopCameraNavigation();
+    genePool.stopCameraNavigation();
+    genePool.stopCameraNavigation();
+    genePool.stopCameraNavigation();
     
 /*
 #leftNav

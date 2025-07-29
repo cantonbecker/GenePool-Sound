@@ -737,12 +737,6 @@ _position.copyFrom( position );
 	this.getIsUttering 		= function() { return _uttering; 				}
 	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
 	
-    //---------------------------------------
-	this.setDoneUtteringSound = function()
-	{
-		_uttering = false;
-	}
-	
 	//--------------------------------
 	// update
 	//--------------------------------
@@ -772,6 +766,14 @@ _position.copyFrom( position );
             // console.log( "swimbot " + _index + " age=" + _age + " utterPeriod= " + _phenotype.utterPeriod + " ready to utter!" );
             _uttering = true;
         }	
+        
+        if ( _uttering )
+        {
+        	if ( _age % _phenotype.utterPeriod >= _phenotype.utterDuration )
+    		{
+            	_uttering = false;
+        	}
+		}
 		
         //-------------------------------------
         // I wanna eat my chosen food bit...
@@ -1648,17 +1650,16 @@ let partAccelerationY = -strokeForceY;
             
             // *** AVERAGE ALL OUR NORMALIZED CALCULATIONS TO COME UP WITH OUR ATTRACTIVENESS ***
             attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 5;
-            // attractiveness = utterNoteOverlap; // what happens if all we care about is note overlap?
-            
+                
             // Ensure attractiveness stays within [0,1] // clamp to make sure
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
-            
+            /*
             console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
             console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
             console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
             console.log ("noteCountSimilarity=" + noteCountSimilarity + ", modCountSimilarity=" + modCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
-            
+            */
             
             if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
                 console.log("ALERT: Setting attractiveness to zero because " + attractiveness + " was NaN or out of range 0-1 when comparing swimbot " + _index + " with judge " + judge_index);
@@ -2203,19 +2204,6 @@ console.log( "contributeToOffspring: _childEnergyRatio = " + _childEnergyRatio )
 	//-------------------------------------
 	this.render = function( levelOfDetail )
 	{
-		if ( _uttering )
-		{	
-			_swimbotRenderer.showUttering
-			(
-				_phenotype.utterNotes,
-				_phenotype.utterHighNote,
-				_phenotype.utterLowNote,
-				_phenotype.utterNoteCount,
-				_phenotype.utterModCount,
-				_phenotype.utterSequence 
-			);
-		}
-		
 	    _swimbotRenderer.render
 	    ( 
 	        _phenotype, 

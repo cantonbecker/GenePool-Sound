@@ -36,7 +36,8 @@ function ViewTracking()
     const LOVER_TRACKING_SCALE_INC  = 2.0;
     const DEFAULT_INERTIA           = 0.4;
     const EASE_IN_FRACTION          = 15.0;
-    const INNER_WINDOW_RATIO        = 0.1;
+    const INNER_WINDOW_RATIO        = 0.1;    
+    const EASE_IN_RATE 				= 0.001;
     
     let _vectorUtility      = new Vector2D();
     let _isTracking         = false;
@@ -50,6 +51,10 @@ function ViewTracking()
     let _mode               = ViewTrackingMode.AUTOTRACK;
     let _lover1Index        = NULL_INDEX;
     let _lover2Index        = NULL_INDEX;
+    let _selectedSwimbot	= NULL_INDEX;
+    let _exploreClock		= 0;
+    let _easeIn				= ZERO;
+    
     
     //-------------------------------------------------
     // set this to the default
@@ -71,12 +76,15 @@ function ViewTracking()
     this.setMode = function( mode, currentCameraPosition, currentCameraScale, selectedSwimbot )
     {
         //console.log( "ViewTracking.setMode: " + mode );    
+        
+        _selectedSwimbot = selectedSwimbot;
     
         _mode = mode;
+
+		_easeIn = ZERO;
     
         _isTracking = false;
         _trackingPosition.copyFrom( currentCameraPosition );
-//_trackingScale = POOL_WIDTH;
         _trackingEaseIn = ZERO;
         _inertia  = DEFAULT_INERTIA;        
         
@@ -94,11 +102,9 @@ function ViewTracking()
         //-----------------------------------------------
         else if ( _mode === ViewTrackingMode.AUTOTRACK ) 
         {     
-            //console.log( "_mode is ViewTrackingMode.AUTOTRACK" );    
-  
+	        _exploreClock = 0;
             _isTracking = true;
             _trackingScale = 600;
-            //_inertia = 0.05;      
             _inertia = 0.1;      
         } 
         //-----------------------------------------------
@@ -110,6 +116,8 @@ function ViewTracking()
             {
                 _isTracking = true;
                 _trackingScale = 400;
+	            _inertia = 0.1;      
+                
                 document.getElementById( 'swimbotDataPanel' ).innerHTML = "";
             }
         }
@@ -222,8 +230,19 @@ function ViewTracking()
     this.updateTracking = function( currentCameraPosition, currentCameraScale, selectedSwimbot )
     {
         if ( _mode === ViewTrackingMode.AUTOTRACK )
-        {                    
+        {
+			//----------------------------------------------------------------
+			// This is the original version: it basically tried to keep the 
+			// focus on the clump of seimbots that are within view.
+			//----------------------------------------------------------------
             _trackingPosition.copyFrom( getCentroidOfVisibleSwimbots() );  
+
+			//----------------------------------------------------------------
+			// This version automatically pans and zooms to create some 
+			// variety and interes. Sometimes, focusing on large clumps 
+			// of swimbots and at other times, just focusing on a few. 
+			//----------------------------------------------------------------
+            //updateExploratoryTracking();  
         }
         else if ( _mode === ViewTrackingMode.MUTUAL )
         {
@@ -231,15 +250,7 @@ function ViewTracking()
             &&  ( _lover2Index != NULL_INDEX ))
             {
                 let loverDistance = _swimbots[ _lover1Index ].getPosition().getDistanceTo( _swimbots[ _lover2Index ].getPosition() );  
-                
-                // tone it down dudes! FIX...  
-//let trackingScaleTarget = LOVER_TRACKING_SCALE_BASE + loverDistance * LOVER_TRACKING_SCALE_INC;
-//_trackingScale += ( trackingScaleTarget - _trackingScale ) * 0.01;
-                
-//_trackingScale = trackingScaleTarget;
-
-_trackingScale += ( ( loverDistance * 2 ) - _trackingScale ) * 0.1;
-                
+				_trackingScale += ( ( loverDistance * 2 ) - _trackingScale ) * 0.1;                
             }
 
             _trackingPosition.copyFrom( getCentroidOfLovers() );     
@@ -250,18 +261,24 @@ _trackingScale += ( ( loverDistance * 2 ) - _trackingScale ) * 0.1;
             {                    
                 _trackingPosition.copyFrom( _swimbots[ selectedSwimbot ].getPosition() );
             }
-        }     
+        }   
+        
+        //temporary (maybe) technique for panning
+		if ( _mode === ViewTrackingMode.SELECTED ) 
+		{
+			_easeIn += EASE_IN_RATE;
+			if ( _easeIn > 0.1 )
+			{
+				_easeIn = 0.1;
+			}
+				
+			_inertia = _easeIn;      
+		}        
+          
         
         //----------------------------------------------------------------
         // This is where the tracking forces are created......
         //----------------------------------------------------------------    
-// goals: 
-// DONE - NEEDS TESTING    improve ease-in
-// DONE - NEEDS TESTING    make camera stop when forces go below a minimum
-// make whole pool go slower        
-// for autotracking, make drop off with distance 
-// for transition, make scale go up and then down
-        
         let xx = _trackingPosition.x - currentCameraPosition.x;
         let yy = _trackingPosition.y - currentCameraPosition.y;
         
@@ -326,9 +343,39 @@ _trackingScale += ( ( loverDistance * 2 ) - _trackingScale ) * 0.1;
     this.getMode                = function() { return _mode;            }
     this.getLover1Index         = function() { return _lover1Index;     }
     this.getLover2Index         = function() { return _lover2Index;     }
-    this.getCameraForce         = function() { return _cameraForce      }
-    this.getCameraScaleForce    = function() { return _cameraScaleForce }
+    this.getCameraForce         = function() { return _cameraForce;     }
+    this.getCameraScaleForce    = function() { return _cameraScaleForce;}
+    this.getSelectedSwimbot		= function() { return _selectedSwimbot;	}
 
+    
+    
+    //--------------------------------------
+    function updateExploratoryTracking()
+    {
+    	_exploreClock ++;
+        
+        /*
+        if ( _exploreClock % 500 < 100 )
+        {
+	        _trackingPosition.setXY( POOL_WIDTH * 0.5, POOL_HEIGHT * 0.5 );     	
+	        _trackingScale = POOL_WIDTH * 0.5;  
+        }
+		else
+        {
+	        _trackingPosition.setXY( POOL_WIDTH * 0.2, POOL_HEIGHT * 0.5 );     	
+	        _trackingScale = POOL_WIDTH * 0.2;  
+        }
+        */
+		
+let scaleScale = ONE_HALF - ONE_HALF * Math.cos( _exploreClock * 0.0051 );
+_trackingScale 		= POOL_WIDTH * 0.06 + POOL_WIDTH * 0.2 * scaleScale * scaleScale * scaleScale;  
+
+		_trackingPosition.x = POOL_X_CENTER + POOL_WIDTH  * 0.2 * Math.sin( _exploreClock * 0.0009 );
+		_trackingPosition.y = POOL_Y_CENTER + POOL_HEIGHT * 0.2 * Math.cos( _exploreClock * 0.0005 );
+
+
+        
+    }
     
 
     //--------------------------------------
