@@ -31,14 +31,51 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 3;
+const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 2;
 
 // MIDI channels are 1-16 (not zero indexed!)
+const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
 const MIDI_CHANNEL_ATMOSPHERE = 16;
 
+var MIDI_CHANNELS_FOR_UTTERING = [
+	{	output: 'IAC Driver Bus 2', channel: 1,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 2,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 3,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 4,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 5,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 6,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 7,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 8,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 9,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 10, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 11, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 12, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 13, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 14, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 15, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 2', channel: 16, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 1,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 2,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 3,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 4,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 5,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 6,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 7,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 8,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 9,	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 10, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 11, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 12, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 13, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 14, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 15, 	lastUsed: 0 },
+	{	output: 'IAC Driver Bus 3', channel: 16, 	lastUsed: 0 }
+];
+
+// var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
 
 var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
 
@@ -46,22 +83,8 @@ var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
 
-var MIDI_CHANNELS_FOR_UTTERING = [
-	{	channel: 5,	lastUsed: 0 },
-	{	channel: 6,	lastUsed: 0 },
-	{	channel: 7,	lastUsed: 0 },
-	{	channel: 8,	lastUsed: 0 },
-	{	channel: 9,	lastUsed: 0 },
-	{	channel: 10, lastUsed: 0 },
-	{	channel: 11, lastUsed: 0 },
-	{	channel: 12, lastUsed: 0 },
-	{	channel: 13, lastUsed: 0 },
-	{	channel: 14, lastUsed: 0 }
-];
 
-// var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
-
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000; // throttle: we don't ask any individual uttering channel to utter more often than this
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // throttle: we don't ask any individual uttering channel to utter more often than this
 
 // these are here in case we want to selectively disable some sounds during testing
 var SOUND_OUTPUT_UTTER 	= true;
@@ -85,8 +108,8 @@ for (const set of MIDI_NOTE_INTERVAL_SETS) {
     }
 }
 
-const GLOBAL_MIN_REVERB = 10; // 0-127
-const GLOBAL_MAX_REVERB = 80;
+const GLOBAL_MIN_REVERB = 15; // 0-127
+const GLOBAL_MAX_REVERB = 70;
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -170,6 +193,8 @@ function Sound()
 	let midiAccess = null;
 	let midiOutput = null;
 
+	let midiOutputsByName = {};
+
 	// WEB AUDIO API FALLBACK
 	let audioCtx = null;
 	let masterGain = null;
@@ -200,24 +225,42 @@ function Sound()
 		// *** END NEW ***
 	}
 
+
 	function onMIDISuccess(access) {
 		midiAccess = access;
+		midiOutputsByName = {}; // clear/reset
 		console.log("MIDI ready. Available outputs:");
-
+	
 		let idx = 0;
 		for (let output of midiAccess.outputs.values()) {
 			console.log(`[${idx}] ${output.name}`);
+			// Collect any output whose name matches the pattern "IAC Driver Bus x"
+			if (/^IAC Driver Bus \d+$/.test(output.name)) {
+					midiOutputsByName[output.name] = output;
+			}
 			idx++;
 		}
 
-		// just pick first output for now, or you could prompt the user
-		midiOutput = Array.from(midiAccess.outputs.values())[0];
-		if (!midiOutput) {
-			console.error("No MIDI outputs found.");
-		} else {
-			console.log(`Selected output: ${midiOutput.name}`);
-		}
+
+			// Test output availability for nondiagetic bus
+			if (midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]) {
+				midiOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
+				console.log(`nondiagetic MIDI output: ${midiOutput.name}`);
+			} else {
+				midiOutput = null;
+				console.error(`No MIDI output found for MIDI_OUTPUT_NONDIAGETIC: "${MIDI_OUTPUT_NONDIAGETIC}".`);
+			}
+			
+			// Check all unique outputs needed for uttering channels
+			const utteringOutputsNeeded = [...new Set(MIDI_CHANNELS_FOR_UTTERING.map(obj => obj.output))];
+			for (const outputName of utteringOutputsNeeded) {
+				if (!(outputName in midiOutputsByName)) {
+					console.error(`MIDI_CHANNELS_FOR_UTTERING refers to unavailable output: "${outputName}".`);
+				}
+			}	
+
 	}
+
 
 	function onMIDIFailure() {
 		console.error("Could not access MIDI, so will rely on basic JS audio.");
@@ -234,6 +277,9 @@ function Sound()
 		_parameter_2 = p2;
 		_parameter_3 = p3; // camera zoom, ranges from about 500 to 8000
 
+		// --- get the correct MIDI output by name ---
+		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'
+
 		SOUND_UPDATE_COUNTER +=1;
 		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
 
@@ -242,26 +288,26 @@ function Sound()
 		let _p3_scaled_inverse = GLOBAL_MAX_REVERB - _p3_scaled;
 		
 		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
-		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE) {
-			sendCC(21, _p3_scaled, MIDI_CHANNEL_ATMOSPHERE); // dry/wet global reverb level
-			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_ATMOSPHERE); // cutoff metaphysical function B (rhythmic background)
+		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE && nondiegeticOutput) {
+			sendControlMIDI(21, _p3_scaled, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // dry/wet global reverb level
+			sendControlMIDI(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // cutoff metaphysical function B (rhythmic background)
 
 			// DRONE: controls 16 & 17 of metaphysical function B reaktor are pitch knobs that should match our base note
 			let controlAdjustment16 = MIDI_BASE_NOTE -6 ;
-			sendCC(16, controlAdjustment16, MIDI_CHANNEL_ATMOSPHERE); // 5th histogram section A of metaphysical function B (rhythmic background)
+			sendControlMIDI(16, controlAdjustment16, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
 			let controlAdjustment17 = MIDI_BASE_NOTE +6 ;
-			sendCC(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE); // 5th histogram section A of metaphysical function B (rhythmic background)
+			sendControlMIDI(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
 
 		}
 		
 		// every minute, tweak background sound just for variation
-		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {			
+		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0 && nondiegeticOutput) {			
 			
 			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
-			sendCC(18, controlAdjustment18, MIDI_CHANNEL_ATMOSPHERE); // 5th histogram section A of metaphysical function B (rhythmic background)
+			sendControlMIDI(18, controlAdjustment18, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
 			
 			let controlAdjustment19 = (Math.floor(Math.random() * (4)) * 25) + 25; // one of 25, 50, 75, or 100
-			sendCC(19, controlAdjustment19, MIDI_CHANNEL_ATMOSPHERE); // 4th histogram section A of metaphysical function B (twanginess?)
+			sendControlMIDI(19, controlAdjustment19, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 4th histogram section A of metaphysical function B (twanginess?)
 		}
 
 
@@ -277,14 +323,13 @@ function Sound()
 			const { histogram, totalNotes, tableHTML } = getPitchHistogram();
 			document.getElementById('saveLoadPanel').innerHTML = tableHTML;
 		}
-
-
-	}
+	} /* end setGlobalParameters */
 
 	//------------------------------------------------------------------------------------------------------
 	// doSwimbotSoundEvent is used for non-diegetic sounds, e.g. eating, being born, dying
 	this.doSwimbotSoundEvent = function( type, swimbotPosition, swimbotID )
 	{
+		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
 		let printString = "doSwimbotSoundEvent() type=";
 		
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
@@ -293,8 +338,8 @@ function Sound()
 				let midiChannel = MIDI_CHANNEL_EAT;
 				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
 				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
-				sendCC(14, controlValue, midiChannel);
-				sendNoteMIDI(midiNote, 127, 100, midiChannel);
+				sendControlMIDI(14, controlValue, midiChannel, nondiegeticOutput);
+				sendNoteMIDI(midiNote, 127, 100, midiChannel, nondiegeticOutput);
 				printString += " sent MIDI note " + midiNote + " w/CC 14 " + controlValue;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
@@ -302,7 +347,7 @@ function Sound()
 			if (doingMidiOutput() && SOUND_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
 				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
-				sendNoteMIDI(midiNote, 127, 1000, midiChannel);
+				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
 				printString += " sent MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
@@ -310,7 +355,7 @@ function Sound()
 			if (doingMidiOutput() && SOUND_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
 				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
-				sendNoteMIDI(midiNote, 127, 1000, midiChannel);
+				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
 				printString += " sent MIDI note " + midiNote;
 			}
 		} // end if sound types
@@ -331,57 +376,56 @@ function Sound()
 		const useWebAudio = !useMidi && audioCtx !== null;
 		let playAudio = false;
 		let midiChannel;
-
+		let midiOutput; // <--- add this
+	
 		// Step 1: Decide if we can and should play audio for this utterance.
 		if (useMidi) {
 			// MIDI Path: Check if utterance is enabled, in view, and channel is not throttled.
 			if (utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER) {
-				let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
-				for (let i = 1; i < MIDI_CHANNELS_FOR_UTTERING.length; i++) {
-					if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
-						oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
+					let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
+					for (let i = 1; i < MIDI_CHANNELS_FOR_UTTERING.length; i++) {
+						if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
+							oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
+						}
 					}
-				}
-				const min_wait_slop = Math.floor(Math.random() * 250);
-				if (Date.now() - oldestMIDIchannel.lastUsed > (MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop)) {
-					playAudio = true;
-					oldestMIDIchannel.lastUsed = rightNow;
-					midiChannel = oldestMIDIchannel.channel; // Update its lastUsed timestamp
-
-				}
+					const min_wait_slop = Math.floor(Math.random() * 250);
+					if (Date.now() - oldestMIDIchannel.lastUsed > (MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop)) {
+						playAudio = true;
+						oldestMIDIchannel.lastUsed = rightNow;
+						midiChannel = oldestMIDIchannel.channel; // Update its lastUsed timestamp
+						// *** Get the output by name ***
+						midiOutput = midiOutputsByName[oldestMIDIchannel.output];
+					}
 			}
 		} else if (useWebAudio) {
 			// Web Audio Path: Simpler check, just needs to be in view. No channel throttling.
 			if (utterVariablesObj.swimbotInView) {
-				playAudio = true;
+					playAudio = true;
 			}
 		}
-
+	
 		// Step 2: Schedule all events from the sequence.
 		for (const step of utterVariablesObj.utterSequence) {
 			setTimeout(() => {
-				// The 'done' event is crucial for simulation state and must always be handled.
-				if (step.type === 'done') {
-					// callerFunction.setDoneUtteringSound(utterVariablesObj.swimbotID); // no longer our job
-					return;
-				}
-
-				// If we determined we shouldn't play audio, ignore note/cc events.
-				if (!playAudio) return;
-
-				// Handle the audible events.
-				if (step.type === 'note') {
-					if (useMidi) {
-						sendNoteMIDI(step.note, step.velocity, step.duration, midiChannel);
-					} else { // Fallback to Web Audio
-						playNoteWebAudio(step.note, step.velocity, step.duration);
+					// The 'done' event is crucial for simulation state and must always be handled.
+					if (step.type === 'done') {
+						return;
 					}
-					RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() });
-				} else if (step.type === 'cc') {
-					if (useMidi) { // CC events are ignored for Web Audio fallback.
-						sendCC(step.cc, step.value, midiChannel);
+	
+					if (!playAudio) return;
+	
+					if (step.type === 'note') {
+						if (useMidi && midiOutput) {
+							sendNoteMIDI(step.note, step.velocity, step.duration, midiChannel, midiOutput); // pass midiOutput!
+						} else if (useWebAudio) {
+							playNoteWebAudio(step.note, step.velocity, step.duration);
+						}
+						RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() });
+					} else if (step.type === 'cc') {
+						if (useMidi && midiOutput) {
+							sendControlMIDI(step.cc, step.value, midiChannel, midiOutput); // pass midiOutput!
+						}
 					}
-				}
 			}, step.delay);
 		}
 		return false;
@@ -465,8 +509,8 @@ function Sound()
 		osc.stop(noteEndTime);
 	}
 
-	// Actually send a MIDI note on (and schedule a note off) to the IAC bus. 
-	function sendNoteMIDI(noteNumber, velocity, durationMs, midiChannel) {
+	// Actually send a MIDI note on (and schedule a note off) to the IAC bus.
+	function sendNoteMIDI(noteNumber, velocity, durationMs, midiChannel, midiOutput) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const noteOn = 0x90 | zeroIndexMidiChannel;
 		const noteOff = 0x80 | zeroIndexMidiChannel;
@@ -477,7 +521,7 @@ function Sound()
 	}
 	
 	// Actually send a MIDI control value
-	function sendCC(controllerNumber, value, midiChannel) {
+	function sendControlMIDI(controllerNumber, value, midiChannel, midiOutput) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const cc = 0xB0 | zeroIndexMidiChannel;
 		midiOutput.send([cc, controllerNumber, value]);
@@ -533,7 +577,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
 	// WHAT IS OUR SCALE?
-	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // maybe in a future composition we migrate from one scale to another?
+	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[1]; // maybe in a future composition we migrate from one scale to another?
 	const myIntervalSetName = myNoteIntervalSet.name;
 	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
 
