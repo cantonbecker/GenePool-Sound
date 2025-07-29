@@ -37,14 +37,14 @@ const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 3;
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
-const MIDI_CHANNEL_GLOBAL = 16;
+const MIDI_CHANNEL_ATMOSPHERE = 16;
 
 
 var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
 
+var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
-
 
 var MIDI_CHANNELS_FOR_UTTERING = [
 	{	channel: 5,	lastUsed: 0 },
@@ -63,13 +63,12 @@ var MIDI_CHANNELS_FOR_UTTERING = [
 
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 2000; // throttle: we don't ask any individual uttering channel to utter more often than this
 
-
 // these are here in case we want to selectively disable some sounds during testing
-var MIDI_OUTPUT_UTTER 	= true;
-var MIDI_OUTPUT_EAT 		= true;
-var MIDI_OUTPUT_BIRTH 	= true;
-var MIDI_OUTPUT_DEATH 	= true;
-var MIDI_OUTPUT_GLOBAL 	= true;
+var SOUND_OUTPUT_UTTER 	= true;
+var SOUND_OUTPUT_EAT 		= true;
+var SOUND_OUTPUT_BIRTH 	= true;
+var SOUND_OUTPUT_DEATH 	= true;
+var SOUND_OUTPUT_ATMOSPHERE 	= true;
 
 
 const MIDI_NOTE_INTERVAL_SETS = [
@@ -170,20 +169,35 @@ function Sound()
 
 	let midiAccess = null;
 	let midiOutput = null;
+
+	// WEB AUDIO API FALLBACK
+	let audioCtx = null;
+	let masterGain = null;
 	
 	//--------------------------------
 	this.initialize = function()
 	{		
 		console.log( "sound.initialize!" );
 		// request MIDI
-		if (!navigator.requestMIDIAccess) {
-			console.error("Web MIDI API not supported.");
-			return;
+		if (navigator.requestMIDIAccess) {
+			navigator.requestMIDIAccess()
+				.then(onMIDISuccess, onMIDIFailure);
+		} else {
+			console.warn("Web MIDI API not supported. Will attempt to use Web Audio API fallback.");
 		}
 
-		navigator.requestMIDIAccess()
-			.then(onMIDISuccess, onMIDIFailure);
-
+		// *** WEB AUDIO API FALLBACK INITIALIZATION ***
+		try {
+			audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+			masterGain = audioCtx.createGain();
+			masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime); // Set master volume to 30% to prevent clipping
+			masterGain.connect(audioCtx.destination);
+			console.log("Web Audio API ready.");
+		} catch (e) {
+			console.error("Web Audio API is not supported in this browser. No audio will be played.");
+			audioCtx = null;
+		}
+		// *** END NEW ***
 	}
 
 	function onMIDISuccess(access) {
@@ -206,7 +220,7 @@ function Sound()
 	}
 
 	function onMIDIFailure() {
-		console.error("Could not access MIDI devices.");
+		console.error("Could not access MIDI, so will rely on basic JS audio.");
 	}
 
 	
@@ -227,16 +241,16 @@ function Sound()
 		let _p3_scaled = Math.max(GLOBAL_MIN_REVERB, Math.min(GLOBAL_MAX_REVERB, Math.round((_parameter_3 - 500) * GLOBAL_MAX_REVERB / (3000 - 500))));
 		let _p3_scaled_inverse = GLOBAL_MAX_REVERB - _p3_scaled;
 		
-		// FREQUENT GLOBAL MIDI UPDATES
-		if (doingMidiOutput() && MIDI_OUTPUT_GLOBAL) {
-			sendCC(21, _p3_scaled, MIDI_CHANNEL_GLOBAL); // dry/wet global reverb level
-			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_GLOBAL); // cutoff metaphysical function B (rhythmic background)
+		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
+		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE) {
+			sendCC(21, _p3_scaled, MIDI_CHANNEL_ATMOSPHERE); // dry/wet global reverb level
+			sendCC(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_ATMOSPHERE); // cutoff metaphysical function B (rhythmic background)
 
 			// DRONE: controls 16 & 17 of metaphysical function B reaktor are pitch knobs that should match our base note
 			let controlAdjustment16 = MIDI_BASE_NOTE -6 ;
-			sendCC(16, controlAdjustment16, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
+			sendCC(16, controlAdjustment16, MIDI_CHANNEL_ATMOSPHERE); // 5th histogram section A of metaphysical function B (rhythmic background)
 			let controlAdjustment17 = MIDI_BASE_NOTE +6 ;
-			sendCC(17, controlAdjustment17, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
+			sendCC(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE); // 5th histogram section A of metaphysical function B (rhythmic background)
 
 		}
 		
@@ -244,10 +258,10 @@ function Sound()
 		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0) {			
 			
 			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
-			sendCC(18, controlAdjustment18, MIDI_CHANNEL_GLOBAL); // 5th histogram section A of metaphysical function B (rhythmic background)
+			sendCC(18, controlAdjustment18, MIDI_CHANNEL_ATMOSPHERE); // 5th histogram section A of metaphysical function B (rhythmic background)
 			
 			let controlAdjustment19 = (Math.floor(Math.random() * (4)) * 25) + 25; // one of 25, 50, 75, or 100
-			sendCC(19, controlAdjustment19, MIDI_CHANNEL_GLOBAL); // 4th histogram section A of metaphysical function B (twanginess?)
+			sendCC(19, controlAdjustment19, MIDI_CHANNEL_ATMOSPHERE); // 4th histogram section A of metaphysical function B (twanginess?)
 		}
 
 
@@ -275,28 +289,28 @@ function Sound()
 		
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
 			printString += 'EAT';
-			if (doingMidiOutput() && MIDI_OUTPUT_EAT) {
+			if (doingMidiOutput() && SOUND_OUTPUT_EAT) {
 				let midiChannel = MIDI_CHANNEL_EAT;
 				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
 				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
 				sendCC(14, controlValue, midiChannel);
-				sendNote(midiNote, 127, 100, midiChannel);
+				sendNoteMIDI(midiNote, 127, 100, midiChannel);
 				printString += " sent MIDI note " + midiNote + " w/CC 14 " + controlValue;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
 			printString += 'BIRTH';
-			if (doingMidiOutput() && MIDI_OUTPUT_BIRTH) {
+			if (doingMidiOutput() && SOUND_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
 				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
-				sendNote(midiNote, 127, 1000, midiChannel);
+				sendNoteMIDI(midiNote, 127, 1000, midiChannel);
 				printString += " sent MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
 			printString += 'DEATH';
-			if (doingMidiOutput() && MIDI_OUTPUT_DEATH) {
+			if (doingMidiOutput() && SOUND_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
 				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
-				sendNote(midiNote, 127, 1000, midiChannel);
+				sendNoteMIDI(midiNote, 127, 1000, midiChannel);
 				printString += " sent MIDI note " + midiNote;
 			}
 		} // end if sound types
@@ -310,62 +324,149 @@ function Sound()
 	 // doUtterance() is called with an object describing its utterance phenotypes
 	 // e.g. utterVariablesObj.swimbotInView, utterVariablesObj.utterSequence... 
 
-	 this.doUtterance = function (utterVariablesObj, callerFunction ) {
-		// special conditions will have to be met for us to actually play sound
+	// *** MODIFIED: Added Web Audio API fallback logic ***
+	this.doUtterance = function (utterVariablesObj, callerFunction) {
+		const rightNow = Date.now();
+		const useMidi = doingMidiOutput();
+		const useWebAudio = !useMidi && audioCtx !== null;
 		let playAudio = false;
-		let rightNow = Date.now();
-		
-		// pick a MIDI channel to utter on (select the utter MIDI channel used longest ago)
-		let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
-		for (let i = 1; i < MIDI_CHANNELS_FOR_UTTERING.length; i++) {
-			if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
-				oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
+		let midiChannel;
+
+		// Step 1: Decide if we can and should play audio for this utterance.
+		if (useMidi) {
+			// MIDI Path: Check if utterance is enabled, in view, and channel is not throttled.
+			if (utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER) {
+				let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
+				for (let i = 1; i < MIDI_CHANNELS_FOR_UTTERING.length; i++) {
+					if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
+						oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
+					}
+				}
+				const min_wait_slop = Math.floor(Math.random() * 250);
+				if (Date.now() - oldestMIDIchannel.lastUsed > (MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop)) {
+					playAudio = true;
+					oldestMIDIchannel.lastUsed = rightNow;
+					midiChannel = oldestMIDIchannel.channel; // Update its lastUsed timestamp
+
+				}
+			}
+		} else if (useWebAudio) {
+			// Web Audio Path: Simpler check, just needs to be in view. No channel throttling.
+			if (utterVariablesObj.swimbotInView) {
+				playAudio = true;
 			}
 		}
-		
-		// Update its lastUsed timestamp
-		let midiChannel = oldestMIDIchannel.channel;
-		
-		// a lot of things have to be true before we'll actually utter out to MIDI...
-		let min_wait_slop = Math.floor(Math.random() * 250); // prevents our available channels from syncing up
-		if (doingMidiOutput() && Date.now() - oldestMIDIchannel.lastUsed >( MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop) && utterVariablesObj.swimbotInView && MIDI_OUTPUT_UTTER) {
-			playAudio = true;
-			oldestMIDIchannel.lastUsed = rightNow;
-			let estimatedUtterLength = utterVariablesObj.utterDuration * APPROX_MS_PER_CLOCK;
-			// console.log ('*** Beginning ' + estimatedUtterLength + ' ms utterance for swimbot ' + utterVariablesObj.swimbotID + ' on MIDI ch. ' + midiChannel + ' ***');
-			// console.log (utterVariablesObj);
-			// console.log(utterVariablesObj.utterSequence); // dump MIDI
-		}
 
-		// now walk through the utter MIDI sequence
-		for (const step of utterVariablesObj.utterSequence) {		
+		// Step 2: Schedule all events from the sequence.
+		for (const step of utterVariablesObj.utterSequence) {
 			setTimeout(() => {
+				// The 'done' event is crucial for simulation state and must always be handled.
+				if (step.type === 'done') {
+					callerFunction.setDoneUtteringSound(utterVariablesObj.swimbotID);
+					return;
+				}
+
+				// If we determined we shouldn't play audio, ignore note/cc events.
+				if (!playAudio) return;
+
+				// Handle the audible events.
 				if (step.type === 'note') {
-					if (playAudio) {
-						sendNote(step.note, step.velocity, step.duration, midiChannel);
-						RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() }); // keep a record of all utterance notes (C=0 ... B=11). we'll prune this elsewhere.
+					if (useMidi) {
+						sendNoteMIDI(step.note, step.velocity, step.duration, midiChannel);
+					} else { // Fallback to Web Audio
+						playNoteWebAudio(step.note, step.velocity, step.duration);
 					}
+					RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() });
 				} else if (step.type === 'cc') {
-					if (playAudio) sendCC(step.cc, step.value, midiChannel);
-				} else if (step.type === 'done') { // always do this, even if we're not playing audio	
-					callerFunction.setDoneUtteringSound( utterVariablesObj.swimbotID );						
+					if (useMidi) { // CC events are ignored for Web Audio fallback.
+						sendCC(step.cc, step.value, midiChannel);
+					}
 				}
 			}, step.delay);
 		}
-		return (false);
-		
-	} // end function doUtterance()
-		
+		return false;
+	}
+
 	function doingMidiOutput() {
-		if (midiOutput) {
-			return true;
-		} else {
-      	return false;
+		return midiOutput ? true : false;
+	}
+
+
+	/*** WEB AUDIO FALLBACK (Added July 29, 2025) ***/
+
+	function midiNoteToFrequency(midiNote) {
+		return 440 * Math.pow(2, (midiNote - 69) / 12);
+	}
+
+	/**
+	 * Plays a single note using the Web Audio API.
+	 * Creates a simple synth voice with an oscillator and a gain envelope.
+	 * @param {number} noteNumber The MIDI note number to play.
+	 * @param {number} velocity The note velocity (0-127), affects volume.
+	 * @param {number} durationMs The duration of the note in milliseconds.
+	 */
+	 
+	function playNoteWebAudio(noteNumber, velocity, durationMs) {
+		if (!audioCtx || !masterGain) return;
+	
+		if (audioCtx.state === 'suspended') {
+			audioCtx.resume();
 		}
+	
+		const osc = audioCtx.createOscillator();
+		const noteGain = audioCtx.createGain();
+	
+		const freq = midiNoteToFrequency(noteNumber);
+		const gainValue = (velocity / 127) * WEB_AUDIO_VOLUME; // Peak volume
+		const now = audioCtx.currentTime;
+		const durationSec = durationMs / 1000;
+	
+		osc.type = 'square'; // or sine, or square, or triangle
+		osc.frequency.setValueAtTime(freq, now);
+	
+		// --- Gated ADSR Envelope Parameters ---
+		const attackTime = 0.01;  // 10ms
+		const decayTime = 0.05;   // 50ms
+		const releaseTime = 0.01; // 10ms, for a crisp ending
+		const sustainLevel = gainValue * 0.8; // Sustain at 80% of peak
+	
+		const noteEndTime = now + durationSec;
+		const sustainStartTime = now + attackTime + decayTime;
+		const releaseStartTime = noteEndTime - releaseTime;
+	
+		// Use this envelope only if the note is long enough for attack, decay, and release
+		if (releaseStartTime > sustainStartTime) {
+			// 1. Attack: From 0 to peak volume
+			noteGain.gain.setValueAtTime(0, now);
+			noteGain.gain.linearRampToValueAtTime(gainValue, now + attackTime);
+	
+			// 2. Decay: From peak down to sustain level
+			noteGain.gain.linearRampToValueAtTime(sustainLevel, sustainStartTime);
+	
+			// 3. Sustain: Pin the gain to the sustain level. It will hold here
+			// until the release phase begins.
+			noteGain.gain.setValueAtTime(sustainLevel, releaseStartTime);
+			
+			// 4. Release: Ramp down to 0 at the very end.
+			noteGain.gain.linearRampToValueAtTime(0, noteEndTime);
+	
+		} else {
+			// If the note is too short, just do a simple sharp attack and decay.
+			noteGain.gain.setValueAtTime(0, now);
+			noteGain.gain.linearRampToValueAtTime(gainValue, now + attackTime);
+			noteGain.gain.linearRampToValueAtTime(0, noteEndTime);
+		}
+	
+		osc.connect(noteGain);
+		noteGain.connect(masterGain);
+	
+		osc.start(now);
+		// Stop the oscillator precisely when the note and its release envelope end.
+		osc.stop(noteEndTime);
 	}
 
 	// Actually send a MIDI note on (and schedule a note off) to the IAC bus. 
-	function sendNote(noteNumber, velocity, durationMs, midiChannel) {
+	function sendNoteMIDI(noteNumber, velocity, durationMs, midiChannel) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const noteOn = 0x90 | zeroIndexMidiChannel;
 		const noteOff = 0x80 | zeroIndexMidiChannel;
@@ -382,7 +483,10 @@ function Sound()
 		midiOutput.send([cc, controllerNumber, value]);
 	}
 	
-} // end function Sound
+} // *** end class/object Sound () ***
+
+
+
 
 
 
