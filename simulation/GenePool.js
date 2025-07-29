@@ -3345,6 +3345,40 @@ if ( globalTweakers.numFoodTypes === 2 )
                     
 	    return num;	
 	}
+
+
+	//------------------------------
+	this.getNumUttering = function()
+	{       
+        let num = 0;
+        
+        for (let s=0; s<MAX_SWIMBOTS; s++)
+        {
+            if ( _swimbots[s].getIsUttering() )
+            {
+                num ++;
+            }
+        }
+                    
+	    return num;	
+	}
+
+	//------------------------------
+	this.getNumUtteringInView = function()
+	{       
+        let num = 0;
+        
+        for (let s=0; s<MAX_SWIMBOTS; s++)
+        {
+				let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+            if ( _swimbots[s].getIsUttering() && isInView )
+            {
+                num ++;
+            }
+        }
+                    
+	    return num;	
+	}
 	
 
 	//----------------------------

@@ -227,6 +227,7 @@ _top = 0;
             graphCanvas.stroke();
             graphCanvas.closePath();
 
+            /*
             graphCanvas.lineWidth = 2; 
             graphCanvas.strokeStyle = GRAPH_FOODBIT_1_COLOR;
             graphCanvas.beginPath();
@@ -234,6 +235,7 @@ _top = 0;
             graphCanvas.lineTo( left + 250, foodbit1Y );
             graphCanvas.stroke();
             graphCanvas.closePath();
+            */
 
             graphCanvas.lineWidth = 2; 
             graphCanvas.strokeStyle = GRAPH_SWIMBOT_COLOR;
