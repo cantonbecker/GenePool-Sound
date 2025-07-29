@@ -703,7 +703,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 		
 	// return our object of phenotypes
 	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
-	console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength);
+	console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength + " recordNoteCount=" + recordNoteCount + " recordModCount=" + recordModCount);
 	return (utterancePhenotypeObj);
 }
 
