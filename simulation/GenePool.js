@@ -1303,8 +1303,6 @@ if ( mode === SimulationStartMode.SPECIES )
                             if ( this.getJunkDnaSimilarity( _myGenotype, _mateGenotype ) > NON_REPRODUCING_JUNK_DNA_LIMIT )
                             {
 
-                                console.log("getJunkDnaSimilarity exceeds NON_REPRODUCING_JUNK_DNA_LIMIT");
-
                                 //-----------------------------------
                                 // recombine genes for the child 
                                 //-----------------------------------
