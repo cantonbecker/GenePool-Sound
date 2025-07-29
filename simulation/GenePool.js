@@ -102,11 +102,7 @@ function GenePool()
 	//-----------------------------------
 	// count-related constants
 	//-----------------------------------
-//const MAX_FOODBITS          = 2000;
-//const INITIAL_NUM_SWIMBOTS  = 200;
-//const INITIAL_NUM_FOODBITS  = 800;    
-    const TRAIL_LENGTH = 100;
-    
+    const TRAIL_LENGTH = 100;    
     const NUM_NEIGHBORHOOD_SWIMBOTS = 14 * 14;
     const NUM_NEIGHBORHOOD_FOODBITS = 28 * 28;
     
@@ -518,7 +514,7 @@ if ( mode === SimulationStartMode.SPECIES )
                     
                     if ( _neighborhoodAxis[g] )
                     {
-                        value = ONE_HALF + ONE_HALF * Math.sin( ( _neighborhoodX[g] + ( - ONE_HALF + xFraction ) ) * NEIGHBORHOOD_FREQ  ); 
+                        value = ONE_HALF + ONE_HALF * Math.sin( ( _neighborhoodX[g] + ( - ONE_HALF + xFraction ) ) * NEIGHBORHOOD_FREQ  );
                     }
                     else
                     {

@@ -78,6 +78,7 @@ var MIDI_CHANNELS_FOR_UTTERING = [
 // var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
 
 var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
+var RECENT_MODS_DB = [];  // Each item: { time: Date.now() }
 
 var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
 // we more or less round-robin through these channels when uttering.
@@ -85,6 +86,7 @@ var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
 
 
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // throttle: we don't ask any individual uttering channel to utter more often than this
+const MODULATION_SPEED_MS = 15; // how fast do we twiddle modulation knobs? smaller number = smoother vocal morphs, but more MIDI data.
 
 // these are here in case we want to selectively disable some sounds during testing
 var SOUND_OUTPUT_UTTER 	= true;
@@ -95,7 +97,7 @@ var SOUND_OUTPUT_ATMOSPHERE 	= true;
 
 
 const MIDI_NOTE_INTERVAL_SETS = [
-    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
+    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] }, // first is always the DEFAULT unless we are a weird swimbot...
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
@@ -320,7 +322,7 @@ function Sound()
 		}
 
 		if (SOUND_UPDATE_COUNTER % 10 === 0) {
-			const { histogram, totalNotes, tableHTML } = getPitchHistogram();
+			const { histogram, totalNotes, totalMods, tableHTML } = getPitchHistogram();
 			document.getElementById('saveLoadPanel').innerHTML = tableHTML;
 		}
 	} /* end setGlobalParameters */
@@ -346,7 +348,7 @@ function Sound()
 			printString += 'BIRTH';
 			if (doingMidiOutput() && SOUND_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
-				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
+				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
 				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
 				printString += " sent MIDI note " + midiNote;
 			}
@@ -354,7 +356,7 @@ function Sound()
 			printString += 'DEATH';
 			if (doingMidiOutput() && SOUND_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
-				let midiNote = MIDI_BASE_NOTE + (Math.floor(Math.random() * 3) * 12);
+				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
 				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
 				printString += " sent MIDI note " + midiNote;
 			}
@@ -369,7 +371,6 @@ function Sound()
 	 // doUtterance() is called with an object describing its utterance phenotypes
 	 // e.g. utterVariablesObj.swimbotInView, utterVariablesObj.utterSequence... 
 
-	// *** MODIFIED: Added Web Audio API fallback logic ***
 	this.doUtterance = function (utterVariablesObj, callerFunction) {
 		const rightNow = Date.now();
 		const useMidi = doingMidiOutput();
@@ -407,7 +408,7 @@ function Sound()
 		// Step 2: Schedule all events from the sequence.
 		for (const step of utterVariablesObj.utterSequence) {
 			setTimeout(() => {
-					// The 'done' event is crucial for simulation state and must always be handled.
+					// Earlier versions relied on this done to issue a callback, these days we ignore
 					if (step.type === 'done') {
 						return;
 					}
@@ -425,6 +426,7 @@ function Sound()
 						if (useMidi && midiOutput) {
 							sendControlMIDI(step.cc, step.value, midiChannel, midiOutput); // pass midiOutput!
 						}
+    				  	RECENT_MODS_DB.push({ time: Date.now() }); // Add this line
 					}
 			}, step.delay);
 		}
@@ -576,11 +578,6 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	*/
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
-	// WHAT IS OUR SCALE?
-	const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[1]; // maybe in a future composition we migrate from one scale to another?
-	const myIntervalSetName = myNoteIntervalSet.name;
-	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
-
 
 /*
 for (let i = 0; i < _geneNames.length; i++) { 
@@ -596,13 +593,14 @@ for (let i = 0; i < _geneNames.length; i++) {
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
 	console.log("utter duration is " + utterDurationVal + " which maps to " + utterDuration + " clocks, approx. " + utterSequenceLength + "ms");
 
-	// USE UTTER STRANGENESS GENE TO DETERMINE DEVIANT SWIMBOTS THAT JUMP THE CIRCLE OF 5ths EARLY
+	// USE UTTER STRANGENESS GENE TO DETERMINE DEVIANT SWIMBOTS THAT JUMP THE CIRCLE OF 5ths EARLY, OR USE DIFFERENT INTERVAL SETS
 	// the universe cycles through the 5ths slowly, but sometimes (rarely) a swimbot will jump early
 	idx = _geneNames.indexOf('utter strangeness');
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter strangeness' from genes")
 	const utterStrangeness = genes[idx]; // 0-255
-	const chanceOfJumpingFifths = (utterStrangeness/255) ** 12; // heavily weighted towards "nope"
-	console.log("utter strangeness is " + utterStrangeness + " and our probability of jumping 5ths is " + (chanceOfJumpingFifths * 100).toFixed(2) + "%");
+	const chanceOfJumpingFifths = (utterStrangeness/255) ** 5; // heavily weighted towards "nope"
+	const chanceOfUnusualInterval = (utterStrangeness/255) ** 8; // heavily weighted towards default interval set
+	console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths is " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and choosing a non-standard interval is " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
 	if (rng() < chanceOfJumpingFifths) {
 		if (rng() > .5) { // are we going to jump up or down?
 			myMIDIBaseNote = myMIDIBaseNote + 7;
@@ -611,14 +609,24 @@ for (let i = 0; i < _geneNames.length; i++) {
 			myMIDIBaseNote = myMIDIBaseNote -5;
 			console.log("-> Rolled to jump DOWN a fifth!");
 		}
-	} 
+	}
+	
+	let myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // default is always the first
+	if (rng() < chanceOfUnusualInterval) {
+		let randomUnusualIntervalIndex = 1 + Math.floor(rng() * (MIDI_NOTE_INTERVAL_SETS.length - 1));
+		myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[randomUnusualIntervalIndex];
+		console.log("-> Rolled to use non-standard interval set '" + myNoteIntervalSet.name + "'!");
+	}
+	let myIntervalSetName = myNoteIntervalSet.name;
+	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
+
 	
 	// USE UTTER SPIN GENE TO DETERMINE OUR OCTAVE
 	// what octave do we sing in? bell-curveish with fewer basses and sopranos
 	idx = _geneNames.indexOf('utter spin');
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter spin' from genes")
 	const utterSpin = genes[idx]; // 0-255
-	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,36,48];
+	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,48,48];
 	idx = Math.floor(utterSpin / 255 * (octaveShiftOptions.length - 1));
 	let myOctaveNoteShift = octaveShiftOptions[idx];
 	console.log("utter spin is " + utterSpin + " which corresponds to octave +" + myOctaveNoteShift/12);
@@ -674,15 +682,13 @@ for (let i = 0; i < _geneNames.length; i++) {
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 		
 	// how long are our notes?
-	const noteLengthOptions = ['click', 'legato', 'complex'];
-	const noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];
-	
+	const noteLengthOptions = ['click','click','legato','complex','complex']; // inverse bell curve choice
+	let noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];		
+		
 	// how strong should our mod wheel wiggling be, and how often should we do it?
 	const modulationStrength = Math.floor(rng() * 16) * 4; // how fast to twist knobs
-	const modChanceOptions = [0,0,0,.2,.2,.2,.5,.5,.5,.5,.5,.7,.7,.7,1,1,1]; // weighed towards middle and high chance of wiggle
+	const modChanceOptions = [0,0,.10,.10,.20,.20,.50,.50,.50,.50]; // weighed towards middle and high chance of wiggle
 	let chanceOfModulation = modChanceOptions[Math.floor(rng() * modChanceOptions.length)];
-
-
 		
 	// Markov Chain time! Pick an initial Interval State (note)
 	// in most cases, we choose the middle-most note of the interval set, because that's the one that's stickiest
@@ -784,61 +790,76 @@ for (let i = 0; i < _geneNames.length; i++) {
 			duration: thisNoteDuration
 		});
 		recordNoteCount ++;
-		
-		// push in random MIDI mod expressions
-		
-		if (rng() < chanceOfModulation) {
-			// 1. Filter controls to those with variable: true
-			const variableControls = myControls.filter(c => c.variable);
-		
-			// 2. Randomly pick one
-			const idx = Math.floor(rng() * variableControls.length);
-			const setting = variableControls[idx];
-		
-			// 3. Calculate modulation range
-			const halfWidth = setting.variableWidth / 2;
-			const ccMin = Math.max(setting.min, setting.initalVal - halfWidth);
-			const ccMax = Math.min(setting.max, setting.initalVal + halfWidth);
-		
-			// 4. Modulate value up or down depending on lastDir
-			let ccVal, newDir = setting.lastDir;
-			if (setting.lastDir === 'up') {
-				ccVal = setting.lastVal + modulationStrength;
-				if (ccVal > ccMax) {
-						ccVal = ccMax;
-						newDir = 'down';
-				}
-			} else { // lastDir is 'down'
-				ccVal = setting.lastVal - modulationStrength;
-				if (ccVal < ccMin) {
-						ccVal = ccMin;
-						newDir = 'up';
-				}
-			}
-		
-			// 5. Update lastVal and lastDir
-			setting.lastVal = ccVal;
-			setting.lastDir = newDir;
-		
-			// 6. Push the event
-			sequenceData.push({
-				delay: sequenceTime + 10,  // in ms
-				type: 'cc',
-				cc: setting.cc,
-				value: ccVal
-			});
-			recordModCount += modulationStrength;
-		}
-	
+					
 		// advance time & states
 		sequenceTime += interOnsetIntervalMs;
 		lastIOI = nextIOI;
 		lastInt = nextIntState;
 	} // end while sequenceTime < utterSequenceLength
 	
-	// insert final 'done' event. This is important because even when a swimbot is uttering out of camera view
-	// (when it's silent to our ears) we use 'done' to schedule the end of the utterance period.
+	// insert final 'done' event
 	sequenceData.push({ delay: sequenceTime, type: 'done' });
+
+
+	// Now walk through sequenceData and insert random modulation events.
+	// don't insert any random events prior to the first type:note that appears in the sequence
+	// 1. Find the first 'note' event to determine the modulation starting time
+	let firstNoteIdx = sequenceData.findIndex(ev => ev.type === 'note');
+	let firstNoteTime = sequenceData[firstNoteIdx].delay;
+	
+	// 2. Find the final end time (last 'done' or last delay)
+	let lastDelay = sequenceData.reduce((max, ev) => Math.max(max, ev.delay), 0);
+
+	// 3. For every MODULATION_SPEED_MS step from firstNoteTime up to lastDelay, consider a modulation event
+	for (let t = firstNoteTime; t <= lastDelay; t += MODULATION_SPEED_MS) {
+		if (rng() < chanceOfModulation) {
+			// 1. Filter controls to those with variable: true
+			const variableControls = myControls.filter(c => c.variable);
+			if (!variableControls.length) continue; // nothing to modulate
+
+			// 2. Randomly pick one
+			const idx = Math.floor(rng() * variableControls.length);
+			const setting = variableControls[idx];
+
+			// 3. Calculate modulation range
+			const halfWidth = setting.variableWidth / 2;
+			const ccMin = Math.max(setting.min, setting.initalVal - halfWidth);
+			const ccMax = Math.min(setting.max, setting.initalVal + halfWidth);
+
+			// 4. Modulate value up or down depending on lastDir
+			let ccVal, newDir = setting.lastDir;
+			if (setting.lastDir === 'up') {
+				ccVal = setting.lastVal + modulationStrength;
+				if (ccVal > ccMax) {
+					ccVal = ccMax;
+					newDir = 'down';
+				}
+			} else { // lastDir is 'down'
+				ccVal = setting.lastVal - modulationStrength;
+				if (ccVal < ccMin) {
+					ccVal = ccMin;
+					newDir = 'up';
+				}
+			}
+
+			// 5. Update lastVal and lastDir
+			setting.lastVal = ccVal;
+			setting.lastDir = newDir;
+
+			// 6. Push the event
+			sequenceData.push({
+				delay: t,  // current moment in ms
+				type: 'cc',
+				cc: setting.cc,
+				value: ccVal
+			});
+			recordModCount += modulationStrength;
+		} // end modulation insertion
+	}
+
+	// Idiot check, make absolutely sure our sequence is in order to keep sequence chronological, otherwise playback will break!
+	sequenceData.sort((a, b) => a.delay - b.delay);
+
 
 	// in the end, sequenceData will hold our generated sequence, something like this:
 	/* 
@@ -851,7 +872,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 		
 	// return our object of phenotypes
 	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
-	console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength + " recordNoteCount=" + recordNoteCount + " recordModCount=" + recordModCount);
+	// console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength + " recordNoteCount=" + recordNoteCount + " recordModCount=" + recordModCount, sequenceData);
 	return (utterancePhenotypeObj);
 }
 
@@ -913,8 +934,19 @@ function pruneOldNotes() {
     }
 }
 
+function pruneOldMods() {
+    const now = Date.now();
+    const cutoff = now - 60000; // 60 seconds ago
+    while (RECENT_MODS_DB.length && RECENT_MODS_DB[0].time < cutoff) {
+        RECENT_MODS_DB.shift();
+    }
+}
+
+
 function getPitchHistogram() {
 	pruneOldNotes();
+   pruneOldMods();
+	let totalMods = RECENT_MODS_DB.length;
 	let totalNotes = 0;
 	const histogram = [
 		{ noteNumber: 0, noteName: 'C', noteCount: 0 },
@@ -945,7 +977,7 @@ function getPitchHistogram() {
 	if (maxCount === 0) maxCount = 1; // Prevent division by zero
 	
 	// Build table rows, from top to bottom
-	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + totalNotes + ' notes in last minute</th></tr>';
+	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + totalNotes + '/' + totalMods + ' notes/mods last minute</th></tr>';
 	for (let row = 0; row < maxHeight; row++) {
 		tableHTML += '<tr>';
 		for (const { noteCount } of histogram) {
@@ -971,5 +1003,5 @@ function getPitchHistogram() {
 	tableHTML += '</tr>';	
 	tableHTML += '</tbody></table>';	
 
-	return { totalNotes, histogram, tableHTML }; // return as an object
+	return { histogram, totalNotes, totalMods, tableHTML }; // return as an object
 }
