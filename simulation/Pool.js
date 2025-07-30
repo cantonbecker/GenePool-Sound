@@ -71,6 +71,7 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 	let _currentEffectBlob = 0;
 	let _effectClock = 0;
 	let _effectBlob = new Array( NUM_EFFECT_BLOBS );
+	let _backgroundImage = new Image();
 	
 	//----------------------------------
 	// do this now
@@ -84,6 +85,8 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 	this.initialize = function( t )
 	{
     	_touch.time = t;
+    	
+    	_backgroundImage.src = 'images/background.png';   
     	
     	for (let b=0; b<NUM_EFFECT_BLOBS; b++)
     	{
@@ -152,6 +155,11 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 
         // use this instead of the above to include an image as the background...
         //canvas.clearRect( POOL_LEFT, POOL_TOP, POOL_WIDTH, POOL_HEIGHT );
+        
+        
+        canvas.drawImage  (  _backgroundImage, POOL_LEFT, POOL_TOP, POOL_RIGHT, POOL_BOTTOM );        // draw image                       
+        
+        
 
 		//------------------------------------------------------------
 		// show touch

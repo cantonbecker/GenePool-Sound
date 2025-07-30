@@ -243,7 +243,7 @@ function UtteranceRenderer()
 					//--------------------------------------------------------
 					// width and height
 					//--------------------------------------------------------
-					let scaleScale = 0.3 + _utterance[u].particles[p].age * 0.007;
+					let scaleScale = 0.9 + _utterance[u].particles[p].age * 0.007;
 					
 					scaleScale * ( ONE - pitch );
 					
@@ -266,6 +266,7 @@ function UtteranceRenderer()
 					
 					canvas.globalAlpha *= 0.4;
 					
+					// canvas.globalCompositeOperation = 'difference'; // LSD mode
 
 					canvas.drawImage
 					( 

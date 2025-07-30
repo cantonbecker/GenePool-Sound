@@ -31,7 +31,7 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 2;
+const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 3;
 
 // MIDI channels are 1-16 (not zero indexed!)
 const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
@@ -682,7 +682,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 		
 	// how long are our notes?
-	const noteLengthOptions = ['click','click','legato','complex','complex']; // inverse bell curve choice
+	const noteLengthOptions = ['legato','staccato','staccato','complex','complex','complex']; // weighted towards favorites
 	let noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];		
 		
 	// how strong should our mod wheel wiggling be, and how often should we do it?
@@ -759,11 +759,14 @@ for (let i = 0; i < _geneNames.length; i++) {
 		const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
 	
 		// HOW LONG SHOULD THIS NOTE PLAY?
-		let thisNoteDuration = SHORTEST_NOTE_MS; // default AKA 'click'
-		if (noteLengthStyle == 'legato') {
-			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs - (SHORTEST_NOTE_MS * 2)); // leave some space between notes
-		} else if (noteLengthStyle == 'complex') {
-			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs * Math.floor(rng()));
+		let thisNoteDuration = SHORTEST_NOTE_MS;
+		
+		if (noteLengthStyle == 'staccato') { // short note
+			thisNoteDuration = SHORTEST_NOTE_MS; // default AKA 'staccato'
+	   } else if (noteLengthStyle == 'legato') { // as long as possible
+			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs - (SHORTEST_NOTE_MS * 1.5)); // leave some space between notes
+		} else if (noteLengthStyle == 'complex') { // anywhere in between, random
+			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs * Math.floor(rng())); 
 		}
 	
 		// ——— pick next interval state ———
@@ -977,7 +980,7 @@ function getPitchHistogram() {
 	if (maxCount === 0) maxCount = 1; // Prevent division by zero
 	
 	// Build table rows, from top to bottom
-	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + totalNotes + '/' + totalMods + ' notes/mods last minute</th></tr>';
+	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + totalNotes + '/' + totalMods + ' notes/mods per min.</th></tr>';
 	for (let row = 0; row < maxHeight; row++) {
 		tableHTML += '<tr>';
 		for (const { noteCount } of histogram) {
