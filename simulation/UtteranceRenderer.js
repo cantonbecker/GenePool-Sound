@@ -79,7 +79,7 @@ function UtteranceRenderer()
 			let ageFraction = this.age / this.lifeSpan;
 			
 			canvas.globalAlpha = this.brightness * ( ONE - ageFraction );
-			canvas.globalAlpha = Math.sqrt(canvas.globalAlpha); // adjusted curve for diminishing wave brightness over time
+			canvas.globalAlpha = Math.pow(canvas.globalAlpha, 0.8); // lower the power to increase general brightness
 
 			//if ( canvas.globalAlpha > ONE  ) { canvas.globalAlpha = ONE; }		
 			//if ( canvas.globalAlpha < ZERO ) { canvas.globalAlpha = ZERO; }		
@@ -121,7 +121,7 @@ function UtteranceRenderer()
 
 	let _particleImage = new Image();
 
-    _particleImage.src = 'images/sound-particle.png';   
+    _particleImage.src = 'images/sound-particle-big-blur.png';   
 
 	for (let u=0; u<MAX_UTTERANCES; u++)
 	{

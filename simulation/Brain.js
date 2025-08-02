@@ -33,6 +33,10 @@ const NUM_BRAIN_STATES                =  8;
 const BRAIN_SENSORY_UPDATE_PERIOD           = 50;
 const BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS   = 20;
 
+// when I am in the mood for love, I will look for the fittest partner for
+// this many clock cycles, during which time my _chosenMate may get upgraded for a better one
+const BRAIN_LOOKING_FOR_MATE_DURATION       = 500;
+
 //const BRAIN_FOCUS_TARGET_SHIFT_STRENGTH	    = 0.2;
 const BRAIN_FOCUS_TARGET_SHIFT_STRENGTH	    = 0.1;
 const BRAIN_FOCUS_TARGET_SHIFT_THRESHOLD    = 0.07;
@@ -50,13 +54,14 @@ function Brain()
 	let _foundSwimbot           = false;
 	let _hungerThreshold        = ZERO;
 	let _attractionCriterion    = ATTRACTION_SIMILAR_COLOR;
+   let _lookingForMateCounter  = ZERO;
 	
 	
     //----------------------------------
     this.initialize = function( clock )
     {
 	    _state = BRAIN_STATE_NULL;
-	    
+       _lookingForMateCounter  = BRAIN_LOOKING_FOR_MATE_DURATION;   
 	    /*
 	    _energy                 = ZERO;
 	    _foundFoodBit           = false;
@@ -144,6 +149,7 @@ function Brain()
     this.setHungerThreshold = function(h) { _hungerThreshold     = h; }		
     this.setFoundFoodBit    = function(f) { _foundFoodBit        = f; }
     this.setFoundSwimbot    = function(f) { _foundSwimbot        = f; }	
+    this.setLookingForMateCounter = function(m) { _lookingForMateCounter = m; }	
     
     //--------------------------------
     this.setAttraction = function(a) 
@@ -162,4 +168,5 @@ function Brain()
     this.getHungerThreshold     = function() { return _hungerThreshold;     }	
     this.getAttractionCriterion = function() { return _attractionCriterion; }	
     this.getState               = function() { return _state;               }
+    this.getLookingForMateCounter = function () { return _lookingForMateCounter; }
 }

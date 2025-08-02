@@ -60,13 +60,14 @@ const PROTOTYPING_SOUND = true;
 	let _chosenFoodBit      = new FoodBit();
 	let _swimbotRenderer  	= new SwimbotRenderer(); 
 	let _chosenMate         = null; // must start as null!
+	let _chosenMateIndex    = NULL_INDEX;
+    let _chosenMateAttraction = 0;
 	let _age 	  		    = 0;
 	let _numOffspring       = 0;
 	let _numFoodBitsEaten   = 0;
 	//let _maximumLifeSpan    = 0;
 	let _markedForDeath		= false;
 	let _index              = NULL_INDEX;
-	let _chosenMateIndex    = NULL_INDEX;
 	let _chosenFoodBitIndex = NULL_INDEX;
 	let _alive 	  		    = false;
 	let _tryingToMate       = false;
@@ -1468,7 +1469,10 @@ let partAccelerationY = -strokeForceY;
         
         if ( _brain.getState() === BRAIN_STATE_LOOKING_FOR_MATE )
         {			
-            //console.log( "horny" );
+            // console.log( "horny" );
+            let myLookingForMateCounter = _brain.getLookingForMateCounter();
+            _brain.setLookingForMateCounter(myLookingForMateCounter - 1);
+            // console.log("Swimbot " + _index + " myLookingForMateCounter="+myLookingForMateCounter);
             
             let mostAttractiveFound = new Swimbot;
             let atLeastOneBabeIsVisible = false;
@@ -1493,13 +1497,23 @@ let partAccelerationY = -strokeForceY;
 
             if ( atLeastOneBabeIsVisible )
             {
-                _chosenMate = mostAttractiveFound;
-                assert( _chosenMate != null, "_chosenMate != null" );
+                // if we found a mate, only lock onto it if it's a better mate than our current _chosenMate
+                if ( _chosenMate === null || highestBabeFactor > _chosenMateAttraction || myLookingForMateCounter < 0) {
+                    console.log("Swimbot " + _index + " thinks the hottest babe is ", + mostAttractiveFound.getIndex());
+                    _chosenMate = mostAttractiveFound;
+                    assert( _chosenMate != null, "_chosenMate != null" );
+    
+                    _chosenMateIndex = mostAttractiveFound.getIndex();
+                    assert( _chosenMateIndex != NULL_INDEX, "_chosenMateIndex != NULL_INDEX" );
 
-                _chosenMateIndex = mostAttractiveFound.getIndex();
-                assert( _chosenMateIndex != NULL_INDEX, "_chosenMateIndex != NULL_INDEX" );
-                
-                _brain.setFoundSwimbot( true );
+                    _chosenMateAttraction = highestBabeFactor;
+                }    
+                // we don't ever settle for a found swimbot until we've gone through our looking duration
+                if (myLookingForMateCounter <= 1) { 
+                    console.log("Swimbot " + _index + " HAS SETTLED ON A SWIMBOT: " + mostAttractiveFound.getIndex());
+                    _brain.setLookingForMateCounter(BRAIN_LOOKING_FOR_MATE_DURATION); // set this back up for next time we need to count down
+                    _brain.setFoundSwimbot( true );
+                }
             }
             else
             {
@@ -1657,17 +1671,17 @@ let partAccelerationY = -strokeForceY;
             if (judgeUtterPreference < .3) {
                 /* I like swimbots who share my note range (I like them in tune with me) */
                 attractiveness = Math.min(.99, utterNoteOverlap * 1.5); // amplify the raw overlap because note overlap is REALLY sexy
-                console.log ("I'm (" + _index + ") attracted to note overlap, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+                // console.log ("I'm (" + _index + ") attracted to note overlap, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
                 // console.log ("notePoolA ", notePoolA);
                 // console.log ("notePoolB ", notePoolB);
             } else if (judgeUtterPreference >= .3 && judgeUtterPreference <= .6) {
                 /* I like swimbots that utter in the same frequency range as me */
                 attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // scale it down a bit because note frequency is not that uncommon
-                console.log ("I'm (" + _index + ") attracted to frequency, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+                // console.log ("I'm (" + _index + ") attracted to frequency, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
             } else {
                 /* I like swimbots that are similarly busy/complicated with their utterances */
                 attractiveness = noteCountSimilarity;
-                console.log ("I'm (" + _index + ") attracted to note count similarity, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+                // console.log ("I'm (" + _index + ") attracted to note count similarity, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
             }
             
             // And then add a little bit of everything (averaged), but not much
@@ -1675,6 +1689,7 @@ let partAccelerationY = -strokeForceY;
  
             // Make sure attractiveness stays within [0,1], some of the above can create hyper/hypo attractiveness numbers < 0 or > 1
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
+
 
             
             // console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
