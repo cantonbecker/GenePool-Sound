@@ -15,17 +15,86 @@
 function UtteranceRenderer()
 {
 	const MAX_UTTERANCES 	= 100;
-	const MAX_PARTICLES		= 30;
-	const MAX_NOTE_COUNT	= 20;
+	const MAX_PARTICLES		= 200;
 	const MIN_NOTE_RANGE	= 32;
 	const MAX_NOTE_RANGE	= 99;
+	const MIN_LIFESPAN		= 25;
+	const MAX_LIFESPAN		= 100;
+	const MIN_PERIOD		= 4;
+	const MAX_PERIOD		= 20;
+	const MIN_BRIGHTNESS	= 0.2;
+	const MAX_BRIGHTNESS	= 1.0;
+	const GROWTH_RATE 		= 4;
+	
+	const PITCH_BRIGHTNESS_SCALAR = 12;
 
 	function Particle()
 	{	
 		this.position 	= new Vector2D();
 		this.width		= ZERO;
 		this.height 	= ZERO;
+		this.brightness = ZERO;
 		this.age		= 0;
+		this.lifeSpan	= 0;
+		this.active		= false;
+		this.pitch		= 0;
+		
+		//--------------------------------------------------------
+		this.launch = function( position, lifespan, brightness, pitch )
+		{			
+			this.position.copyFrom( position );
+			this.lifeSpan 	= lifespan;
+			this.brightness = brightness;
+			this.active 	= true;
+			this.age 		= 0;
+			this.pitch 		= pitch;
+
+			//----------------------------
+			// width and height
+			//----------------------------
+			//this.width  = 5 * this.age;
+			//this.height = 5 * this.age;
+		}
+		
+		//--------------------------------------
+		this.update = function()
+		{			
+			this.age ++;
+			
+			if ( this.age >= this.lifeSpan )
+			{
+				this.active = false;
+			}
+
+			//----------------------------
+			// width and height
+			//----------------------------
+			this.width = this.height = (GROWTH_RATE * this.age) * (this.pitch * 3);
+
+		}
+				
+		//--------------------------------------
+		this.render = function( timeFraction )
+		{
+			let ageFraction = this.age / this.lifeSpan;
+			
+			canvas.globalAlpha = this.brightness * ( ONE - ageFraction );
+			canvas.globalAlpha = Math.sqrt(canvas.globalAlpha); // adjusted curve for diminishing wave brightness over time
+
+			//if ( canvas.globalAlpha > ONE  ) { canvas.globalAlpha = ONE; }		
+			//if ( canvas.globalAlpha < ZERO ) { canvas.globalAlpha = ZERO; }		
+				
+			canvas.drawImage
+			( 
+				_particleImage, 
+				this.position.x - this.width  * ONE_HALF, 
+				this.position.y - this.height * ONE_HALF, 
+				this.width, 
+				this.height 
+			);  
+			
+			canvas.globalAlpha = ONE;
+		}
 	}
 		 
 	function Utterance()
@@ -40,27 +109,28 @@ function UtteranceRenderer()
 		this.noteCount			= 0;
 		this.highNote			= 0;
 		this.lowNote			= 0;
-		this.numParticles 		= 0;
-		this.particleCounter	= 0;
-		this.particles 	  		= new Array();
+		this.pitch		 		= 0;
 	}
 	
 	//--------------------------------
 	// variables
 	//--------------------------------
-	let _utterance = new Array();
+	let _utterances = new Array();
+	let _particles  = new Array();
+	let _particleCounter = 0;
+
 	let _particleImage = new Image();
 
     _particleImage.src = 'images/sound-particle.png';   
 
 	for (let u=0; u<MAX_UTTERANCES; u++)
 	{
-		_utterance[u] = new Utterance();
+		_utterances[u] = new Utterance();
+	}
 
-		for (let p=0; p<MAX_PARTICLES; p++)
-		{
-			_utterance[u].particles[p] = new Particle();
-		}
+	for (let p=0; p<MAX_PARTICLES; p++)
+	{
+		_particles[p] = new Particle();
 	}
 
 	//----------------------------------
@@ -68,14 +138,14 @@ function UtteranceRenderer()
 	{
 		for (let u=0; u<MAX_UTTERANCES; u++)
 		{
-			_utterance[u].position.clear();
-			_utterance[u].id	 	= -1;
-			_utterance[u].active 	= false;
-			_utterance[u].duration 	= 0;
-			_utterance[u].modCount 	= 0;
-			_utterance[u].clock		= 0;				
-			_utterance[u].highNote	= 0;
-			_utterance[u].lowNote	= 0;
+			_utterances[u].position.clear();
+			_utterances[u].id	 	= -1;
+			_utterances[u].active 	= false;
+			_utterances[u].duration 	= 0;
+			_utterances[u].modCount 	= 0;
+			_utterances[u].clock		= 0;				
+			_utterances[u].highNote	= 0;
+			_utterances[u].lowNote	= 0;
 		}
 	}
    
@@ -102,38 +172,19 @@ function UtteranceRenderer()
 			}
 			else 
 			{
-				if ( ! _utterance[u].active )
+				if ( ! _utterances[u].active )
 				{
-					_utterance[u].position.copyFrom( position );
-					_utterance[u].id	 	= id;
-					_utterance[u].active 	= true;
-					_utterance[u].clock		= 0;				
-					_utterance[u].duration	= duration;
-					_utterance[u].highNote	= highNote;
-					_utterance[u].lowNote	= lowNote;
-					_utterance[u].noteCount	= noteCount;
-					_utterance[u].modCount	= modCount;
-					_utterance[u].startPosition.copyFrom( _utterance[u].position );
+					_utterances[u].position.copyFrom( position );
+					_utterances[u].id	 	= id;
+					_utterances[u].active 	= true;
+					_utterances[u].clock		= 0;				
+					_utterances[u].duration	= duration;
+					_utterances[u].highNote	= highNote;
+					_utterances[u].lowNote	= lowNote;
+					_utterances[u].noteCount	= noteCount;
+					_utterances[u].modCount	= modCount;
+					_utterances[u].startPosition.copyFrom( _utterances[u].position );
 					
-					//------------------------------					
-					// prepare particles				
-					//------------------------------
-					_utterance[u].numParticles = _utterance[u].noteCount;
-					_utterance[u].particleCounter = 0;
-					
-					if ( _utterance[u].numParticles > MAX_PARTICLES )
-					{
-						_utterance[u].numParticles = MAX_PARTICLES;
-					}
-					
-					for (let p=0; p<_utterance[u].numParticles; p++)
-					{
-						_utterance[u].particles[p].position.copyFrom( _utterance[u].position );
-						_utterance[u].particles[p].width  = ZERO;
-						_utterance[u].particles[p].height = ZERO;
-						_utterance[u].particles[p].age 	  = 0;
-					}
-
 					searching = false;
 				}
 			}
@@ -147,9 +198,9 @@ function UtteranceRenderer()
 	{
 		for (let u=0; u<MAX_UTTERANCES; u++)
 		{
-			if ( _utterance[u].id === id )
+			if ( _utterances[u].id === id )
 			{					
-				_utterance[u].active = false;
+				_utterances[u].active = false;
 				return;
 			}
 		}		
@@ -160,9 +211,9 @@ function UtteranceRenderer()
 	{
 		for (let u=0; u<MAX_UTTERANCES; u++)
 		{
-			if ( _utterance[u].id === id )
+			if ( _utterances[u].id === id )
 			{
-				_utterance[u].position.copyFrom( position );
+				_utterances[u].position.copyFrom( position );
 				return;
 			}
 		}		
@@ -173,114 +224,81 @@ function UtteranceRenderer()
 	{
 		for (let u=0; u<MAX_UTTERANCES; u++)
 		{
-			if ( _utterance[u].active )
+			if ( _utterances[u].active )
 			{
-				let averageNote = ( _utterance[u].lowNote + _utterance[u].highNote ) * ONE_HALF;
-				let pitch = ( averageNote - MIN_NOTE_RANGE ) / ( MAX_NOTE_RANGE - MIN_NOTE_RANGE );
+				let averageNote = ( _utterances[u].lowNote + _utterances[u].highNote ) * ONE_HALF;
+				_utterances[u].pitch = ( averageNote - MIN_NOTE_RANGE ) / ( MAX_NOTE_RANGE - MIN_NOTE_RANGE );
 				
-					 if ( pitch < ZERO ) { pitch = ZERO; }
-				else if ( pitch > ONE  ) { pitch = ONE;  }
+					 if ( _utterances[u].pitch < ZERO ) { _utterances[u].pitch = ZERO; }
+				else if ( _utterances[u].pitch > ONE  ) { _utterances[u].pitch = ONE;  }
 				
-				_utterance[u].clock ++;
-			
-				let timeFraction = _utterance[u].clock / _utterance[u].duration;
+				_utterances[u].clock ++;
 
-				//-----------------------------------------------------------------
-				// colored start puff
-				//-----------------------------------------------------------------
-				let red 	= pitch;
-				let green 	= pitch;
-				let blue 	= 1 - pitch;
-				let alpha 	= 0.2 - timeFraction * 0.2;
 				
-				if ( alpha < 0 ) { alpha = 0; } 
-				
-				red 	= Math.floor( 50 + red		* 200 );
-				green 	= Math.floor( 50 + green 	* 200 );
-				blue 	= Math.floor( 50 + blue 	* 200 );
+				//-----------------------------------------
+				// start puff
+				//-----------------------------------------
+				let red 	= _utterances[u].pitch;
+				let green 	= _utterances[u].pitch;
+				let blue 	= ONE - _utterances[u].pitch;
+				let frac	= _utterances[u].clock / _utterances[u].duration;
+				let alpha 	= 0.4 - frac * 0.5;
 
-				if ( red 	< 0 ) { red 	= 0; } else if ( red 	> 255 ) { red 	= 255; }
-				if ( green 	< 0 ) { green 	= 0; } else if ( green 	> 255 ) { green = 255; }
-				if ( blue 	< 0 ) { blue 	= 0; } else if ( blue 	> 255 ) { blue 	= 255; }
+				if ( alpha < ZERO) { alpha = ZERO; } 
+
+				red 	= Math.floor( 100 + red		* 155 );
+				green 	= Math.floor( 100 + green 	* 155 );
+				blue 	= Math.floor( 100 + blue 	* 155 );
 
 				canvas.fillStyle = "rgba( " + red + ", " + green + ", " +  blue + ", " + alpha + " )";	
-								
-				let num = 10;
+				
+				let num = 7;
 				for (let i=0; i<num; i++)
 				{
-					let ra = _utterance[u].clock * 1 * (i/num); 
-					
+					let radius = _utterances[u].clock * (i/num); 
+	
 					canvas.beginPath();
-					canvas.arc( _utterance[u].startPosition.x, _utterance[u].startPosition.y, ra, 0, PI2, false );
+					canvas.arc( _utterances[u].startPosition.x, _utterances[u].startPosition.y, radius, 0, PI2, false );
 					canvas.fill();
 					canvas.closePath();
-				}				
+				}
+				
 				
 				//-------------------------------------------------
 				// periodically launch particles
-				//-------------------------------------------------			
-				//if ( _utterance[u].clock % 0 === 0 )
+				//-------------------------------------------------	
+				let period = MAX_PERIOD - _utterances[u].noteCount;
+
+				if ( period < MIN_PERIOD ) 
 				{
-					_utterance[u].particleCounter ++;
-					if ( _utterance[u].particleCounter > _utterance[u].numParticles )
+					period = MIN_PERIOD;
+				}
+						
+				if ( _utterances[u].clock % period === 0 )
+				{
+					let p = this.findInactiveParticle();
+					
+					if ( p != NULL_INDEX )
 					{
-						_utterance[u].particleCounter = 0;
+						let lifespan = MAX_LIFESPAN - Math.floor( _utterances[u].pitch * 120 );
+
+						if ( lifespan < MIN_LIFESPAN )
+						{
+							lifespan = MIN_LIFESPAN;
+						}
+					
+						// brightness is determined by pitch
+						let brightness = MIN_BRIGHTNESS + _utterances[u].pitch * _utterances[u].pitch * _utterances[u].pitch * PITCH_BRIGHTNESS_SCALAR;
+						
+						if ( brightness > MAX_BRIGHTNESS )
+						{
+							brightness = MAX_BRIGHTNESS;
+						}
+												
+						_particles[p].launch( _utterances[u].position, lifespan, brightness, _utterances[u].pitch );
 					}
-	
-					_utterance[u].particles[ _utterance[u].particleCounter ].position.copyFrom( _utterance[u].position );
-					_utterance[u].particles[ _utterance[u].particleCounter ].age = 0;
 				}				
 				
-				//-------------------------------------------------
-				// particles
-				//-------------------------------------------------			
-				for (let p=0; p<_utterance[u].numParticles; p++)
-				{
-					let fraction = p / _utterance[u].numParticles;
-					
-					_utterance[u].particles[p].age ++;
-
-					//--------------------------------------------------------
-					// width and height
-					//--------------------------------------------------------
-					let scaleScale = 0.9 + _utterance[u].particles[p].age * 0.007;
-					
-					scaleScale * ( ONE - pitch );
-					
-					_utterance[u].particles[p].width  = 200 * fraction * scaleScale;
-					_utterance[u].particles[p].height = 170 * fraction * scaleScale;
-
-					_utterance[u].particles[p].width  +=  5.0 * Math.sin( _utterance[u].particles[p].age * 0.5 + fraction * 10 );
-					_utterance[u].particles[p].height +=  5.0 * Math.cos( _utterance[u].particles[p].age * 0.8  );
-
-
-					//--------------------------------------------------------
-					// alpha
-					//--------------------------------------------------------
-					canvas.globalAlpha = ONE;
-					let y = 0.8;
-					if ( timeFraction > y )
-					{
-						canvas.globalAlpha -= ( timeFraction - y ) / ( ONE - y );
-					}
-					
-					canvas.globalAlpha *= 0.4;
-					
-					// canvas.globalCompositeOperation = 'difference'; // LSD mode
-
-					canvas.drawImage
-					( 
-						_particleImage, 
-						_utterance[u].particles[p].position.x - _utterance[u].particles[p].width  * ONE_HALF, 
-						_utterance[u].particles[p].position.y - _utterance[u].particles[p].height * ONE_HALF, 
-						_utterance[u].particles[p].width, 
-						_utterance[u].particles[p].height 
-					);                     
-				}
-
-				// make sure to set this back! 
-				canvas.globalAlpha = ONE;
-
 				//-----------------------------------------------------------------
 				// view horizon debug
 				//-----------------------------------------------------------------
@@ -289,15 +307,46 @@ function UtteranceRenderer()
 					canvas.lineWidth = 1;
 					canvas.strokeStyle = "rgba( 200, 255, 200, 0.5 )";	
 					canvas.beginPath();
-					canvas.arc( _utterance[u].position.x, _utterance[u].position.y, SWIMBOT_VIEW_RADIUS, 0, PI2, false );
+					canvas.arc( _utterances[u].position.x, _utterances[u].position.y, SWIMBOT_VIEW_RADIUS, 0, PI2, false );
 					canvas.stroke();
 					canvas.closePath();
 				}	
 			}			
 		}
+		
+		//-------------------------------------------------
+		// update and render particles
+		//-------------------------------------------------	
+		this.updateAndRenderParticles();
 	}
+
+	//---------------------------------------
+	this.findInactiveParticle = function()
+	{		
+		for (let p=0; p<MAX_PARTICLES; p++)
+		{
+			if ( !_particles[p].active )
+			{
+				return p;
+			}
+		}
+		
+		return -1;
+	}
+	
+	//------------------------------------------------
+	this.updateAndRenderParticles = function()
+	{		
+		let timeFraction = this.clock / this.duration;
+	
+		for (let p=0; p<MAX_PARTICLES; p++)
+		{
+			if ( _particles[p].active )
+			{
+				let fraction = p / MAX_PARTICLES;
+				_particles[p].update();
+				_particles[p].render( timeFraction );   
+			}
+		}
+	}	
 }
-
-
-
-

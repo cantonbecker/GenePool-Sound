@@ -1650,7 +1650,6 @@ let partAccelerationY = -strokeForceY;
             let lowNoteSimilarity    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127; // assumes note range of 1-127
             lowNoteSimilarity = 1 - lowNoteSimilarity; // invert so 0=least similar, 1=most similar           
 
-
             // *** Now that we have calculations for all swimbot/judge similarities, what do I actually find attractive? ***
             const judgeUtterPreference = judge_phenotype.utterPreference; // it's in my genes! 0-1
 
@@ -1658,17 +1657,17 @@ let partAccelerationY = -strokeForceY;
             if (judgeUtterPreference < .3) {
                 /* I like swimbots who share my note range (I like them in tune with me) */
                 attractiveness = Math.min(.99, utterNoteOverlap * 1.5); // amplify the raw overlap because note overlap is REALLY sexy
-                console.log ("I'm attracted to note overlap, and my attraction is " + attractiveness);
-                console.log ("notePoolA ", notePoolA);
-                console.log ("notePoolB ", notePoolB);
+                console.log ("I'm (" + _index + ") attracted to note overlap, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+                // console.log ("notePoolA ", notePoolA);
+                // console.log ("notePoolB ", notePoolB);
             } else if (judgeUtterPreference >= .3 && judgeUtterPreference <= .6) {
                 /* I like swimbots that utter in the same frequency range as me */
                 attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // scale it down a bit because note frequency is not that uncommon
-                console.log ("I'm attracted to frequency, and my attraction is " + attractiveness);
+                console.log ("I'm (" + _index + ") attracted to frequency, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
             } else {
                 /* I like swimbots that are similarly busy/complicated with their utterances */
                 attractiveness = noteCountSimilarity;
-                console.log ("I'm attracted to note count similarity, and my attraction is " + attractiveness);
+                console.log ("I'm (" + _index + ") attracted to note count similarity, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
             }
             
             // And then add a little bit of everything (averaged), but not much
@@ -1678,10 +1677,10 @@ let partAccelerationY = -strokeForceY;
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
             
-            console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
-            console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
-            console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
-            console.log ("noteCountSimilarity=" + noteCountSimilarity + ", modCountSimilarity=" + modCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
+            // console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
+            // console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
+            // console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
+            // console.log ("noteCountSimilarity=" + noteCountSimilarity + ", modCountSimilarity=" + modCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
             
             
             if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
