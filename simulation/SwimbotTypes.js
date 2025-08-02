@@ -189,6 +189,7 @@ function Phenotype()
 	this.mass               = ZERO;
 	this.preferredFoodType  = 0;
 	this.digestibleFoodType = 0;
+	this.utterPreference		= 0;	// influences what types of utterances swimbot is attracted to
 	this.utterPeriod			= 0;	// space between utterances (in clocks)
 	this.utterDuration		= 0;	// length of utterance (in clocks)
 	this.utterHighNote		= 0;	// highest note pitch performed

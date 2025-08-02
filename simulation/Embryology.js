@@ -288,6 +288,10 @@ let testNoEel = true;
 		  phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
 
         g++;  
+        _geneNames[g] = "utter preference";
+        phenotype.utterPreference = _normalizedGenes[g];
+        
+        g++;  
         _geneNames[g] = "utter spin";        
 
         g++;  
@@ -295,6 +299,9 @@ let testNoEel = true;
 
         g++;  
         _geneNames[g] = "utter strangeness";        
+
+        g++;  
+        _geneNames[g] = "utter flavor";        
 
 
 

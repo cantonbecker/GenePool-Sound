@@ -736,6 +736,7 @@ _position.copyFrom( position );
     //------------------------------------------------------------------------
 	this.getIsUttering 		= function() { return _uttering; 				}
 	this.getUtterDuration 	= function() { return _phenotype.utterDuration; }
+	this.getUtterPreference = function() { return _phenotype.utterPreference; }
 	
 	//--------------------------------
 	// update
@@ -1328,6 +1329,7 @@ let partAccelerationY = -strokeForceY;
     this.getDigestibleFoodType          = function() { return _phenotype.digestibleFoodType;                }
     this.getUtterPeriod                 = function() { return _phenotype.utterPeriod;                       }
     this.getUtterDuration               = function() { return _phenotype.utterDuration;                     }
+    this.getUtterPreference             = function() { return _phenotype.utterPreference;                     }
     this.getUtterNotes                  = function() { return _phenotype.utterNotes;                        }
     this.getUtterHighNote               = function() { return _phenotype.utterHighNote;                     }
     this.getUtterLowNote                = function() { return _phenotype.utterLowNote;                      }
@@ -1603,6 +1605,7 @@ let partAccelerationY = -strokeForceY;
             this.utterPeriod		   // how often does it sing
             this.utterDuration		// how long does it sing
             */
+                                                                                
                                         
             // *** Figure out "utterNoteOverlap" 0-1 ***
             // How similar are the two swimbot utterances, in terms of what note pitches they use? 
@@ -1610,9 +1613,9 @@ let partAccelerationY = -strokeForceY;
             // Or do their utterances use completely different notes?
             // utterNoteOverlap is calculated from 1 (all note pitches are identical) to 0 (no shared note pitches at all)
             
-            const setA = new Set(_phenotype.utterNotes);
-            const setB = new Set(judge_phenotype.utterNotes);
-            const intersection = [...setA].filter(x => setB.has(x));
+            const notePoolA = new Set(_phenotype.utterNotes);
+            const notePoolB = new Set(judge_phenotype.utterNotes);
+            const intersection = [...notePoolA].filter(x => notePoolB.has(x));
             const union = new Set([..._phenotype.utterNotes, ...judge_phenotype.utterNotes]);
             const utterNoteOverlap = union.size === 0 ? 0 : intersection.length / union.size;
             
@@ -1647,11 +1650,32 @@ let partAccelerationY = -strokeForceY;
             let lowNoteSimilarity    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127; // assumes note range of 1-127
             lowNoteSimilarity = 1 - lowNoteSimilarity; // invert so 0=least similar, 1=most similar           
 
+
+            // *** Now that we have calculations for all swimbot/judge similarities, what do I actually find attractive? ***
+            const judgeUtterPreference = judge_phenotype.utterPreference; // it's in my genes! 0-1
+
+            // for now, there are three camps...
+            if (judgeUtterPreference < .3) {
+                /* I like swimbots who share my note range (I like them in tune with me) */
+                attractiveness = Math.min(.99, utterNoteOverlap * 1.5); // amplify the raw overlap because note overlap is REALLY sexy
+                console.log ("I'm attracted to note overlap, and my attraction is " + attractiveness);
+                console.log ("notePoolA ", notePoolA);
+                console.log ("notePoolB ", notePoolB);
+            } else if (judgeUtterPreference >= .3 && judgeUtterPreference <= .6) {
+                /* I like swimbots that utter in the same frequency range as me */
+                attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 2;
+                console.log ("I'm attracted to frequency, and my attraction is " + attractiveness);
+            } else {
+                /* I like swimbots that are similarly busy/complicated with their utterances */
+                attractiveness = noteCountSimilarity;
+                console.log ("I'm attracted to note count similarity, and my attraction is " + attractiveness);
+            }
             
-            // *** AVERAGE ALL OUR NORMALIZED CALCULATIONS TO COME UP WITH OUR ATTRACTIVENESS ***
-            attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 5;
-                
-            // Ensure attractiveness stays within [0,1] // clamp to make sure
+            // an alternative would be to average everything...
+            // attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 5;
+
+                            
+            // Make sure attractiveness stays within [0,1], some of the above can create hyper/hypo attractiveness numbers < 0 or > 1
             attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
             /*

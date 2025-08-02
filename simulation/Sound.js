@@ -96,8 +96,9 @@ var SOUND_OUTPUT_DEATH 	= true;
 var SOUND_OUTPUT_ATMOSPHERE 	= true;
 
 
+// first is always the DEFAULT unless we are a 'strange' swimbot...
 const MIDI_NOTE_INTERVAL_SETS = [
-    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] }, // first is always the DEFAULT unless we are a weird swimbot...
+    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
@@ -566,6 +567,9 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
 
+	// Make a copy of sequence duration states in case we want to mess with it
+	let mySequenceDurationStates = structuredClone(SEQUENCE_DURATION_STATES);
+
 	/* WHAT NOTES ARE WE ALLOWED TO PLAY? */
 
 	// One option is that we can swap out our interval scale
@@ -599,8 +603,6 @@ for (let i = 0; i < _geneNames.length; i++) {
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter strangeness' from genes")
 	const utterStrangeness = genes[idx]; // 0-255
 	const chanceOfJumpingFifths = (utterStrangeness/255) ** 5; // heavily weighted towards "nope"
-	const chanceOfUnusualInterval = (utterStrangeness/255) ** 8; // heavily weighted towards default interval set
-	console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths is " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and choosing a non-standard interval is " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
 	if (rng() < chanceOfJumpingFifths) {
 		if (rng() > .5) { // are we going to jump up or down?
 			myMIDIBaseNote = myMIDIBaseNote + 7;
@@ -611,6 +613,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 		}
 	}
 	
+	const chanceOfUnusualInterval = (utterStrangeness/255) ** 8; // heavily weighted towards default interval set
 	let myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // default is always the first
 	if (rng() < chanceOfUnusualInterval) {
 		let randomUnusualIntervalIndex = 1 + Math.floor(rng() * (MIDI_NOTE_INTERVAL_SETS.length - 1));
@@ -619,6 +622,28 @@ for (let i = 0; i < _geneNames.length; i++) {
 	}
 	let myIntervalSetName = myNoteIntervalSet.name;
 	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
+
+	console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths was " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and choosing a non-standard interval was " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
+
+
+
+	// USE UTTER FLAVOR GENE TO ADJUST OUR NOTE LENGTHS
+	idx = _geneNames.indexOf('utter flavor');
+	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter flavor' from genes")
+	const utterFlavor = genes[idx]; // 0-255
+	const chanceOfLengtheningNotes = (utterFlavor/255); // unweighted 0-1
+
+	if (rng() < chanceOfLengtheningNotes) {
+		mySequenceDurationStates[0].min *= 1.5; // short notes are 1.5x longer
+		mySequenceDurationStates[0].max *= 1.5;
+		mySequenceDurationStates[1].min *= 2; // medium notes are 2x longer
+		mySequenceDurationStates[1].max *= 2;
+		mySequenceDurationStates[2].min = mySequenceDurationStates[1].max; // long notes are 1x-2x as long as the longest medium notes 
+		mySequenceDurationStates[2].max = mySequenceDurationStates[2].min * 2;
+		console.log("-> Utter flavor rolled to increase sequence duration states (longer notes)");
+	}
+
+
 
 	
 	// USE UTTER SPIN GENE TO DETERMINE OUR OCTAVE
@@ -696,7 +721,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 	let lastInt = 4;
 		
 	// Now pick the initial Inter-Onset Interval (duration)
-	let lastIOI = Math.floor(rng() * SEQUENCE_DURATION_STATES.length); // might be short, medium, or long initial note
+	let lastIOI = Math.floor(rng() * mySequenceDurationStates.length); // might be short, medium, or long initial note
 	// if (utterSequenceLength < 750) lastIOI = 0; // override for short utterances. they should ALWAYS start with a short note (zero index to Interval State)
 		
 
@@ -748,14 +773,14 @@ for (let i = 0; i < _geneNames.length; i++) {
 	while (sequenceTime < utterSequenceLength) {
 		// pick next inter-onset interval
 		let p = rng(), cumulativeProb = 0, nextIOI;
-		for (let i = 0; i < SEQUENCE_DURATION_STATES.length; i++) {
+		for (let i = 0; i < mySequenceDurationStates.length; i++) {
 			cumulativeProb += myDurationProbabilities[lastIOI][i];
 			if (p < cumulativeProb) { nextIOI = i; break; }
 		}
 		// fallback if rounding/FP left nextIOI undefined
-		if (nextIOI === undefined) nextIOI = SEQUENCE_DURATION_STATES.length - 1;
+		if (nextIOI === undefined) nextIOI = mySequenceDurationStates.length - 1;
 	
-		const band = SEQUENCE_DURATION_STATES[nextIOI];
+		const band = mySequenceDurationStates[nextIOI];
 		const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
 	
 		// HOW LONG SHOULD THIS NOTE PLAY?
@@ -782,7 +807,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 		// record some phenotypical info
 		if (thisNoteNumber > recordHighNote) recordHighNote = thisNoteNumber; // we hit our highest note yet
 		if (thisNoteNumber < recordLowNote) recordLowNote = thisNoteNumber; // we hit our lowest note yet
-		if (!recordNotesUsed.includes(thisNoteNumber)) recordNotesUsed.push(thisNoteNumber); // we used a new note
+		if (!recordNotesUsed.includes(thisNoteNumber % 12)) recordNotesUsed.push(thisNoteNumber % 12); // we used a new note (%12 means ignore octave)
 	
 		// push event into sequencer
 		sequenceData.push({
@@ -876,6 +901,7 @@ for (let i = 0; i < _geneNames.length; i++) {
 	// return our object of phenotypes
 	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
 	// console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength + " recordNoteCount=" + recordNoteCount + " recordModCount=" + recordModCount, sequenceData);
+	// console.log ("UTTERANCE COMPOSITION NOTES USED " + recordNotesUsed);
 	return (utterancePhenotypeObj);
 }
 
