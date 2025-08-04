@@ -3573,6 +3573,7 @@ for (let g=0; g<NUM_GENES; g++)
 	this.getSwimbotIsUttering               = function( ID ) {	return _swimbots[ ID ].getIsUttering                (); }
 	this.getSwimbotUtterPeriod              = function( ID ) {	return _swimbots[ ID ].getUtterPeriod               (); }
 	this.getSwimbotUtterDuration            = function( ID ) {	return _swimbots[ ID ].getUtterDuration             (); }
+	this.getSwimbotNickname                 = function( ID ) {	return _swimbots[ ID ].getNickname                  (); }
 
     
     // this is now being initialized from the index.html...

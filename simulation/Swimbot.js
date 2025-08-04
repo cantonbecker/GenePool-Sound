@@ -1525,7 +1525,7 @@ let partAccelerationY = -strokeForceY;
                 }    
                 // we don't ever settle for a found swimbot until we've gone through our looking duration
                 if (myLookingForMateCounter <= 1) { 
-                    console.log("Swimbot " + myNickname + " has settled on swimbot no. " + _chosenMateIndex);
+                    console.log("Swimbot " + myNickname + " @ counter " + myLookingForMateCounter + " has settled on swimbot no. " + _chosenMateIndex);
                     _brain.setLookingForMateCounter(BRAIN_LOOKING_FOR_MATE_DURATION); // set this back up for next time we need to count down
                     _brain.setFoundSwimbot( true );
                 }

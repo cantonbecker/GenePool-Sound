@@ -969,6 +969,7 @@ function updateUI()
             
                 let brainState = genePool.getSwimbotBrainState( selectedSwimbot );
                 let mateString = genePool.getSwimbotChosenMate( selectedSwimbot ).toString();
+                let nickName = genePool.getSwimbotNickname( selectedSwimbot );
                 let goalDescription = "";
 
                      if ( brainState ===  BRAIN_STATE_RESTING            ) { goalDescription = "resting";                       }
@@ -984,7 +985,7 @@ function updateUI()
                 if ( genePool.getSwimbotDigestibleFoodType( selectedSwimbot ) === 1 ) { foodTypeText       = "blue"; }
             
                 document.getElementById( 'swimbotDataPanel' ).innerHTML
-                = "<b>Info about the selected swimbot:</b>"
+                = "<b>Info about " + nickName + ":</b>"
                 + "<br>"
                 + "<br>"
                 + "ID = " + genePool.getSwimbotIndex( selectedSwimbot ).toString()

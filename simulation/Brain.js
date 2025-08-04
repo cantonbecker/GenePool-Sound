@@ -35,7 +35,7 @@ const BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS   = 20;
 
 // when I am in the mood for love, I will look for the fittest partner for
 // this many clock cycles, during which time my _chosenMate may get upgraded for a better one
-const BRAIN_LOOKING_FOR_MATE_DURATION       = 500;
+const BRAIN_LOOKING_FOR_MATE_DURATION       = MIN_UTTER_PERIOD * 2;
 
 //const BRAIN_FOCUS_TARGET_SHIFT_STRENGTH	    = 0.2;
 const BRAIN_FOCUS_TARGET_SHIFT_STRENGTH	    = 0.1;
