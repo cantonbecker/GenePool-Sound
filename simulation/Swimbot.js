@@ -1338,6 +1338,14 @@ let partAccelerationY = -strokeForceY;
     this.getUtterModCount               = function() { return _phenotype.utterModCount;                     }
     this.getUtterSequence               = function() { return _phenotype.utterSequence;                     }
 
+    // every gene sequence has a (fairly) unique name associated with it, e.g. "Guxitu-44"
+    this.getNickname = function() {
+        let myGeneString = _genotype.getGenes().join(',');
+        let myNickname = nicknameFromStringHash(myGeneString) + '-' + _index;
+        return (myNickname);   
+    }
+
+
 	//---------------------------------------
     this.getGoalDescription = function() 
     { 
@@ -1471,8 +1479,10 @@ let partAccelerationY = -strokeForceY;
         {			
             // console.log( "horny" );
             let myLookingForMateCounter = _brain.getLookingForMateCounter();
+            let myNickname = this.getNickname(); // will use nicknameFromStringHash
+
             _brain.setLookingForMateCounter(myLookingForMateCounter - 1);
-            // console.log("Swimbot " + _index + " myLookingForMateCounter="+myLookingForMateCounter);
+            // console.log("Swimbot " + myNickname + " myLookingForMateCounter="+myLookingForMateCounter);
             
             let mostAttractiveFound = new Swimbot;
             let atLeastOneBabeIsVisible = false;
@@ -1499,7 +1509,12 @@ let partAccelerationY = -strokeForceY;
             {
                 // if we found a mate, only lock onto it if it's a better mate than our current _chosenMate
                 if ( _chosenMate === null || highestBabeFactor > _chosenMateAttraction || myLookingForMateCounter < 0) {
-                    console.log("Swimbot " + _index + " thinks the hottest babe is ", + mostAttractiveFound.getIndex());
+                    let chosenMateNickname = mostAttractiveFound.getNickname();
+                    if (_chosenMate === null ) {
+                        console.log("Swimbot " + myNickname + " @ counter " + myLookingForMateCounter + " first mate choice is " + chosenMateNickname + " w/ " + highestBabeFactor);
+                    } else {
+                        console.log("Swimbot " + myNickname + " @ counter " + myLookingForMateCounter + " now prefers " + chosenMateNickname + " w/ " + highestBabeFactor);
+                    }
                     _chosenMate = mostAttractiveFound;
                     assert( _chosenMate != null, "_chosenMate != null" );
     
@@ -1510,7 +1525,7 @@ let partAccelerationY = -strokeForceY;
                 }    
                 // we don't ever settle for a found swimbot until we've gone through our looking duration
                 if (myLookingForMateCounter <= 1) { 
-                    console.log("Swimbot " + _index + " HAS SETTLED ON A SWIMBOT: " + mostAttractiveFound.getIndex());
+                    console.log("Swimbot " + myNickname + " has settled on swimbot no. " + _chosenMateIndex);
                     _brain.setLookingForMateCounter(BRAIN_LOOKING_FOR_MATE_DURATION); // set this back up for next time we need to count down
                     _brain.setFoundSwimbot( true );
                 }
@@ -1592,9 +1607,10 @@ let partAccelerationY = -strokeForceY;
 
     
     
-	//-----------------------------------------
+	//-----------------------------------------------------------------------------
 	// get attractiveness
-	//-----------------------------------------
+   // invoked by a "judge" swimbot to evaluate the attractiveness of this swimbot
+	//-----------------------------------------------------------------------------
 	this.getAttractiveness = function( judge, judge_phenotype, judge_index )
 	{
         let attractiveness = ZERO;
@@ -1606,7 +1622,7 @@ let partAccelerationY = -strokeForceY;
             // console.log ("My _phenotype is ",_phenotype);
             // console.log ("judge_phenotype is ",judge_phenotype);
 
-            /*** LET'S CALCULATE PHENOTYPICAL ATTRACTIVENESS BETWEEN THIS SWIMBOT AND A JUDGE SWIMBOT! ***/
+            /*** LET'S CALCULATE PHENOTYPICAL ATTRACTIVENESS BETWEEN THIS SWIMBOT AND OUR JUDGE SWIMBOT! ***/
             // we might get more interesting results by narrowing what's considered attractive, for example
             // only consider note overlap, or highest pitch / lowest pitch...
             
