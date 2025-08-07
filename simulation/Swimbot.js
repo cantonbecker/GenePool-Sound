@@ -934,15 +934,13 @@ _position.copyFrom( position );
             this.calculateEnergyEfficiency();		
         }
     
-        //---------------------------------------------
-        // energy is always slowly draining 
-        //---------------------------------------------
+        //------------------------------------------------------------------------------------------
+        // energy is always slowly draining, but may be draining faster if we are currently uttering
+        //------------------------------------------------------------------------------------------
         if (this.getIsUttering()) {
            _energy -= UTTERANCE_ENERGY_DRAIN;
-           console.log ("Energy now " + _energy + " (decreased by " + UTTERANCE_ENERGY_DRAIN);
         } else {
            _energy -= CONTINUAL_ENERGY_DRAIN;
-           console.log ("Energy now " + _energy + " (decreased by " + CONTINUAL_ENERGY_DRAIN);
         } // 
         
         //---------------------------------------------

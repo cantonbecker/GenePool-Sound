@@ -120,10 +120,15 @@ const WALL_BOUNCE = 0.1;
 //  energy 
 //---------------------------------------------------
 const ENERGY_USED_UP_SWIMMING				= 0.01;
-const ENERGY_USED_UP_UTTERING				= 0.01;
 const STARVING									= 4.0;
+
+// longer utterers die faster because they burn more energy
+// when tweaking utterance drainage, consider BRAIN_LOOKING_FOR_MATE_DURATION
+// because if swimbots are given more time to make up their mind when looking for mates,
+// there's less of an advantage to being a longer utterer.
+// 
 const CONTINUAL_ENERGY_DRAIN				= 0.0001;
-const UTTERANCE_ENERGY_DRAIN				= 0.0005; // when uttering, we can burn up more energy
+const UTTERANCE_ENERGY_DRAIN				= 0.0005; // this is INSTEAD of continual, not ON TOP OF continual 
 
 
 // ranges from 0 to 1 with 0 being not picky at all and 1 being totally 'nothing else'
