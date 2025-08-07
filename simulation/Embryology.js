@@ -304,7 +304,6 @@ let testNoEel = true;
         _geneNames[g] = "utter flavor";        
 
 
-
         
         //------------------------------------------------------------------------------------------------
         // *** generate the markov-chained utterance sequence ***

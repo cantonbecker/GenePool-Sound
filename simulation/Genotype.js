@@ -158,23 +158,23 @@ function Genotype()
     }    
     
 	//--------------------------------
-	// set to Froggy
+	// set to Froggy, but *each with a unique utterance
 	//--------------------------------
 	this.setToFroggy = function()
 	{ 
-	    let g = -1;
-	    
-//g++; _genes[g] = Math.floor( gpRandom() * BYTE_SIZE ); // frequency
-g++; _genes[g] = 255;
-        g++; _genes[g] =  70; //cutOff        
+        let g = -1;
         
-		for (let c=0; c<3; c++)
-		{
+        // g++; _genes[g] = Math.floor( gpRandom() * BYTE_SIZE ); // frequency
+        g++; _genes[g] = 255; // set gene 0 to 255
+        g++; _genes[g] =  70; // set gene 1 to 70 cutOff        
+        
+        for (let c=0; c<3; c++)
+        {
             let category    = 0;
             let redTest     = 0;
             let startWidth  = 160;
             let endLength   = 200;
-
+        
             if ( c === 0 )
             {
                 category    = 200;
@@ -182,9 +182,9 @@ g++; _genes[g] = 255;
                 startWidth  = 255;
                 endLength   = 0;
             }  
-
+        
             //-----------------------------------------
-		    // order matters!!!
+            // order matters!!!
             //-----------------------------------------
             g++; _genes[g] =  80;       //start red
             g++; _genes[g] = 150;       //start green
@@ -216,8 +216,14 @@ g++; _genes[g] = 255;
             
             g++; _genes[g] = 255;       //splined   
             g++; _genes[g] = 100;       //end cap spline 
-	    }
-    }
+        }
+        
+        // now set totally random utterance genes, which are at indices 112-118
+        for (let idx=112; idx <= 118; idx++) {
+            _genes[idx] = Math.floor(gpRandom() * BYTE_SIZE); 
+        }
+        
+    } // end froggies
 
 
 	//--------------------------------

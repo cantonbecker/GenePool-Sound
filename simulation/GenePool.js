@@ -530,11 +530,11 @@ if ( mode === SimulationStartMode.SPECIES )
                 }
             }
             //---------------------------------
-            // froggies
+            // froggies, but each with different utterance genes
             //---------------------------------
             else if ( mode === SimulationStartMode.FROGGIES )
             {
-                _myGenotype.setToFroggy();      
+                _myGenotype.setToFroggy();
             }
             //---------------------------------
             // tango

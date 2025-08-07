@@ -74,17 +74,22 @@ const MAX_CHILD_ENERGY_RATIO                = ONE;
 const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 
+// AUDIO VERSION JULY 2025
+const MAX_SWIMBOTS = 1000;
+const INITIAL_NUM_SWIMBOTS =  200;
+const MAX_FOODBITS           = 1000;
+const MAX_FOODBITS_PER_TYPE  = 500;
+const INITIAL_NUM_FOODBITS   = 500;
+
+
+// ORIGINAL VERSION
+/*
 const MAX_SWIMBOTS = 2000;
-
-// const INITIAL_NUM_SWIMBOTS =  100; // July 2025 audio version
 const INITIAL_NUM_SWIMBOTS =  500; // original version
-//const INITIAL_NUM_SWIMBOTS = 1000; // research version
-//luka 1000
-
 const MAX_FOODBITS           = 2000;
 const MAX_FOODBITS_PER_TYPE  = 1000; // make this one-half of MAX_FOODBITS (because there are two types)
 const INITIAL_NUM_FOODBITS   = 1000; // original version
-//const INITIAL_NUM_FOODBITS = 2000; // research version
+*/
 
 const NON_REPRODUCING_JUNK_DNA_LIMIT = 0; // essentially disabled by CB for sonified genepool  
 //0.9 appears to be a good threshold for species differences. Any less and it takes way too long

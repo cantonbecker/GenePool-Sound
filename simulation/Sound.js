@@ -381,7 +381,7 @@ function Sound()
 		let midiOutput; // <--- add this
 	
 		// Step 1: Decide if we can and should play audio for this utterance.
-		if (useMidi) {
+		if (useMidi && !_runningFast) {
 			// MIDI Path: Check if utterance is enabled, in view, and channel is not throttled.
 			if (utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER) {
 					let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
@@ -399,7 +399,7 @@ function Sound()
 						midiOutput = midiOutputsByName[oldestMIDIchannel.output];
 					}
 			}
-		} else if (useWebAudio) {
+		} else if (useWebAudio && !_runningFast) {
 			// Web Audio Path: Simpler check, just needs to be in view. No channel throttling.
 			if (utterVariablesObj.swimbotInView) {
 					playAudio = true;
@@ -435,7 +435,11 @@ function Sound()
 	}
 
 	function doingMidiOutput() {
-		return midiOutput ? true : false;
+		if (midiOutput && !_runningFast) {
+			return (true);
+		} else {
+			return (false);
+		}
 	}
 
 
