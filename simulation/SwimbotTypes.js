@@ -121,8 +121,9 @@ const WALL_BOUNCE = 0.1;
 //---------------------------------------------------
 const ENERGY_USED_UP_SWIMMING				= 0.01;
 const ENERGY_USED_UP_UTTERING				= 0.01;
-const STARVING								= 4.0;
+const STARVING									= 4.0;
 const CONTINUAL_ENERGY_DRAIN				= 0.0001;
+const UTTERANCE_ENERGY_DRAIN				= 0.0005; // when uttering, we can burn up more energy
 
 
 // ranges from 0 to 1 with 0 being not picky at all and 1 being totally 'nothing else'

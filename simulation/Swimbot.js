@@ -937,7 +937,13 @@ _position.copyFrom( position );
         //---------------------------------------------
         // energy is always slowly draining 
         //---------------------------------------------
-        _energy -= CONTINUAL_ENERGY_DRAIN;
+        if (this.getIsUttering()) {
+           _energy -= UTTERANCE_ENERGY_DRAIN;
+           console.log ("Energy now " + _energy + " (decreased by " + UTTERANCE_ENERGY_DRAIN);
+        } else {
+           _energy -= CONTINUAL_ENERGY_DRAIN;
+           console.log ("Energy now " + _energy + " (decreased by " + CONTINUAL_ENERGY_DRAIN);
+        } // 
         
         //---------------------------------------------
         // when energy hits zero, that means death 
