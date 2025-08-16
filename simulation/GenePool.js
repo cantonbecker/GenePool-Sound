@@ -110,6 +110,7 @@ function GenePool()
 	// rendering-related constants
 	//---------------------------------------------
     const DEFAULT_MILLISECONDS_PER_UPDATE = 20;
+    const DO_HIGHLIGHT_SELECTED_SWIMBOT = false; // draw a ring around the selected swimbot?
 
 //const LEVEL_OF_DETAIL_THRESHOLD         = 1000.0;
     const LEVEL_OF_DETAIL_THRESHOLD         = 1200.0;
@@ -2515,7 +2516,7 @@ if ( globalTweakers.numFoodTypes === 2 )
                     if (( s === _mousedOverSwimbot )
                     ||  ( s === _selectedSwimbot   ))
                     {
-                        if ( s === _selectedSwimbot )
+                        if ( s === _selectedSwimbot && DO_HIGHLIGHT_SELECTED_SWIMBOT)
                         {
                             renderSelectCircle( _swimbots[s].getPosition().x, _swimbots[s].getPosition().y, _swimbots[s].getSelectRadius(), false );
                         }

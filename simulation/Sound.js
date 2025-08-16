@@ -23,6 +23,10 @@ const SOUND_EVENT_TYPE_EAT  	=  1;
 const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 
+// in several places of the code we slice the genes by index just to pull out utterance-related genes
+const UTTERANCE_GENES_SLICE_START = 112;
+const UTTERANCE_GENES_SLICE_END = 119; // inclusive
+
 // INITIAL TONAL CENTER
 var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 
@@ -31,13 +35,15 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT = 3;
+const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 3; // enable this to have the background tone gradually drift around the default intervals
+var UNIVERSAL_NOTE_SHIFT = 0;
 
 // MIDI channels are 1-16 (not zero indexed!)
 const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
+const MIDI_CHANNEL_SAMPLER = 15;
 const MIDI_CHANNEL_ATMOSPHERE = 16;
 
 var MIDI_CHANNELS_FOR_UTTERING = [
@@ -98,8 +104,8 @@ var SOUND_OUTPUT_ATMOSPHERE 	= true;
 
 // first is always the DEFAULT unless we are a 'strange' swimbot...
 const MIDI_NOTE_INTERVAL_SETS = [
+   //  { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
     { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
-    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
 ];
@@ -112,32 +118,33 @@ for (const set of MIDI_NOTE_INTERVAL_SETS) {
 }
 
 const GLOBAL_MIN_REVERB = 15; // 0-127
-const GLOBAL_MAX_REVERB = 70;
+const GLOBAL_MAX_REVERB = 75;
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
 	For more typically rhythmic phrases, set identical min/max for each length so each length is identical
 */
 
-const SHORTEST_NOTE_MS = 40;
+const SHORTEST_NOTE_MS = 35;
 
 const SEQUENCE_DURATION_STATES = [
-	{ name: 'short',  min: 80,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS 
-	{ name: 'medium', min: 160, max: 160 },   // 120ms is an 8th note at 125 BPM
-	{ name: 'long',   min: 320, max: 640 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
+	{ name: 'short',  min: 60,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS 
+	{ name: 'medium', min: 140, max: 210 },   // 120ms is an 8th note at 125 BPM
+	{ name: 'long',   min: 280, max: 420 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 ];
 
 //	3 x 3 probability matrix of how likely it is we will transition from one state to another.
 //	Each set of numbers needs to add up to 1 (100%).
 
 const IOI_DURATION_PROBABILITY_MATRIX = [
-  [0.8, 0.1, 0.1],  		// currently short? chances of staying short | switching medium | switching long 
-  [0.6, 0.2, 0.2 ],		// currently medium? chances of switching short | staying medium | switching long
-  [0.1, 0.6, 0.3 ]		// currently long? chances of switching short | switching medium | staying long
+  [0.7, 0.2, 0.1],  		// currently short? chances of staying short | switching medium | switching long 
+  [0.5, 0.3, 0.2 ],		// currently medium? chances of switching short | staying medium | switching long
+  [0.1, 0.4, 0.5 ]		// currently long? chances of switching short | switching medium | staying long
 ];
 
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
 // each set of numbers needs to add up to 1 (100%). Default is bell-curve like around middle note
+
 
 /*
 const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // BELL CURVE
@@ -153,7 +160,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // BELL CURVE
 ];
 */
 
-/*
+
 const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // SHARP BELL CURVE
   [0.80, 0.15, 0.03, 0.01, 0.005, 0.003, 0.001, 0.0005, 0.0005], // from -4
   [0.15, 0.70, 0.10, 0.03, 0.01, 0.005, 0.003, 0.001, 0.001], // from -3
@@ -165,8 +172,9 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // SHARP BELL CURVE
   [0.001, 0.001, 0.003, 0.005, 0.01, 0.03, 0.10, 0.70, 0.15], // from +3
   [0.0005, 0.0005, 0.001, 0.003, 0.005, 0.01, 0.03, 0.15, 0.80]  // from +4
 ];
-*/
 
+
+/*
 const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // REALLY SHARP BELL CURVE
   //         -4      -3      -2      -1       0      +1      +2      +3      +4
   [0.93,   0.06,   0.009, 0.001, 0,     0,     0,     0,     0   ], // from -4
@@ -179,7 +187,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // REALLY SHARP BELL CURVE
   [0,      0,      0,     0.001, 0.001, 0.009, 0.03,  0.90,  0.06 ], // from +3
   [0,      0,      0,     0,     0.001, 0.009, 0.06,  0.93,  0.06 ]  // from +4
 ];
-
+*/
 
 
 //------------------------------------------
@@ -296,10 +304,18 @@ function Sound()
 			sendControlMIDI(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // cutoff metaphysical function B (rhythmic background)
 
 			// DRONE: controls 16 & 17 of metaphysical function B reaktor are pitch knobs that should match our base note
-			let controlAdjustment16 = MIDI_BASE_NOTE -6 ;
+			let controlAdjustment16 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT - 6 ;
 			sendControlMIDI(16, controlAdjustment16, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
-			let controlAdjustment17 = MIDI_BASE_NOTE +6 ;
+			let controlAdjustment17 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT + 6 ;
 			sendControlMIDI(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
+			
+			// SAMPLER BACKGROUND
+			if (SOUND_UPDATE_COUNTER % 50 == 0) {
+				let midiChannel = MIDI_CHANNEL_SAMPLER;
+				let midiNote = 60; // lake bacalar sounds
+				sendNoteMIDI(midiNote, 127, 2000, midiChannel, nondiegeticOutput); // 2 second pulse
+				console.log ("Sent sampler note @ " + SOUND_UPDATE_COUNTER);
+			}
 
 		}
 		
@@ -314,12 +330,11 @@ function Sound()
 		}
 
 
-		// THE UNIVERSE moves along the circle of 5ths. Every so many minutes, we modulate all new births accordingly.
-		// Remember that a swimbot's utterance is burned into its phenotype forever, so this doesn't impact living bots.
-		if (SOUND_UPDATE_COUNTER % (soundUpdatesPerMinute * MINUTES_BETWEEN_UNIVERSAL_BASE_NOTE_SHIFT) === 0) {
-			MIDI_BASE_NOTE = MIDI_BASE_NOTE + 7; // up a 5th ...
-			if (MIDI_BASE_NOTE > 47) MIDI_BASE_NOTE = MIDI_BASE_NOTE - 12; // ... but staying within the 3rd octave
-			console.log ("*** UNIVERSE SHIFTED MIDI_BASE_NOTE to " + MIDI_BASE_NOTE + " ***");
+		// THE UNIVERSE BACKGROUND HUM moves around to generate interest
+		if (MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT && SOUND_UPDATE_COUNTER % (soundUpdatesPerMinute * MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT) === 0) {
+  	 		const defaultIntervals = MIDI_NOTE_INTERVAL_SETS[0].intervals; // pentatonic
+  			UNIVERSAL_NOTE_SHIFT = defaultIntervals[Math.floor(Math.random() * defaultIntervals.length)];
+			console.log ("*** UNIVERSAL BACKGROUND SHIFTED " + UNIVERSAL_NOTE_SHIFT + " ***");
 		}
 
 		if (SOUND_UPDATE_COUNTER % 10 === 0) {
@@ -565,9 +580,10 @@ function Sound()
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
 	let idx; // our generic index which we re-use a lot
-	const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
+	// const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
 	// const rng = aleaPRNG('always the same');
-
+	const rng = aleaPRNG(genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString()); // initialize genes with only uttering-related genes
+	// console.log ("Seeding RNG with genes: " + genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString());
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
 
@@ -587,12 +603,12 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
 
-/*
+
 for (let i = 0; i < _geneNames.length; i++) { 
-    if (_geneNames[i].includes('utter')) console.log(_geneNames[i], genes[i]);
+    if (_geneNames[i].includes('utter')) console.log("gene " + i + " " + _geneNames[i], genes[i]);
 }
 // console.log('Genes: ' + genes.toString());
-*/
+
 
 	idx = _geneNames.indexOf('utter duration');
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter duration' from genes")

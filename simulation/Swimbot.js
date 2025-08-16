@@ -1704,6 +1704,8 @@ let partAccelerationY = -strokeForceY;
                 // console.log ("I'm (" + _index + ") attracted to note count similarity, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
             }
             
+attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // FORCE ONLY ONE KIND OF ATTRACTIVENESS
+            
             // And then add a little bit of everything (averaged), but not much
             attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 10;
  

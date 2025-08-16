@@ -1154,8 +1154,8 @@ function showSwimbotGenes(s)
 {
     if ( s != -1 )
     {        
-        let genes = genePool.getSwimbotGenes(s);        
-        let json = JSON.stringify( { genes } );
+        let genes = genePool.getSwimbotGenes(s);
+        let json = JSON.stringify({ genes: highlightedGenes });
         //console.log( json );
     
         document.getElementById( 'dataDisplay'      ).style.visibility = "visible"; 
@@ -1178,6 +1178,55 @@ function showSwimbotGenes(s)
         + "<br>"
         + "<br>"
         + json;
+    }
+}
+
+
+function showSwimbotGenesFocusUtterances(s)
+{
+    if (s != -1) {        
+        const genes = genePool.getSwimbotGenes(s);
+        const start = UTTERANCE_GENES_SLICE_START, end = UTTERANCE_GENES_SLICE_END; // inclusive
+        const utterance = genes.slice(start, end + 1);
+
+        const json = `[${genes.map((g,i)=> (i>=start && i<=end) ? `<b>${g}</b>` : g).join(", ")}]`; // highlight utterance genes
+
+        document.getElementById('dataDisplay').style.visibility = "visible"; 
+        document.getElementById('closeDataDisplay').style.visibility = "visible"; 
+        document.getElementById('dataDisplay').innerHTML =
+            "<br>"
+          + "<big>Genes (and <strong>utterances</strong>) of swimbot " + s.toString() + ":</big>"
+          + "<br><br>"
+          + json
+          + "<br><br>"
+          + "Paste another set of genes below to have utterance genes copied into it:"
+          + "<br>"
+          + '<textarea id="utteranceInput" rows="8" style="width:100%;font-family:monospace;"></textarea>';
+
+        const ta = document.getElementById('utteranceInput');
+        ta.addEventListener('blur', function () {
+            const raw = ta.value.trim();
+
+            let arr;
+            try {
+                arr = JSON.parse(raw);
+            } catch (e) {
+                const nums = raw.match(/-?\d+/g);
+                arr = nums ? nums.map(Number) : [];
+            }
+            if (!Array.isArray(arr)) arr = [];
+
+            // ensure length, then replace only indices 112–119
+            if (arr.length <= end) {
+                const pad = new Array(end + 1 - arr.length).fill(0);
+                arr = arr.concat(pad);
+            }
+            for (let i = 0; i < utterance.length; i++) {
+                arr[start + i] = utterance[i];
+            }
+
+            ta.value = JSON.stringify(arr);
+        });
     }
 }
 
