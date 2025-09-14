@@ -1071,6 +1071,8 @@ function notifyGeneTweakPanelMouseDown()
 }
 
 
+
+
 // show a brief, fading modal notice (message) for (messageMS) duration -- without blocking interaction
 let _modalNoticeTimer = null;
 function flashNotice(message, messageMS = 1500) {
@@ -1097,7 +1099,7 @@ function flashNotice(message, messageMS = 1500) {
         msg.textContent = message;;
         Object.assign(msg.style, {
             fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
-            fontSize: '18px',
+            fontSize: '22px',
             lineHeight: '1.4',
             color: '#fff',
             background: 'rgba(20,24,28,0.92)',
@@ -1132,6 +1134,9 @@ function flashNotice(message, messageMS = 1500) {
     }, messageMS); // visible duration (ms)
 }
 
+
+
+
 function resize()
 { 
     const HOLE_MARGIN = 20; // total pixels to keep from top+bottom (≈2px each)
@@ -1157,6 +1162,11 @@ function resize()
         genePool.setCanvasDimensions(canvasID.width, canvasID.height);  
     }
 }
+
+
+/********************
+/* CANVAS DRAGGING */
+/*******************/
 
 //------------------------------------------------------------
 document.getElementById( 'Canvas' ).onmousedown = function(e) 
@@ -1264,13 +1274,9 @@ document.onkeydown = function(e)
         }
     }
     
-    if ( e.keyCode === 68 ) // D key for toggle dev/debug
+    if ( e.keyCode === 68 ) // D key to toggle dev/debug
     { 
-        let masterPanel = document.getElementById("masterPanel");
-        let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
-        masterPanel.style.display = (masterIsDisplayed !== "none") ? "none" : "block";
-        resize(); 
-        return false;
+        doToggleDeveloperMode();
     }
 
 
@@ -1322,52 +1328,12 @@ document.onkeyup = function(e)
     
 };      
 
-
-//------------------------------------------------------------------------
-// ************************** POOL DRAGGING ******************************
-// we track interactions with the circular alpha-transparent PNG mask
-//------------------------------------------------------------------------
-
-var poolDrag = document.getElementById('circlemask'); 
-var poolDragCanvas = document.getElementById( 'Canvas' );
-
-// ************************
-// *** DESKTOP DRAGGING ***
-// ************************
-
-poolDrag.onmousedown = function(e)
-{
-
-    if ( typeof genePool != "undefined" )
-    {
-        genePool.touchDown( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
-    }
-
+function doToggleDeveloperMode (showHint) {
+        if (showHint) flashNotice('Key command \'D\' toggles developer panel.', 1800);
+        let masterPanel = document.getElementById("masterPanel");
+        let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
+        masterPanel.style.display = (masterIsDisplayed !== "none") ? "none" : "block";
+        resize();
+        return false;
 }
 
-//------------------------------------------------------------
-poolDrag.onmousemove = function(e)
-{
-    if ( typeof genePool != "undefined" )
-    {
-        genePool.touchMove( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
-    }
-}
-
-//------------------------------------------------------------
-poolDrag.onmouseup = function(e)
-{
-    if ( typeof genePool != "undefined" )
-    {
-        genePool.touchUp( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
-    }
-}
-
-//------------------------------------------------------------
-poolDrag.onmouseout = function(e)
-{
-    if ( typeof genePool != "undefined" )
-    {
-        genePool.touchOut( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
-    }
-}
