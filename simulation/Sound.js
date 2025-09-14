@@ -17,6 +17,7 @@ const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be 
 const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
+var UTTERANCE_COMPOSING_COUNTER = 0;
 
 const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
@@ -35,8 +36,8 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 3; // enable this to have the background tone gradually drift around the default intervals
-var UNIVERSAL_NOTE_SHIFT = 0;
+const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 0; // enable this to have the background tone gradually drift around the default intervals
+var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
 // MIDI channels are 1-16 (not zero indexed!)
 const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
@@ -104,8 +105,8 @@ var SOUND_OUTPUT_ATMOSPHERE 	= true;
 
 // first is always the DEFAULT unless we are a 'strange' swimbot...
 const MIDI_NOTE_INTERVAL_SETS = [
-   //  { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
-    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
+    { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
+    // { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
 ];
@@ -160,7 +161,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // BELL CURVE
 ];
 */
 
-
+/*
 const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // SHARP BELL CURVE
   [0.80, 0.15, 0.03, 0.01, 0.005, 0.003, 0.001, 0.0005, 0.0005], // from -4
   [0.15, 0.70, 0.10, 0.03, 0.01, 0.005, 0.003, 0.001, 0.001], // from -3
@@ -172,9 +173,9 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // SHARP BELL CURVE
   [0.001, 0.001, 0.003, 0.005, 0.01, 0.03, 0.10, 0.70, 0.15], // from +3
   [0.0005, 0.0005, 0.001, 0.003, 0.005, 0.01, 0.03, 0.15, 0.80]  // from +4
 ];
+*/
 
 
-/*
 const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // REALLY SHARP BELL CURVE
   //         -4      -3      -2      -1       0      +1      +2      +3      +4
   [0.93,   0.06,   0.009, 0.001, 0,     0,     0,     0,     0   ], // from -4
@@ -187,7 +188,7 @@ const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // REALLY SHARP BELL CURVE
   [0,      0,      0,     0.001, 0.001, 0.009, 0.03,  0.90,  0.06 ], // from +3
   [0,      0,      0,     0,     0.001, 0.009, 0.06,  0.93,  0.06 ]  // from +4
 ];
-*/
+
 
 
 //------------------------------------------
@@ -580,9 +581,32 @@ function Sound()
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
 	let idx; // our generic index which we re-use a lot
-	// const rng = aleaPRNG(genes.toString()); // initialize the random number generator with the entire genetic sequence
-	// const rng = aleaPRNG('always the same');
-	const rng = aleaPRNG(genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString()); // initialize genes with only uttering-related genes
+	UTTERANCE_COMPOSING_COUNTER ++;
+
+for (let i = 0; i < _geneNames.length; i++) { 
+    if (_geneNames[i].includes('utter')) console.log("gene " + i + " " + _geneNames[i], genes[i]);
+}
+
+
+/*** DEMO FUDGE TO CREATE TRIBES. SPLICE IN FIXED GENES FOR SWIMBOT INSTANCES 0-9, but with some variation for utter period  ***/
+ if (UTTERANCE_COMPOSING_COUNTER <= 5) {
+	 	console.log ('*** SPAWNING TRIBE A ***');
+    	genes.splice(UTTERANCE_GENES_SLICE_START, 7, 	184, 198, 140, 17, 124, 144, 126);
+ } else if (UTTERANCE_COMPOSING_COUNTER <= 10) {
+	 	console.log ('*** SPAWNING TRIBE B ***');
+    	genes.splice(UTTERANCE_GENES_SLICE_START, 7, 	134, 20, 138, 235, 176, 95	, 40);
+ }
+
+ const rng = aleaPRNG(genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString()); // initialize genes with only uttering-related genes
+
+ if (UTTERANCE_COMPOSING_COUNTER <= 10) {
+	/*** DEMO FUDGE ADD BACK IN A TINY BIT OF VARIATION AFTER THE RNG WAS SEEDED ***/
+	let randomSlicePosition = UTTERANCE_GENES_SLICE_START + Math.floor(Math.random() * 4);
+	let randomSliceValue1 = Math.floor(Math.random()*255);
+	let randomSliceValue2 = Math.floor(Math.random()*255);
+	genes.splice(randomSlicePosition, 2, randomSliceValue1, randomSliceValue2);
+}
+
 	// console.log ("Seeding RNG with genes: " + genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString());
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
@@ -602,11 +626,6 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	*/
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
-
-
-for (let i = 0; i < _geneNames.length; i++) { 
-    if (_geneNames[i].includes('utter')) console.log("gene " + i + " " + _geneNames[i], genes[i]);
-}
 // console.log('Genes: ' + genes.toString());
 
 
