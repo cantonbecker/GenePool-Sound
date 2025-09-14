@@ -1226,8 +1226,11 @@ const _canvasEl = document.getElementById('Canvas');
 
 // Classic dev-mode drag start OR request pointer lock if in kiosk mode
 _canvasEl.onmousedown = function(e) {
-    clearViewMode();
+    // left button only
+    if (e.button !== 0) return;
+    e.preventDefault();
 
+    clearViewMode();
     if (typeof genePool === "undefined") return;
 
     if (DEVELOPER_MODE) {
@@ -1236,9 +1239,13 @@ _canvasEl.onmousedown = function(e) {
         const y = e.pageY - _canvasEl.offsetTop;
         genePool.touchDown(x, y);
     } else {
-        // kiosk mode: ensure we are locked; click counts as user gesture
-        if (!_pointerLocked) enterPointerLock();
-        // (when lock completes, pointerlockchange will synthesize touchDown)
+        // kiosk mode: click should spawn a random swimbot — but only if we’re already locked
+        if (!_pointerLocked) {
+            // use this click to (re)enter pointer lock; don't spawn yet
+            enterPointerLock();
+            return;
+        }
+        genePool.makeNewRandomSwimbot();
     }
 
     notifyGeneTweakPanelMouseDown();
@@ -1337,12 +1344,6 @@ document.onkeydown = function(e)
     { 
         doToggleDeveloperMode();
     }
-
-    if ( e.keyCode === 83 ) // S key to spawn a random swimbot
-    { 
-        genePool.makeNewRandomSwimbot();
-    }
-
 
 
     /*
