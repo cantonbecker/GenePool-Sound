@@ -24,12 +24,16 @@ const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";
 const ACTIVE_BORDER_COLOR               = '#ffffff';   
 
 const UI_UPDATE_PERIOD = 500;
-var DEVELOPER_MODE = true;
+var DEVELOPER_MODE = true; // reflects how we launch into developer mode with the panel showing
+
+const PRESET_COOLDOWN_MS = 2000; // keep visitors from mashing on preset loading buttons too fast
+let _lastPresetRequestTS = 0;
 
 let _currentInfoPage            = FIRST_INFO_PAGE;
 let _graph                      = new Graph(); 
 let _tweakGenesCategory         = 0;
 let _runningFast                = false;
+
 
 
 // ---- Pointer Lock state/helpers -------------------------------------------
@@ -809,6 +813,12 @@ function requestToLoadPoolFromFile()
 //--------------------------------------
 function requestToLoadPoolFromPreset()
 {
+    const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    if (now - _lastPresetRequestTS < PRESET_COOLDOWN_MS) {
+        return false; // blocked by cooldown
+    }
+    _lastPresetRequestTS = now;
+
     console.log( "requestToLoadPool " + _chosenPoolToLoad );
 
     //----------------------------------------
@@ -816,42 +826,20 @@ function requestToLoadPoolFromPreset()
     //----------------------------------------
     let poolText = "(ERROR)";
 
-         if ( _chosenPoolToLoad === SimulationStartMode.RANDOM         ) { poolText = "'random'";        }     
-    else if ( _chosenPoolToLoad === SimulationStartMode.NEIGHBORHOOD   ) { poolText = "'neighborhood'";  }
-    else if ( _chosenPoolToLoad === SimulationStartMode.FROGGIES       ) { poolText = "'froggies'";      }
-    else if ( _chosenPoolToLoad === SimulationStartMode.TANGO          ) { poolText = "'tango'";         }
-    else if ( _chosenPoolToLoad === SimulationStartMode.RACE           ) { poolText = "'race'";          }
-    else if ( _chosenPoolToLoad === SimulationStartMode.BIG_BANG       ) { poolText = "'big bang'";      }
-    else if ( _chosenPoolToLoad === SimulationStartMode.BAD_PARENTS    ) { poolText = "'bad parents'";   }
-    else if ( _chosenPoolToLoad === SimulationStartMode.EMPTY          ) { poolText = "'empty'";         }
-    //else if ( _chosenPoolToLoad === SimulationStartMode.FILE           ) { poolText = "from file";       }
-    
-    //---------------------------------------------------------------------------------------
-    // this overrides the UI asking the user to save the current pool first...
-    //---------------------------------------------------------------------------------------
+         if ( _chosenPoolToLoad === SimulationStartMode.RANDOM       ) { poolText = "'random'";       }
+    else if ( _chosenPoolToLoad === SimulationStartMode.NEIGHBORHOOD ) { poolText = "'neighborhood'"; }
+    else if ( _chosenPoolToLoad === SimulationStartMode.FROGGIES     ) { poolText = "'froggies'";     }
+    else if ( _chosenPoolToLoad === SimulationStartMode.TANGO        ) { poolText = "'tango'";        }
+    else if ( _chosenPoolToLoad === SimulationStartMode.RACE         ) { poolText = "'race'";         }
+    else if ( _chosenPoolToLoad === SimulationStartMode.BIG_BANG     ) { poolText = "'big bang'";     }
+    else if ( _chosenPoolToLoad === SimulationStartMode.BAD_PARENTS  ) { poolText = "'bad parents'";  }
+    else if ( _chosenPoolToLoad === SimulationStartMode.EMPTY        ) { poolText = "'empty'";        }
+
+    // Immediately switch (no save prompt)
     switchToChosenPresetPool();
-    
-
-    /*
-    //-----------------------------------------------
-    // make the appropriate UI elements visible...
-    //-----------------------------------------------
-    document.getElementById( 'popUpPanel'               ).style.visibility = "visible";   
-    document.getElementById( 'cancelPopUpPanelButton'   ).style.visibility = "visible";
-    document.getElementById( 'savePopUpPanelButton'     ).style.visibility = "visible";   
-    document.getElementById( 'noSavePopUpPanelButton'   ).style.visibility = "visible";   
-
-    //-----------------------------------------------
-    // ask the question...
-    //-----------------------------------------------
-    document.getElementById( 'popUpPanel' ).innerHTML 
-    = "<br>" 
-    + "Do you want to save the current pool" 
-    + "<br>" 
-    + "before loading " + poolText + "?";
-    */
-    
+    return true;
 }
+
 
 
 
@@ -1299,7 +1287,7 @@ _canvasEl.onmouseout = function(e) {
 
 
 //--------------------------------
-// key down
+// key down / button presses
 //--------------------------------
 document.onkeydown = function(e) 
 {
@@ -1325,7 +1313,7 @@ document.onkeydown = function(e)
     if ( e.keyCode === 187 ) { cameraNavAction = CameraNavigationAction.IN;      } // plus key
     if ( e.keyCode === 189 ) { cameraNavAction = CameraNavigationAction.OUT;     } // minus key
 
-    if ( e.keyCode === 48 ) { genePool.panCameraToPresetSwimbot(0); }
+    if ( e.keyCode === 48 ) { genePool.panCameraToPresetSwimbot(0); } // numbers 0 to 9 pan to swimbots nos. 0-9
     if ( e.keyCode === 49 ) { genePool.panCameraToPresetSwimbot(1); }
     if ( e.keyCode === 50 ) { genePool.panCameraToPresetSwimbot(2); }
     if ( e.keyCode === 51 ) { genePool.panCameraToPresetSwimbot(3); }
@@ -1350,12 +1338,15 @@ document.onkeydown = function(e)
         doToggleDeveloperMode();
     }
 
+    if ( e.keyCode === 83 ) // S key to spawn a random swimbot
+    { 
+        genePool.makeNewRandomSwimbot();
+    }
 
-    //-----------------------------
-    // other key press events
-    //-----------------------------
+
+
     /*
-    if ( e.keyCode === 75 ) // K key
+    if ( e.keyCode === 75 ) // K key to kill a swimbot
     { 
         let selectedSwimbot = genePool.getSelectedSwimbotID();
         if ( selectedSwimbot != -1 )
@@ -1363,7 +1354,7 @@ document.onkeydown = function(e)
             genePool.killSwimbot( selectedSwimbot ); 
         } 
     }
-    if ( e.keyCode === 67 ) // C key
+    if ( e.keyCode === 67 ) // C key to clone a swimbot
     { 
         let selectedSwimbot = genePool.getSelectedSwimbotID();
         if ( selectedSwimbot != -1 )
@@ -1372,6 +1363,49 @@ document.onkeydown = function(e)
         } 
     }
     */
+    
+    
+    //---------------------------
+    // LAUNCH SIMULATIONS
+    //---------------------------
+
+
+    // ---- preset loaders ----
+    // Q -> EMPTY
+    if (e.keyCode === 81) { // Q
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.EMPTY);
+        requestToLoadPoolFromPreset();
+        flashNotice("Empty gene pool! Use big green button to give birth to swimbots.", 2500);
+    }
+    // W -> FROGGIES
+    if (e.keyCode === 87) { // W
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.FROGGIES);
+        requestToLoadPoolFromPreset();
+        flashNotice("FROGGIES!", 1500);
+    }
+    // E -> NEIGHBORHOOD(S)
+    if (e.keyCode === 69) { // E
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.NEIGHBORHOOD);
+        requestToLoadPoolFromPreset();
+        flashNotice("X/Y map of range of genetic phenotypes", 1500);
+    }
+    // R -> RANDOM
+    if (e.keyCode === 82) { // R
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.RANDOM);
+        requestToLoadPoolFromPreset();
+        flashNotice(INITIAL_NUM_SWIMBOTS + " totally random swimbots", 1500);
+    }
+    // T -> GENETIC BARRIER
+    if (e.keyCode === 84) { // T
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.BARRIER);
+        requestToLoadPoolFromPreset();
+        flashNotice("Genetic barrier simulation", 1500);
+    }
     
                             
     //console.log( "onkeydown " + e.keyCode );
@@ -1385,18 +1419,7 @@ document.onkeyup = function(e)
     genePool.stopCameraNavigation();
     genePool.stopCameraNavigation();
     genePool.stopCameraNavigation();
-    genePool.stopCameraNavigation();
-    
-/*
-#leftNav
-{
-    left:   25; 
-    top:    30;
-    background-image: url( "../images/left.png" );
-}
-*/
-
-    
+    genePool.stopCameraNavigation();    
 };      
 
 /* Hide / show developer panel and implement circular mask and engage/disengage pointerlock mode  */
