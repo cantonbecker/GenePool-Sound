@@ -1187,7 +1187,7 @@ function showSwimbotGenesFocusUtterances(s)
     if (s != -1) {        
         const genes = genePool.getSwimbotGenes(s);
         const start = UTTERANCE_GENES_SLICE_START, end = UTTERANCE_GENES_SLICE_END; // inclusive
-        const utterance = genes.slice(start, end + 1);
+        const utterance = genes.slice(start, end);
 
         const json = `[${genes.map((g,i)=> (i>=start && i<=end) ? `<b>${g}</b>` : g).join(", ")}]`; // highlight utterance genes
 
