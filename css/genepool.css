@@ -15,6 +15,7 @@ body
 {
     background-color: #889088;
     /*background-color: #dddddb;*/
+    margin: 0;
 }
 
 /* -------------------------------------------- */
@@ -170,12 +171,20 @@ body
     position: absolute; 
 }
 
+#closeMasterButton { float: right; width: 8px; margin-right: 10px; }
+#closeMasterButton a { font-size: 12px; text-decoration: none; padding: 3px 6px; background-color: #600; color: #FFF; font-family: sans-serif; font-weight: bold; }
+#closeMasterButton a:hover { color: #F00;}
 #masterPanel
 {
     position:           absolute; 
     right:              10px;
-    width:              370px; 
-    height:             700px;
+    width:              375px; 
+    top:                10px;
+    height:             95%;
+    background-color:   #eee;
+    border: 2px solid #114411;
+    border-radius: 8px;
+    padding: 10px;
 
     /* for debugging */
     /*background-color:   #ddffff;*/
@@ -183,25 +192,10 @@ body
 
 #mainTitle
 {
-    position: absolute; 
-    width: 370; 
-    height: 30;
     color: #112211; 
     font-family: "Arial black";
-
-    /* for debugging */
-    /*background-color: #ffffff;*/
-}
-
-#swimbots_url
-{
-    position: absolute; 
-    left:   100px; 
-    top:    5px;
-    width:  100px; 
-    height: 20px;    
-    font-size:  12px;   
-    font-family: "Arial black";
+    margin-bottom: 4px;
+    font-size: 14px;
 
     /* for debugging */
     /*background-color: #ffffff;*/
@@ -215,9 +209,6 @@ body
 
 #viewPanel
 {
-    position: absolute; 
-    left: 0; 
-    top: 30; 
     width: 365;
     height: 155;
     background-color: #9daeae;
@@ -433,8 +424,8 @@ body
 #menuButtonPanel
 {
     position: absolute; 
-    left: 0; 
-    top: 200;
+    left: 10px; 
+    top: 200px;
     height: 30px;
     width: 365px;
 
@@ -470,7 +461,7 @@ body
 /* -------------------------------------------- */
 #mainPanel
 {
-    left:   0px; 
+    left:   10px; 
     top:    229px; 
     width:  365px; 
     height: 450px;
@@ -1363,7 +1354,6 @@ overflow:auto; /* added for the family tree display
     position: absolute; 
     left: 0; 
     top: 460; 
-    width: 150; 
     height: 40; 
 
     /* for debugging */

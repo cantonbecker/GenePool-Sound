@@ -13,7 +13,7 @@
 <html>
 	<head>
 		<title>
-			Gene Pool
+			Swimbots: Darwin's Chorus (2025)
 		</title>		
         <link rel="stylesheet" type="text/css" href="css/genepool.css">                        
         <meta charset  = "utf-8"/>
@@ -31,6 +31,29 @@
 		     
 		onresize = "resize();"		
 	>
+
+        <style>
+        /* size of the circular hole / ring */
+        :root { --mask-diameter: 738px; --mask-radius: calc(var(--mask-diameter) / 2); }
+        
+        /* full-viewport dark overlay with a circular hole */
+        #viewHole {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        pointer-events: none;              /* don't block clicks on the canvas */
+        background: #283343;
+        );   /* outside darkness */
+        /* center is transparent, outside is opaque (Safari + others) */
+        -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--mask-radius), #000 calc(var(--mask-radius) + 1px));
+        mask-image: radial-gradient(circle at 50% 50%, transparent var(--mask-radius), #000 calc(var(--mask-radius) + 1px));
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        }
+        </style>
+        
+        <!-- full-viewport overlay with the punched-out circle -->
+        <div id="viewHole" aria-hidden="true"></div>
 	
 		<!-- ------------------------------------------------------------------ -->
 		<!-- the canvas width and height are determined elsewhere...            -->
@@ -41,7 +64,6 @@
 		<!-- create the html canvas and some other global variables             -->
 		<!-- ------------------------------------------------------------------ -->
 		<script>
-		
             var canvasID = document.getElementById( 'Canvas' );
             var canvas = canvasID.getContext( '2d' );
 		</script>        
@@ -80,17 +102,15 @@
 		<script type = "text/javascript" src = "js/ui.js"       ></script>
         
 		<!-- ------------------------------------------------------------------ -->
-		<!-- all the divs and stuff are below                                   -->
+		<!-- floating control panel for devs                                    -->
 		<!-- ------------------------------------------------------------------ -->
         <div id = "masterPanel">
+            <div id="closeMasterButton"><a href="" onClick="document.getElementById('masterPanel').style.display='none'; flashNotice('Hiding developer panel, hit \'D\' to reveal.', 1000); resize(); return false;">X</a></div>
             <div id = "mainTitle">
-                Gene Pool
+                Swimbots: Darwin's Chorus
             </div> 
 
 
-            <div id = "swimbots_url">
-                <a href = 'http://www.swimbots.com' target = "_blank" style = 'color: #224400'>swimbots.com</a>
-            </div> 
 
             <!--
             <button id = "accountButton" onClick = "createAccount();"   >create account </button>                
@@ -718,13 +738,7 @@
                     	
                 </div> 	<!-- info Panel -->            
                 <div id = "contactPanel" >
-                    &copy 2021 Jeffrey Ventrella 
-                    <br>
-                    <a href = 'http://www.ventrella.com' target = "_blank" style = 'color: #004444'>Ventrella.com</a>
-                    <!--
-                    <br>                    
-                    Jeffrey@Ventrella.com
-                    -->
+                    &copy; 2025 Jeffrey Ventrella  <a href = 'http://www.ventrella.com' target = "_blank" style = 'color: #004444'>Ventrella.com</a>
                 </div> <!-- contact Panel -->    
                                 
             </div> <!--main Panel-->

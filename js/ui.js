@@ -1071,52 +1071,92 @@ function notifyGeneTweakPanelMouseDown()
 }
 
 
+// show a brief, fading modal notice (message) for (messageMS) duration -- without blocking interaction
+let _modalNoticeTimer = null;
+function flashNotice(message, messageMS = 1500) {
+    const id = 'devpanelNotice';
+    let container = document.getElementById(id);
 
-//----------------------
-// under construction
-//----------------------
-function resize()
-{ 
-    let rightMargin = 400;
+    if (!container) {
+        container = document.createElement('div');
+        container.id = id;
+        Object.assign(container.style, {
+            position: 'fixed',
+            inset: '0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: '3000',
+            background: 'rgba(0,0,0,0.35)',   // dim backdrop
+            pointerEvents: 'none',            // don’t block clicks
+            opacity: '0',
+            transition: 'opacity 500ms ease'
+        });
 
-    // I can't get this to work...
-    /*
-    let masterPanel = document.getElementById( "masterPanel" );
-    let masterPanelStyle = window.getComputedStyle( masterPanel, null );
-    console.log( masterPanelStyle.width.toString() )      
-    let rightMargin = masterPanelStyle.width;
-    */
+        const msg = document.createElement('div');
+        msg.textContent = message;;
+        Object.assign(msg.style, {
+            fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
+            fontSize: '18px',
+            lineHeight: '1.4',
+            color: '#fff',
+            background: 'rgba(20,24,28,0.92)',
+            padding: '14px 18px',
+            borderRadius: '8px',
+            boxShadow: '0 6px 24px rgba(0,0,0,0.35)',
+            border: '1px solid rgba(255,255,255,0.15)',
+            maxWidth: '86vw',
+            textAlign: 'center'
+        });
 
-    let width  = window.innerWidth  - rightMargin;
-    let height = window.innerHeight;
-    
-//if ( width  < rightMargin ) { width = rightMargin; }
-    
-    canvasID.width  = width;
-    canvasID.height = height - 15;
-    
-///temp fix until I fix the simulation to take non-square proportions    
-//canvasID.height = canvasID.width;    // make it square...
-
-//canvasID.width = canvasID.height;
-    
-    let genePoolIsDefined = typeof genePool != 'undefined';
-    if ( genePoolIsDefined )
-    {    
-        genePool.setCanvasDimensions( canvasID.width, canvasID.height );  
+        container.appendChild(msg);
+        document.body.appendChild(container);
+        // force layout so the transition will run
+        void container.offsetWidth;
     }
 
-    // this successfully places an image in the background, and I can use clearRect 
-    // instead of fillrect in pool.render, but I don't yet know how to make the image scroll.
-    
-    /*
-    canvasID.style.backgroundImage = "url( 'images/background.png' )";  
-    canvasID.style.backgroundSize = canvasID.width + "px " + canvasID.height + "px";        
-    canvasID.style.backgroundRepeat = "no-repeat";    
-    */
-    
+    // show
+    container.style.opacity = '1';
+
+    // reset any prior timers
+    if (_modalNoticeTimer) clearTimeout(_modalNoticeTimer);
+
+    // hold briefly, then fade and remove
+    _modalNoticeTimer = setTimeout(() => {
+        container.style.opacity = '0';
+        const cleanup = () => {
+            container.removeEventListener('transitionend', cleanup);
+            if (container.parentNode) container.parentNode.removeChild(container);
+        };
+        container.addEventListener('transitionend', cleanup);
+    }, messageMS); // visible duration (ms)
 }
 
+function resize()
+{ 
+    const HOLE_MARGIN = 20; // total pixels to keep from top+bottom (≈2px each)
+
+    let masterPanel = document.getElementById("masterPanel");
+    let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
+    let rightMargin = (masterIsDisplayed !== "none") ? 420 : 0;
+    let width  = window.innerWidth  - rightMargin;
+    let height = window.innerHeight;
+
+    // hide circle mask when master panel is shown; show otherwise
+    let viewHole = document.getElementById('viewHole');
+    viewHole.style.display = (masterIsDisplayed !== "none") ? "none" : "block";
+
+    // make the hole nearly full height; updates CSS var used by the mask
+    let holeDiameter = Math.max(0, height - HOLE_MARGIN);
+    document.documentElement.style.setProperty('--mask-diameter', holeDiameter + 'px');
+
+    canvasID.width  = width;
+    canvasID.height = height;
+
+    if (typeof genePool != 'undefined') {    
+        genePool.setCanvasDimensions(canvasID.width, canvasID.height);  
+    }
+}
 
 //------------------------------------------------------------
 document.getElementById( 'Canvas' ).onmousedown = function(e) 
@@ -1224,8 +1264,18 @@ document.onkeydown = function(e)
         }
     }
     
+    if ( e.keyCode === 68 ) // D key for toggle dev/debug
+    { 
+        let masterPanel = document.getElementById("masterPanel");
+        let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
+        masterPanel.style.display = (masterIsDisplayed !== "none") ? "none" : "block";
+        resize(); 
+        return false;
+    }
+
+
     //-----------------------------
-    // other key pres events
+    // other key press events
     //-----------------------------
     /*
     if ( e.keyCode === 75 ) // K key
@@ -1271,3 +1321,53 @@ document.onkeyup = function(e)
 
     
 };      
+
+
+//------------------------------------------------------------------------
+// ************************** POOL DRAGGING ******************************
+// we track interactions with the circular alpha-transparent PNG mask
+//------------------------------------------------------------------------
+
+var poolDrag = document.getElementById('circlemask'); 
+var poolDragCanvas = document.getElementById( 'Canvas' );
+
+// ************************
+// *** DESKTOP DRAGGING ***
+// ************************
+
+poolDrag.onmousedown = function(e)
+{
+
+    if ( typeof genePool != "undefined" )
+    {
+        genePool.touchDown( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
+    }
+
+}
+
+//------------------------------------------------------------
+poolDrag.onmousemove = function(e)
+{
+    if ( typeof genePool != "undefined" )
+    {
+        genePool.touchMove( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
+    }
+}
+
+//------------------------------------------------------------
+poolDrag.onmouseup = function(e)
+{
+    if ( typeof genePool != "undefined" )
+    {
+        genePool.touchUp( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
+    }
+}
+
+//------------------------------------------------------------
+poolDrag.onmouseout = function(e)
+{
+    if ( typeof genePool != "undefined" )
+    {
+        genePool.touchOut( e.pageX - poolDragCanvas.offsetLeft, e.pageY - poolDragCanvas.offsetTop );
+    }
+}
