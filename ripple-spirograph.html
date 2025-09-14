@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>WebGL Ripple + Spirograph</title>
+  <style>
+    html, body { margin: 0; height: 100%; }
+    #glcanvas { display: block; width: 100vw; height: 100vh; }
+    #sourceCanvas { display: none; }
+  </style>
+</head>
+<body>
+<canvas id="sourceCanvas"></canvas>
+<canvas id="glcanvas"></canvas>
+<script>
+  // shaders adapted from https://github.com/DCtheTall/webgl-ripple
+  // --- Vertex Shader ---
+  const vertexShaderSource = `
+    attribute vec2 a_position;
+    varying vec2 vUv;
+
+    void main() {
+        vUv = (a_position + 1.0) * 0.5;
+        gl_Position = vec4(a_position, 0.0, 1.0);
+    }
+  `;
+
+  // --- Fragment Shader ---
+  const fragmentShaderSource = `
+    #ifdef GL_ES
+    precision highp float;
+    #endif
+
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform sampler2D u_image;
+    varying vec2 vUv;
+
+    void main() {
+        vec2 uv = vUv;
+        vec2 center = vec2(0.5, 0.5);
+        float d = distance(uv, center);
+        vec2 rippleDir = normalize(uv - center);
+        float ripple = 0.01 * sin(50.0 * d - u_time * 2.0);
+        uv += rippleDir * ripple;
+        vec3 color = texture2D(u_image, uv).rgb;
+        gl_FragColor = vec4(color, 1.0);
+    }
+  `;
+
+  function createShader(gl, type, source) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+      alert(gl.getShaderInfoLog(shader));
+      gl.deleteShader(shader);
+      return null;
+    }
+    return shader;
+  }
+
+  function createProgram(gl, vsSource, fsSource) {
+    const vShader = createShader(gl, gl.VERTEX_SHADER, vsSource);
+    const fShader = createShader(gl, gl.FRAGMENT_SHADER, fsSource);
+    const program = gl.createProgram();
+    gl.attachShader(program, vShader);
+    gl.attachShader(program, fShader);
+    gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+      alert(gl.getProgramInfoLog(program));
+      return null;
+    }
+    return program;
+  }
+
+  function resizeCanvasToDisplaySize(canvas, width, height) {
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+  }
+
+  // --- Spirograph Drawing (sourceCanvas) ---
+  function drawSpirograph(ctx, w, h, time) {
+      ctx.save();
+  
+      // 1. Set the background. We still fill with a semi-transparent color
+      // to create the fading trail effect.
+      ctx.fillStyle = 'rgba(17, 34, 153, 0.1)'; // This is #112299 with 10% opacity
+      ctx.fillRect(0, 0, w, h);
+      
+      ctx.globalAlpha = 1.0; // Reset alpha for drawing the lines
+  
+      // Center points
+      const cx = w / 2;
+      const cy = h / 2;
+      
+      // Number of points to draw for the shape
+      const nPoints = 1500;
+      let t, x, y;
+  
+      // --- Spirograph Parameters ---
+      // The outer radius now grows continuously with time. The modulo operator
+      // has been removed to prevent the animation from resetting.
+      const bigR = time * 15; 
+      
+      // The inner radius is related to the outer one, with some oscillation.
+      const smallr = bigR * 0.65 + 20 * Math.cos(time * 0.05);
+  
+      // The ratio determines the number of "petals" or lobes.
+      const ratio = bigR / smallr;
+  
+      // --- Drawing Styles ---
+      // The stroke color uses HSL to cycle through shades of light blue.
+      ctx.strokeStyle = `hsl(${200 + 20 * Math.sin(time * 0.1)}, 100%, 75%)`;
+      ctx.lineWidth = 1.5;
+  
+      // --- Path Calculation ---
+      ctx.beginPath();
+      for (let i = 0; i <= nPoints; i++) {
+          // The angle 't' is calculated for each point.
+          t = (i * 2 * Math.PI / nPoints) * 10 + time * 0.2;
+  
+          // Standard hypotrochoid (spirograph) equations
+          x = cx + (bigR - smallr) * Math.cos(t) + smallr * Math.cos((ratio - 1) * t);
+          y = cy + (bigR - smallr) * Math.sin(t) - smallr * Math.sin((ratio - 1) * t);
+  
+          if (i === 0) {
+              ctx.moveTo(x, y);
+          } else {
+              ctx.lineTo(x, y);
+          }
+      }
+      ctx.stroke(); // Draw the calculated path
+  
+      ctx.restore();
+  }
+
+  // --- Main Setup ---
+  function main() {
+    const sourceCanvas = document.getElementById('sourceCanvas');
+    const glCanvas = document.getElementById('glcanvas');
+    const gl = glCanvas.getContext('webgl');
+    if (!gl) { alert('WebGL not supported'); return; }
+
+    // Compile program
+    const program = createProgram(gl, vertexShaderSource, fragmentShaderSource);
+    gl.useProgram(program);
+
+    // Fullscreen quad
+    const positionBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    const vertices = new Float32Array([
+      -1, -1,  1, -1,  -1, 1,
+      -1,  1,  1, -1,   1, 1
+    ]);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+    const positionLoc = gl.getAttribLocation(program, 'a_position');
+    gl.enableVertexAttribArray(positionLoc);
+    gl.vertexAttribPointer(positionLoc, 2, gl.FLOAT, false, 0, 0);
+
+    // Uniform locations
+    const timeLoc = gl.getUniformLocation(program, 'u_time');
+    const resolutionLoc = gl.getUniformLocation(program, 'u_resolution');
+    const imageLoc = gl.getUniformLocation(program, 'u_image');
+
+    // Create a texture for the dynamic canvas
+    const dynamicTexture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, dynamicTexture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+
+    function render(now) {
+      now = now || performance.now();
+      const width  = window.innerWidth;
+      const height = window.innerHeight;
+      resizeCanvasToDisplaySize(glCanvas, width, height);
+      resizeCanvasToDisplaySize(sourceCanvas, width, height);
+
+      // Draw into the source canvas
+      const ctx = sourceCanvas.getContext('2d');
+      drawSpirograph(ctx, width, height, now * 0.001);
+
+      // Upload sourceCanvas as texture
+      gl.bindTexture(gl.TEXTURE_2D, dynamicTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, sourceCanvas);
+
+      gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.useProgram(program);
+
+      // Set uniforms
+      gl.uniform1f(timeLoc, now * 0.001);
+      gl.uniform2f(resolutionLoc, glCanvas.width, glCanvas.height);
+
+      // Set texture unit 0
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, dynamicTexture);
+      gl.uniform1i(imageLoc, 0);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+      requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+  }
+
+  window.addEventListener('resize', () => {
+    const glCanvas = document.getElementById('glcanvas');
+    const sourceCanvas = document.getElementById('sourceCanvas');
+    if (glCanvas) {
+      glCanvas.width = window.innerWidth;
+      glCanvas.height = window.innerHeight;
+    }
+    if (sourceCanvas) {
+      sourceCanvas.width = window.innerWidth;
+      sourceCanvas.height = window.innerHeight;
+    }
+  });
+
+  main();
+</script>
+</body>
+</html>
