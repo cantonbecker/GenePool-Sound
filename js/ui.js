@@ -24,12 +24,71 @@ const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";
 const ACTIVE_BORDER_COLOR               = '#ffffff';   
 
 const UI_UPDATE_PERIOD = 500;
-
+var DEVELOPER_MODE = true;
 
 let _currentInfoPage            = FIRST_INFO_PAGE;
 let _graph                      = new Graph(); 
 let _tweakGenesCategory         = 0;
 let _runningFast                = false;
+
+
+// ---- Pointer Lock state/helpers -------------------------------------------
+let _pointerLocked = false;
+let _virtualX = 0, _virtualY = 0; // virtual cursor for infinite motion
+let _draggingWithLock = false;
+const LOCK_GAIN = 1.0;            // sensitivity; raise/lower to taste
+
+function enterPointerLock() {
+    const canvas = document.getElementById('Canvas');
+    if (!canvas || !canvas.requestPointerLock) return;
+
+    // Lock first (while we still have the key/click user gesture)
+    try {
+        canvas.focus();
+        canvas.requestPointerLock();
+    } catch (_) {}
+
+    // Then fullscreen the whole document
+    if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+    }
+}
+
+function exitPointerLock() {
+    try {
+        if (document.pointerLockElement) document.exitPointerLock();
+        if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    } catch (_) {}
+}
+
+// If fullscreen succeeded but lock was dropped, try to (re)acquire it.
+document.addEventListener('fullscreenchange', () => {
+    const canvas = document.getElementById('Canvas');
+    if (document.fullscreenElement && document.pointerLockElement !== canvas) {
+        try { canvas.requestPointerLock(); } catch (_) {}
+    }
+});
+
+// Keep state in sync with browser
+document.addEventListener('pointerlockchange', () => {
+    const canvas = document.getElementById('Canvas');
+    _pointerLocked = (document.pointerLockElement === canvas);
+
+    if (_pointerLocked) {
+        _virtualX = canvas.width * 0.5;
+        _virtualY = canvas.height * 0.5;
+        _draggingWithLock = true;
+        if (typeof genePool !== "undefined") {
+            genePool.touchDown(_virtualX, _virtualY);
+        }
+    } else {
+        if (_draggingWithLock && typeof genePool !== "undefined") {
+            genePool.touchUp(_virtualX, _virtualY);
+        }
+        _draggingWithLock = false;
+    }
+});
+
 
 
 //----------------------------
@@ -1165,61 +1224,79 @@ function resize()
 
 
 /********************
-/* CANVAS DRAGGING */
+/* CANVAS DRAGGING
+/* when DEVELOPER_MODE = true, then rely on typical mouse behavior: click to start dragging, then drag, let go to start dragging
+/* when DEVELOPER_MODE = false, then we can assume we are in pointerlock mode (see doToggleDeveloperMode) and instead mouse movement
+/* always causes camera movement, regardless of mousedown status. in this case, there's no top/bottom/left/right edges of the screen
+/* that stop mouse movement. you can infinitely mouse up to keep moving the canvas up.
+/* also, when we are in non-developer (pointerlock) mode, we invert movement. mouse up=down, left=right, etc.
+// pointerlock example code: https://mdn.github.io/dom-examples/pointer-lock/app.js
 /*******************/
 
 //------------------------------------------------------------
-document.getElementById( 'Canvas' ).onmousedown = function(e) 
-{
+const _canvasEl = document.getElementById('Canvas');
+
+// Classic dev-mode drag start OR request pointer lock if in kiosk mode
+_canvasEl.onmousedown = function(e) {
     clearViewMode();
 
-    if ( typeof genePool != "undefined" ) 
-    {    
-        genePool.touchDown( e.pageX - document.getElementById( 'Canvas' ).offsetLeft, e.pageY - document.getElementById( 'Canvas' ).offsetTop );  
+    if (typeof genePool === "undefined") return;
+
+    if (DEVELOPER_MODE) {
+        // classic click-to-drag
+        const x = e.pageX - _canvasEl.offsetLeft;
+        const y = e.pageY - _canvasEl.offsetTop;
+        genePool.touchDown(x, y);
+    } else {
+        // kiosk mode: ensure we are locked; click counts as user gesture
+        if (!_pointerLocked) enterPointerLock();
+        // (when lock completes, pointerlockchange will synthesize touchDown)
     }
-        
+
     notifyGeneTweakPanelMouseDown();
-}
+};
 
-//------------------------------------------------------------
-document.getElementById( 'Canvas' ).onmousemove = function(e) 
-{
-    if ( typeof genePool != "undefined" ) 
-    {    
-        genePool.touchMove( e.pageX - document.getElementById( 'Canvas' ).offsetLeft, e.pageY - document.getElementById( 'Canvas' ).offsetTop );
+// Continuous move: in dev mode use absolute coords; in kiosk use deltas
+document.addEventListener('mousemove', function(e) {
+    if (typeof genePool === "undefined") return;
+
+    if (DEVELOPER_MODE) {
+        // only move while mouse is down (your engine internally tracks down state)
+        const x = e.pageX - _canvasEl.offsetLeft;
+        const y = e.pageY - _canvasEl.offsetTop;
+        genePool.touchMove(x, y);
+    } else if (_pointerLocked && _draggingWithLock) {
+        // pointer-lock mode: invert axes, accumulate virtual cursor, no edges
+        const dx = -(e.movementX || 0) * LOCK_GAIN; // invert left/right
+        const dy = -(e.movementY || 0) * LOCK_GAIN; // invert up/down
+        _virtualX += dx;
+        _virtualY += dy;
+        genePool.touchMove(_virtualX, _virtualY);
     }
-}
+});
 
-//------------------------------------------------------------
-document.getElementById( 'Canvas' ).onmouseup = function(e) 
-{
-    if ( typeof genePool != "undefined" ) 
-    {    
-        genePool.touchUp( e.pageX - document.getElementById( 'Canvas' ).offsetLeft, e.pageY - document.getElementById( 'Canvas' ).offsetTop );
-    } 			
-}
+// Dev-mode drag end; in kiosk mode, ignore (lock session is continuous)
+_canvasEl.onmouseup = function(e) {
+    if (typeof genePool === "undefined") return;
+    if (DEVELOPER_MODE) {
+        const x = e.pageX - _canvasEl.offsetLeft;
+        const y = e.pageY - _canvasEl.offsetTop;
+        genePool.touchUp(x, y);
+    }
+};
 
-//------------------------------------------------------------
-document.getElementById( 'Canvas' ).onmouseout = function(e) 
-{
-    if ( typeof genePool != "undefined" ) 
-    {    
-        genePool.touchOut( e.pageX - document.getElementById( 'Canvas' ).offsetLeft, e.pageY - document.getElementById( 'Canvas' ).offsetTop );
-    } 			
-}
+_canvasEl.onmouseout = function(e) {
+    if (typeof genePool === "undefined") return;
+    if (DEVELOPER_MODE) {
+        const x = e.pageX - _canvasEl.offsetLeft;
+        const y = e.pageY - _canvasEl.offsetTop;
+        genePool.touchOut(x, y);
+    }
+};
 
 
-/*
-//-------------------------------------------------------------------
-// This is a rather hacky way of getting a two-finger translational
-// gesture (a 2D vector) to be used for scrolling and stuff
-//-------------------------------------------------------------------
-window.onwheel = function(e) 
-{
-    genePool.touchTwoFingerMove(e); 
-    //e.preventDefault();
-}
-*/
+
+
 
 //--------------------------------
 // key down
@@ -1235,13 +1312,7 @@ document.onkeydown = function(e)
     
     if ( e.keyCode ===  37 ) // left arrow key
     { 
-        cameraNavAction = CameraNavigationAction.LEFT;    
-
-//unfinished work - I'm trying to make it so that when a camera nav button is pressed on the keyboard, 
-// the equivalent button highlights on the screen.
-//document.getElementById( 'leftNav' ).style = 'background-image: url( "../../images/left-pressed.png" );'   
-//document.getElementById( 'leftNav'    ).style = "border-bottom-width: 3; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"
-             
+        cameraNavAction = CameraNavigationAction.LEFT;                 
     } 
     
     if ( e.keyCode ===  39 ) { cameraNavAction = CameraNavigationAction.RIGHT;   } // right arrow key
@@ -1328,12 +1399,23 @@ document.onkeyup = function(e)
     
 };      
 
+/* Hide / show developer panel and implement circular mask and engage/disengage pointerlock mode  */
 function doToggleDeveloperMode (showHint) {
-        if (showHint) flashNotice('Key command \'D\' toggles developer panel.', 1800);
-        let masterPanel = document.getElementById("masterPanel");
-        let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
-        masterPanel.style.display = (masterIsDisplayed !== "none") ? "none" : "block";
-        resize();
-        return false;
-}
+    const masterPanel = document.getElementById("masterPanel");
+    const masterDisplayStatus = window.getComputedStyle(masterPanel).display;
 
+    if (masterDisplayStatus === 'none') {
+        // SHOW developer UI -> exit pointer lock
+        masterPanel.style.display = 'block';
+        DEVELOPER_MODE = true;
+        exitPointerLock(); // <-- disengage
+    } else {
+        // HIDE developer UI -> enter pointer lock
+        if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
+        masterPanel.style.display = 'none';
+        DEVELOPER_MODE = false;
+        enterPointerLock(); // <-- engage
+    }
+    resize();
+    return false;
+}
