@@ -82,6 +82,11 @@ var MIDI_CHANNELS_FOR_UTTERING = [
 	{	output: 'IAC Driver Bus 3', channel: 16, 	lastUsed: 0 }
 ];
 
+// when we are approaching our MAX_SWIMBOTS, should we limit our MIDI outputs to throttle CPU?
+// set this to 0 or false to disable throttling
+// set this to .25 for "throttle channels by 25% when we have reached MAX_SWIMBOTS
+const THROTTLE_MIDI_WHEN_LOADED = .5; // throttle by up to 50% when we're at MAX_SWIMBOTS
+
 // var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
 
 var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
@@ -92,7 +97,7 @@ var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
 // (each time we utter, we select the channel used longest ago)
 
 
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // throttle: we don't ask any individual uttering channel to utter more often than this
+const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // cooldown: we don't ask any individual uttering channel to utter more often than this
 const MODULATION_SPEED_MS = 15; // how fast do we twiddle modulation knobs? smaller number = smoother vocal morphs, but more MIDI data.
 
 // these are here in case we want to selectively disable some sounds during testing
@@ -400,20 +405,25 @@ function Sound()
 		if (useMidi && !_runningFast) {
 			// MIDI Path: Check if utterance is enabled, in view, and channel is not throttled.
 			if (utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER) {
-					let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
-					for (let i = 1; i < MIDI_CHANNELS_FOR_UTTERING.length; i++) {
-						if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
-							oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
-						}
+				let maxUtteranceChannels = MIDI_CHANNELS_FOR_UTTERING.length; // maximum possible utterance channels
+				if (THROTTLE_MIDI_WHEN_LOADED) { // THROTTLE_MIDI_WHEN_LOADED is a percentage e.g. .25 
+					// as currentNumberSwimbots approaches MAX_SWIMBOTS, throttle maxUtteranceChannels down by as much as THROTTLE_MIDI_WHEN_LOADED
+					maxUtteranceChannels = throttleMaxChannels();
+				}
+				let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
+				for (let i = 1; i < maxUtteranceChannels; i++) {
+					if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
+						oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
 					}
-					const min_wait_slop = Math.floor(Math.random() * 250);
-					if (Date.now() - oldestMIDIchannel.lastUsed > (MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop)) {
-						playAudio = true;
-						oldestMIDIchannel.lastUsed = rightNow;
-						midiChannel = oldestMIDIchannel.channel; // Update its lastUsed timestamp
-						// *** Get the output by name ***
-						midiOutput = midiOutputsByName[oldestMIDIchannel.output];
-					}
+				}
+				const min_wait_slop = Math.floor(Math.random() * 250);
+				if (Date.now() - oldestMIDIchannel.lastUsed > (MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop)) {
+					playAudio = true;
+					oldestMIDIchannel.lastUsed = rightNow;
+					midiChannel = oldestMIDIchannel.channel; // Update its lastUsed timestamp
+					// *** Get the output by name ***
+					midiOutput = midiOutputsByName[oldestMIDIchannel.output];
+				}
 			}
 		} else if (useWebAudio && !_runningFast) {
 			// Web Audio Path: Simpler check, just needs to be in view. No channel throttling.
@@ -1010,6 +1020,39 @@ function pruneOldMods() {
     }
 }
 
+
+/* throttleMaxChannels reduces how many synthesizers we are using when our JS is loaded up with swimbots
+	at 50% of max swimbots, we don't throttle at all
+	then we steeply throttle our channels by up to THROTTLE_MIDI_WHEN_LOADED (e.g. .25 = 25%) 
+*/
+function throttleMaxChannels() {
+	const maxChannels = MIDI_CHANNELS_FOR_UTTERING.length;
+	const current = genePool.getNumSwimbots();
+	const max = (typeof MAX_SWIMBOTS !== 'undefined' && MAX_SWIMBOTS > 0) ? MAX_SWIMBOTS : (current || 1);
+	const u = Math.min(1, Math.max(0, current / max)); // Utilization in [0,1]
+	
+	// No throttling until swimbots are at 50%; full effect by 100%
+	const START = 0.50, END = 1.00;
+	
+	// Map u∈[START,END] → t∈[0,1], clamp
+	const t = Math.min(1, Math.max(0, (u - START) / (END - START)));
+	
+	// Smoothstep knee s∈[0,1]
+	const k = .5; // higher = steeper near 100%
+	const s = Math.pow(t, k); // still 0 at 50%, 1 at 100%
+	
+	// Cap reduction to [0,1]
+	const maxReduction = Math.min(Math.max(THROTTLE_MIDI_WHEN_LOADED, 0), 1);
+	
+	// 1.0 → (1.0 - maxReduction) as load goes from 50%→100%
+	const factor = 1 - (maxReduction * s);
+	
+	let reducedChannelCount = Math.max(1, Math.floor(maxChannels * factor));
+	if (maxChannels != reducedChannelCount) {
+		console.log("Reducing MIDI utterance channels from " + maxChannels + " to " + reducedChannelCount + " because we are at " + current + "/" + max + " swimbots.");
+	}
+	return (reducedChannelCount);
+}
 
 function getPitchHistogram() {
 	pruneOldNotes();

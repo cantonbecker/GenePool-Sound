@@ -52,10 +52,6 @@ const SWIMBOT_LEVEL_OF_DETAIL_DOT  = 0;
 const SWIMBOT_LEVEL_OF_DETAIL_LOW  = 1;
 const SWIMBOT_LEVEL_OF_DETAIL_HIGH = 2;
 
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
-const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-//const GARDEN_OF_EDEN_RADIUS = 3000;  // research version 
-
 // I then changed food regeneration period to 15 (from 20) to make it come back even faster to help prevent extinctions (that have been occuring a lot)
 // I ran two simulations, both survived: food_niche_3.txt and food_niche_4.txt
 const MIN_FOOD_REGENERATION_PERIOD      = 1;
@@ -74,16 +70,33 @@ const MAX_CHILD_ENERGY_RATIO                = ONE;
 const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 
-// AUDIO VERSION JULY 2025
+
+// KYOTO 2025 VERSION (Mac Mini i9)
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 3300;
+const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
+const MAX_SWIMBOTS = 300;
+const INITIAL_NUM_SWIMBOTS =  150;
+const MAX_FOODBITS           = 600;
+const MAX_FOODBITS_PER_TYPE  = 600;
+const INITIAL_NUM_FOODBITS   = 300;
+
+
+
+// AUDIO DEMO VERSION JULY 2025
+/*
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
+const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
 const MAX_SWIMBOTS = 1000;
 const INITIAL_NUM_SWIMBOTS =  200;
 const MAX_FOODBITS           = 1000;
 const MAX_FOODBITS_PER_TYPE  = 500;
 const INITIAL_NUM_FOODBITS   = 500;
-
+*/
 
 // ORIGINAL VERSION
 /*
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
+const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
 const MAX_SWIMBOTS = 2000;
 const INITIAL_NUM_SWIMBOTS =  500; // original version
 const MAX_FOODBITS           = 2000;

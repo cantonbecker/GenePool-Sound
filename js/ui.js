@@ -1202,8 +1202,17 @@ function resize()
     let holeDiameter = Math.max(0, height - HOLE_MARGIN);
     document.documentElement.style.setProperty('--mask-diameter', holeDiameter + 'px');
 
-    canvasID.width  = width;
+    // canvasID.width  = width;
+    canvasID.width  = height; // for Kyoto style projection, always have a square canvas
     canvasID.height = height;
+
+    // center the canvas horizontally
+    const left = Math.max(0, Math.floor((width - canvasID.width) / 2));
+
+    // ensure left offset affects offsetLeft math in your mouse handlers
+    canvasID.style.position = 'absolute';
+    canvasID.style.left     = left + 'px';
+    canvasID.style.top      = '0px';
 
     if (typeof genePool != 'undefined') {    
         genePool.setCanvasDimensions(canvasID.width, canvasID.height);  
