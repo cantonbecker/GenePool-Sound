@@ -55,8 +55,6 @@ const SWIMBOT_LEVEL_OF_DETAIL_HIGH = 2;
 // I then changed food regeneration period to 15 (from 20) to make it come back even faster to help prevent extinctions (that have been occuring a lot)
 // I ran two simulations, both survived: food_niche_3.txt and food_niche_4.txt
 const MIN_FOOD_REGENERATION_PERIOD      = 1;
-const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
-//const DEFAULT_FOOD_REGENERATION_PERIOD  = 40;
 const MAX_FOOD_REGENERATION_PERIOD      = 200;
 
 //const DEFAULT_FOOD_REGENERATION_PERIOD  = 15;  // research version
@@ -71,14 +69,15 @@ const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 
 
-// KYOTO 2025 VERSION (Mac Mini i9)
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 3300;
+// KYOTO 2025 VERSION (Mac Mini 2018 i9)
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2250;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
 const MAX_SWIMBOTS = 300;
 const INITIAL_NUM_SWIMBOTS =  150;
-const MAX_FOODBITS           = 600;
-const MAX_FOODBITS_PER_TYPE  = 600;
-const INITIAL_NUM_FOODBITS   = 300;
+const MAX_FOODBITS           = 1200;
+const MAX_FOODBITS_PER_TYPE  = 1200;
+const INITIAL_NUM_FOODBITS   = 500;
+const DEFAULT_FOOD_REGENERATION_PERIOD  = 15;
 
 
 
@@ -91,6 +90,7 @@ const INITIAL_NUM_SWIMBOTS =  200;
 const MAX_FOODBITS           = 1000;
 const MAX_FOODBITS_PER_TYPE  = 500;
 const INITIAL_NUM_FOODBITS   = 500;
+const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
 */
 
 // ORIGINAL VERSION
@@ -102,6 +102,7 @@ const INITIAL_NUM_SWIMBOTS =  500; // original version
 const MAX_FOODBITS           = 2000;
 const MAX_FOODBITS_PER_TYPE  = 1000; // make this one-half of MAX_FOODBITS (because there are two types)
 const INITIAL_NUM_FOODBITS   = 1000; // original version
+const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
 */
 
 const NON_REPRODUCING_JUNK_DNA_LIMIT = 0; // essentially disabled by CB for sonified genepool  
