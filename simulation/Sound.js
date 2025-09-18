@@ -598,6 +598,9 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	for (let i = 0; i < _geneNames.length; i++) { 
 		if (_geneNames[i].includes('utter')) console.log("gene " + i + " " + _geneNames[i], genes[i]);
 	}
+
+
+   const rng = aleaPRNG(genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString()); // initialize genes with only uttering-related genes
 	
 	
 	/*** DEMO FUDGE TO CREATE TRIBES. SPLICE IN FIXED GENES FOR SWIMBOT INSTANCES 0-9, but with some variation for utter period  ***/
@@ -609,17 +612,16 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 			console.log ('*** SPAWNING TRIBE B ***');
 			genes.splice(UTTERANCE_GENES_SLICE_START, 7, 	134, 20, 138, 235, 176, 95	, 40);
 	}
-	*/
-
-   const rng = aleaPRNG(genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString()); // initialize genes with only uttering-related genes
 
 	if (UTTERANCE_COMPOSING_COUNTER <= 10) {
-		/*** DEMO FUDGE ADD BACK IN A TINY BIT OF VARIATION AFTER THE RNG WAS SEEDED ***/
+		// DEMO FUDGE ADD BACK IN A TINY BIT OF VARIATION AFTER THE RNG WAS SEEDED
 		let randomSlicePosition = UTTERANCE_GENES_SLICE_START + Math.floor(Math.random() * 4);
 		let randomSliceValue1 = Math.floor(Math.random()*255);
 		let randomSliceValue2 = Math.floor(Math.random()*255);
 		genes.splice(randomSlicePosition, 2, randomSliceValue1, randomSliceValue2);
 	}
+
+	*/
 
 	// console.log ("Seeding RNG with genes: " + genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString());
 	// WHAT IS MY MIDI BASE NOTE?
