@@ -956,7 +956,11 @@ _position.copyFrom( position );
 		//---------------------------
 		// wall collisions
 		//---------------------------
-		this.updateWallCollisions();        	
+      if (USE_CIRCULAR_VIEW) {
+         this.updateCircularWallCollisions();
+      } else {
+         this.updateWallCollisions();
+      }      	
 	}
 
     
@@ -1157,7 +1161,30 @@ let partAccelerationY = -strokeForceY;
 
 	//----------------------------------------
 	// update wall collisions
-	//----------------------------------------
+	// we use updateWallCollisions() OR updateCircularWallCollisions() depending on USE_CIRCULAR_VIEW
+   //----------------------------------------
+   
+   this.updateCircularWallCollisions = function() {
+      
+      //console.log( _position.x - POOL_X_CENTER );
+      
+      let xx = _position.x - POOL_X_CENTER;
+      let yy = _position.y - POOL_Y_CENTER;
+      let distance = Math.sqrt( xx * xx + yy * yy );
+      
+      
+			//let distance = poolCenter.getDistanceTo( _position );
+			if ( distance > 3000 )
+			{
+            let bounce = new Vector2D();
+            bounce.copyFrom( _position );
+            bounce.normalize();
+            bounce.scale( -100 );
+				// _velocity.add( bounce );
+			}  
+   }
+   
+   
 	this.updateWallCollisions = function()
 	{	
         //--------------------------------------------------------------------

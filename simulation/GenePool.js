@@ -1368,7 +1368,10 @@ if ( mode === SimulationStartMode.SPECIES )
 					if ( ! _markedForUtteringSound[s] )
 					{
 						_markedForUtteringSound[s] = true;
-						let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+						// let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
+                  // we don't show sound waves or play utterances for swimbots that are outisde of our circular area
+                  // the  .5 * their body size gives us a little bit of "bleed"/overprint past the circular area
+						let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() * .5 );
 					
 						let utterVariablesObj = {
 							swimbotID:          s,
@@ -1386,7 +1389,7 @@ if ( mode === SimulationStartMode.SPECIES )
 						// actually send out the MIDI for the utterance, or, at least, schedule when to stop uttering 
 						_sound.doUtterance (utterVariablesObj, this);
 						
-                    	if ( isInView ) 
+                    	if ( isInView ) // do the animation as well
                     	{						
 							_utteranceRenderer.startUtterance
 							( 

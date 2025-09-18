@@ -39,6 +39,9 @@
 //this is being slammed to 1 to debug the 2-food type issue...
 //const FOOD_TYPE_OFFSET = 1.0;
 
+// Are we intending to use a circular mask to stylize how we see/hear the pool?
+const USE_CIRCULAR_VIEW		= true;
+
 
 const FOOD_TYPE_OFFSET = 0.2;
 

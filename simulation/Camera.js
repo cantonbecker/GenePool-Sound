@@ -274,12 +274,23 @@ function Camera()
 	//------------------------------------------------
 	this.getWithinView = function( position, buffer )
 	{
-		if (( position.x < _right  + buffer )
-		&&  ( position.x > _left   - buffer )
-		&&  ( position.y < _top    + buffer )
-		&&  ( position.y > _bottom - buffer ))
+		if ( USE_CIRCULAR_VIEW )
 		{
-			return true;
+			let distance = position.getDistanceTo( _position );
+			if ( distance < ( _scale * ONE_HALF ) + buffer )
+			{
+				return true;
+			}
+		}
+		else
+		{
+			if (( position.x < _right  + buffer )
+			&&  ( position.x > _left   - buffer )
+			&&  ( position.y < _top    + buffer )
+			&&  ( position.y > _bottom - buffer ))
+			{
+				return true;
+			}
 		}
 
 		return false;
