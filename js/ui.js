@@ -393,7 +393,10 @@ function openTweakGenesPanel( selectedSwimbotID )
         document.getElementById( 'closeTweakGenesPanel' ).style.visibility = "visible"; 
 
         document.getElementById( 'tweakGenesPanel' ).innerHTML = "<div id = 'tweakGenesTitle' >Tweak the genes of swimbot " + selectedSwimbotID + "</div>"; 
-        document.getElementById( 'tweakGenesPanel' ).innerHTML += "<div id = 'tweakGenesCategoryNote' >(choose which limb type to tweak)</div>"; 
+
+        const _NUM_UTTER = (UTTERANCE_GENES_SLICE_END - UTTERANCE_GENES_SLICE_START);
+        document.getElementById('tweakGenesPanel').innerHTML 
+            += "<div id='tweakGenesCategoryNote' style='margin-top:" + (_NUM_UTTER * 20) + "px'>(choose which limb type to tweak)</div>";
 
         let numCategories = genePool.getNumGeneCategories();        
         for (let c=0; c<numCategories; c++)
@@ -409,53 +412,54 @@ function openTweakGenesPanel( selectedSwimbotID )
             +  "></div>";
         }
         
-        let num = genePool.getNumGenesPerCategory();
-        num += 2; //add the two first (global: non-category) genes
+        // number of category genes + the two global genes + the utterance genes
+        const perCat = genePool.getNumGenesPerCategory();
+        const NUM_GLOBAL = 2; // genes 0,1
+        const NUM_UTTER = (UTTERANCE_GENES_SLICE_END - UTTERANCE_GENES_SLICE_START);
+        const totalRows = NUM_GLOBAL + NUM_UTTER + perCat;
         
         let width = 150;
         
-        for (let g=0; g<num; g++)
-        {
-            let geneTweakerName  = genePool.getGeneName(g);
-            let geneTweakerValue = genePool.getGeneValue( selectedSwimbotID, g );
-            
-            let top = 60 + g * 20;
-            if ( g > 1 ) //skip the two first (global: non-category) genes
-            {
-                top += 80.0;
+        // Build sliders for: [0,1] (global), [112..119] (utterance), then category genes for category 0 by default
+        for (let g = 0; g < totalRows; g++) {
+            // Map slider index -> real gene index (for initial render we use category 0)
+            let geneIndex;
+            if (g < NUM_GLOBAL) {
+                geneIndex = g; // 0 or 1
+            } else if (g < NUM_GLOBAL + NUM_UTTER) {
+                geneIndex = UTTERANCE_GENES_SLICE_START + (g - NUM_GLOBAL); // 112..119
+            } else {
+                const withinCat = g - (NUM_GLOBAL + NUM_UTTER);
+                geneIndex = 2 + withinCat; // category 0 starts at 2
             }
-            
-            //----------------------------------------------------
-            // construct the gene value display
-            //----------------------------------------------------
-            document.getElementById( 'tweakGenesPanel' ).innerHTML            
-            += "<div class = 'geneTweakerValue' id = 'gene" + g + "Value' style = 'top:" + top + "px;'>" + geneTweakerValue + "</div>";
-
-            //----------------------------------------------------
-            // construct the slider
-            //----------------------------------------------------
-            document.getElementById( 'tweakGenesPanel' ).innerHTML            
-            += "<input "
-            +  "style        = 'top:" + ( top - 3 ) + "px; width:" + width + "px;'"
-            +  "type         = 'range' " 
-            +  "class        = 'geneTweakerSlider' "
-            +  "min          = '0'"
-            +  "max          = '255'"   
-            +  "value        = '" + geneTweakerValue + "'"   
-            +  "id           = 'geneTweaker" + g + "'"
-            +  "name         = 'geneTweaker" 
-            +  "step         = 1 "
-            +  "autocomplete = 'off' "
-            +  "oninput      = 'tweakGene( " + selectedSwimbotID + ", " + g + ")' "
-            +  ">";
-            
-            //----------------------------------------------------
-            // construct the gene name
-            //----------------------------------------------------
-            document.getElementById( 'tweakGenesPanel' ).innerHTML            
-            += "<div class = 'geneTweakerName' style = 'top:" + top + "px;'>" + geneTweakerName + "</div>";
-        }
         
+            let geneTweakerName  = genePool.getGeneName(geneIndex);
+            let geneTweakerValue = genePool.getGeneValue(selectedSwimbotID, geneIndex);
+        
+            // Lay out rows; anything after the utterance block is pushed down to clear the radio row
+            let top = 60 + g * 20;
+            if (g >= NUM_GLOBAL + NUM_UTTER) {
+                top += 80.0; // same extra space you were using before for the radio controls
+            }
+        
+            // value display
+            document.getElementById('tweakGenesPanel').innerHTML
+                += "<div class='geneTweakerValue' id='gene" + g + "Value' style='top:" + top + "px;'>" + geneTweakerValue + "</div>";
+        
+            // slider
+            document.getElementById('tweakGenesPanel').innerHTML
+                += "<input "
+                +  "style='top:" + (top - 3) + "px; width:" + width + "px;' "
+                +  "type='range' class='geneTweakerSlider' min='0' max='255' step='1' autocomplete='off' "
+                +  "value='" + geneTweakerValue + "' "
+                +  "id='geneTweaker" + g + "' name='geneTweaker' "
+                +  "onchange='tweakGene(" + selectedSwimbotID + ", " + g + ")'>";
+        
+            // name label
+            document.getElementById('tweakGenesPanel').innerHTML
+                += "<div class='geneTweakerName' style='top:" + top + "px;'>" + geneTweakerName + "</div>";
+        }
+
 
         //----------------------------------------------------
         // initialize tweak category
@@ -496,28 +500,31 @@ function closeTweakGenesPanel()
 
 
 //---------------------------------------------
-function updateGeneSliders( selectedSwimbotID )
-{
-    let num = genePool.getNumGenesPerCategory();
-    num += 2; //add the two first (global: non-category) genes
-    
-    for (let g=0; g<num; g++)
-    {
-        let geneIndex = g;
-    
-        if ( g > 1 )
-        {
-            geneIndex += genePool.getNumGenesPerCategory() * _tweakGenesCategory;   
+function updateGeneSliders(selectedSwimbotID) {
+    const perCat = genePool.getNumGenesPerCategory();
+    const NUM_GLOBAL = 2;
+    const NUM_UTTER = (UTTERANCE_GENES_SLICE_END - UTTERANCE_GENES_SLICE_START);
+    const totalRows = NUM_GLOBAL + NUM_UTTER + perCat;
+
+    for (let g = 0; g < totalRows; g++) {
+        let geneIndex;
+        if (g < NUM_GLOBAL) {
+            geneIndex = g;
+        } else if (g < NUM_GLOBAL + NUM_UTTER) {
+            geneIndex = UTTERANCE_GENES_SLICE_START + (g - NUM_GLOBAL);
+        } else {
+            const withinCat = g - (NUM_GLOBAL + NUM_UTTER);
+            geneIndex = 2 + withinCat + genePool.getNumGenesPerCategory() * _tweakGenesCategory;
         }
-    
-        let geneTweakerValue = genePool.getGeneValue( selectedSwimbotID, geneIndex );
-        
+
+        const geneTweakerValue = genePool.getGeneValue(selectedSwimbotID, geneIndex);
+
         let id = "geneTweaker" + g;
-        let slider = document.getElementById( id );
+        let slider = document.getElementById(id);
         slider.value = geneTweakerValue;
 
         id = "gene" + g + "Value";
-        document.getElementById( id ).innerHTML = geneTweakerValue;
+        document.getElementById(id).innerHTML = geneTweakerValue;
     }
 }
 
@@ -876,38 +883,30 @@ function setGeneTweakCategory( selectedSwimbotID, c )
 
 
 //---------------------------------------------
-function tweakGene( swimbotIndex, sliderIndex )
-{    
-    let geneIndex = sliderIndex;
-    
-    if ( sliderIndex > 1 )
-    {
-        geneIndex += genePool.getNumGenesPerCategory() * _tweakGenesCategory;   
+function tweakGene(swimbotIndex, sliderIndex) {
+    const perCat = genePool.getNumGenesPerCategory();
+    const NUM_GLOBAL = 2;
+    const NUM_UTTER = (UTTERANCE_GENES_SLICE_END - UTTERANCE_GENES_SLICE_START);
+
+    let geneIndex;
+    if (sliderIndex < NUM_GLOBAL) {
+        geneIndex = sliderIndex; // 0,1
+    } else if (sliderIndex < NUM_GLOBAL + NUM_UTTER) {
+        geneIndex = UTTERANCE_GENES_SLICE_START + (sliderIndex - NUM_GLOBAL); // 112..119
+    } else {
+        const withinCat = sliderIndex - (NUM_GLOBAL + NUM_UTTER);
+        geneIndex = 2 + withinCat + perCat * _tweakGenesCategory; // category-mapped
     }
-    
-    //-----------------------------------------
-    // get the gene value...
-    //-----------------------------------------
-    //console.log( "geneIndex = " + geneIndex );
 
-    let id = "geneTweaker" + sliderIndex;
- 
-    //console.log( id );
-    
-    let input = document.getElementById( id );
+    // ...rest unchanged...
+    const id = "geneTweaker" + sliderIndex;
+    const input = document.getElementById(id);
+    const geneValue = input.value;
 
-    let geneValue = input.value;
+    genePool.tweakGene(swimbotIndex, geneIndex, geneValue);
 
-    //----------------------------------------------------------
-    // update the gene value in the simulation...
-    //----------------------------------------------------------
-    genePool.tweakGene( swimbotIndex, geneIndex, geneValue );
-        
-    //----------------------------------------------------------
-    // update the html that displays the value...
-    //----------------------------------------------------------
-    id = "gene" + sliderIndex + "Value";
-    document.getElementById( id ).innerHTML = geneValue;
+    const valueId = "gene" + sliderIndex + "Value";
+    document.getElementById(valueId).innerHTML = geneValue;
 }
 
 
