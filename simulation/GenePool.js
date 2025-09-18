@@ -15,17 +15,18 @@
 
 const SimulationStartMode = 
 {
-    RANDOM       : 0,
-    FROGGIES     : 1,
-    TANGO        : 2,
-    RACE         : 3,
-    NEIGHBORHOOD : 4,
-    BIG_BANG     : 5,
-    BAD_PARENTS  : 6,
-    BARRIER      : 7,
-    EMPTY        : 8,
-    FILE         : 9,
-    SPECIES      : 10
+    RANDOM       	: 0,
+    FROGGIES     	: 1,
+    TANGO        	: 2,
+    RACE         	: 3,
+    NEIGHBORHOOD 	: 4,
+    BIG_BANG     	: 5,
+    BAD_PARENTS  	: 6,
+    BARRIER      	: 7,
+    EMPTY        	: 8,
+    FILE         	: 9,
+    SPECIES      	: 10,
+    QUARTET			: 11
 };
 
 const CameraNavigationAction = 
@@ -402,8 +403,8 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.BIG_BANG )
         {        
-            _numSwimbots = 100;
-            this.setFoodToBangConfiguration();
+            //_numSwimbots = 150;
+//this.setFoodToBangConfiguration();
             _camera.setScale( BANG_VIEW_SCALE );
         }
         else if ( mode === SimulationStartMode.BAD_PARENTS )
@@ -420,6 +421,23 @@ _camera.setScale( POOL_WIDTH );
             //console.log( "if ( mode === SimulationStartMode.BAD_PARENTS ): setOffspringEnergyRatio to 0.001" );
             
             _camera.setScale( PARENT_VIEW_SCALE );
+        }
+        else if ( mode === SimulationStartMode.QUARTET )
+        {        
+            _numSwimbots = 55;
+            this.setFoodToQuartetConfiguration();
+            
+            /*
+            this.setFoodGrowthDelay     ( 200 );  
+            this.setFoodSpread          ( 20 );       
+	        this.setHungerThreshold     ( 150 );
+            this.setFoodBitEnergy       ( 6 );
+            this.setOffspringEnergyRatio( 0.0001 );
+            */
+	        
+            //console.log( "if ( mode === SimulationStartMode.BAD_PARENTS ): setOffspringEnergyRatio to 0.001" );
+            
+            _camera.setScale( POOL_WIDTH * 0.1 );
         }
         else if ( mode === SimulationStartMode.BARRIER )
         {        
@@ -589,6 +607,35 @@ if ( mode === SimulationStartMode.SPECIES )
                 if ( i === 0 ) { initialPosition.setXY( _poolCenter.x - 200 * ONE_HALF, _poolCenter.y ); }
                 if ( i === 1 ) { initialPosition.setXY( _poolCenter.x + 200 * ONE_HALF, _poolCenter.y ); }
             }
+            //-------------------------------------------------
+            // Quartet
+            //-------------------------------------------------
+            else if ( mode === SimulationStartMode.QUARTET )
+            {            
+                if ( i > 3 ) 
+                	 { _myGenotype.setToPreset( PRESET_GENOTYPE_DARWIN 	); }
+                else { _myGenotype.setToPreset( PRESET_GENOTYPE_QUARTET ); }
+
+				let range = 200;
+				let offset = 0;
+                
+                if ( i > 3 ) 
+                { 
+                	let radius = 700;
+                	let angle = Math.random() * Math.PI * 2;
+                	
+                	_vectorUtility.x = _poolCenter.x + radius * Math.sin( angle );
+                	_vectorUtility.y = _poolCenter.y + radius * Math.cos( angle ); 
+                	initialPosition.copyFrom( _vectorUtility );
+                }
+                else
+                {
+					if ( i === 0 ) { initialPosition.setXY( _poolCenter.x + range * -1.000, _poolCenter.y - offset ); }
+					if ( i === 1 ) { initialPosition.setXY( _poolCenter.x + range * -0.333, _poolCenter.y - offset ); }
+					if ( i === 2 ) { initialPosition.setXY( _poolCenter.x + range *  0.333, _poolCenter.y - offset ); }
+					if ( i === 3 ) { initialPosition.setXY( _poolCenter.x + range *  1.000, _poolCenter.y - offset ); }
+                }
+            }
             
             /*
             //-------------------------------------------------
@@ -661,6 +708,14 @@ if ( mode === SimulationStartMode.SPECIES )
             //--------------------------------------------------
             _swimbots[i].create( i, initialAge, initialPosition, initialAngle, initialEnergy, _myGenotype, _embryology );	
 
+
+if ( mode === SimulationStartMode.BIG_BANG )
+{
+	let forceAmount = 200;
+	
+	_vectorUtility.setXY( -forceAmount + Math.random() * forceAmount * 2, -forceAmount + Math.random() * forceAmount * 2 );
+	_swimbots[i].addForce( _vectorUtility );
+}
             //------------------------------------------------------------------------------------
             // add the new swimbot to the family tree
             //------------------------------------------------------------------------------------
@@ -873,6 +928,113 @@ if ( mode === SimulationStartMode.SPECIES )
         f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread *  0.5 ); _foodBits[f].setPosition(p);
         f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread *  1.0 ); _foodBits[f].setPosition(p);
 
+        
+        /*
+        let range = 100;
+        let spread = 40.0;
+    
+        for (let f=0; f<_numFoodBits; f++)
+        {
+            let side = -range;
+            
+            if ( gpRandom() > ONE_HALF ) { side = range; }
+            let x = _poolCenter.x + side + gpRandom() * spread;
+            let y = _poolCenter.y + gpRandom() * spread;
+            foodBitPosition.setXY( x, y ); 
+        
+            _foodBits[f].initialize(f);
+            _foodBits[f].setPosition( foodBitPosition );    
+    	}
+    	*/
+    	
+    	
+        this.setFoodSpread( MIN_FOOD_BIT_MAX_SPAWN_RADIUS );
+	}
+	
+	
+	//-------------------------------------------
+	this.setFoodToQuartetConfiguration = function()
+	{	
+        _numFoodBits = 100;
+
+        for (let f=0; f<_numFoodBits; f++)
+        {
+			let radius = 700;
+
+        	_vectorUtility.setToRandomLocationInDisk( _poolCenter, radius );
+
+			/*
+			let angle = Math.random() * Math.PI * 2;			
+			_vectorUtility.x = _poolCenter.x + radius * Math.sin( angle );
+			_vectorUtility.y = _poolCenter.y + radius * Math.cos( angle ); 
+            */
+
+            _foodBits[f].initialize(f);
+            _foodBits[f].setPosition( _vectorUtility );
+		}	
+	
+
+/*
+        _numFoodBits = 64;
+        
+        let size = 70;
+    
+        for (let f=0; f<_numFoodBits; f++)
+        {
+            let sqrt = Math.floor( Math.sqrt( _numFoodBits ) );
+            let xMod = f % sqrt;
+            let yMod = Math.floor( ( f / _numFoodBits ) * sqrt );
+            
+            let xFraction = xMod / sqrt;
+            let yFraction = yMod / sqrt;
+            
+            let foodBitPosition = new Vector2D();
+            
+            foodBitPosition.setXY
+            (
+                _poolCenter.x - size + xFraction * size * 2,
+                _poolCenter.y - size + yFraction * size * 2
+            ); 
+
+            _foodBits[f].initialize(f);
+            _foodBits[f].setPosition( foodBitPosition );
+        }
+*/
+
+	
+/*	
+	
+        _numFoodBits = 10;
+
+        //let spread = 100;
+        let p = new Vector2D();
+        
+        
+        //let f = -1;
+
+        //f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + 250 ); _foodBits[f].setPosition(p); 
+*/
+
+    	/*
+        f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread * -1.0 ); _foodBits[f].setPosition(p); 
+        f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread * -0.5 ); _foodBits[f].setPosition(p);
+        f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread *  0.0 ); _foodBits[f].setPosition(p);
+        f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread *  0.5 ); _foodBits[f].setPosition(p);
+        f++; _foodBits[f].initialize(f); p.setXY( _poolCenter.x, _poolCenter.y + spread *  1.0 ); _foodBits[f].setPosition(p);
+		*/
+		
+/*		
+        let range = 200;
+		
+        for (let f=0; f<_numFoodBits; f++)
+        {
+        	_foodBits[f].initialize(f); 
+        	p.setXY( _poolCenter.x - range * ONE_HALF + f / _numFoodBits * range, _poolCenter.y + range * 0.3 ); 
+        	_foodBits[f].setPosition(p); 
+		}		
+*/		
+		
+		
         
         /*
         let range = 100;
@@ -2270,9 +2432,20 @@ if ( globalTweakers.numFoodTypes === 2 )
             let initialAngle    = getRandomAngleInDegrees(); //-180.0 + gpRandom() * 360.0;
             let initialEnergy   = DEFAULT_SWIMBOT_HUNGER_THRESHOLD;
 
-            _myGenotype.randomize();
+            //_myGenotype.randomize();
             
-             _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
+			//-----------------------------------------------
+			// inherit genes from two presets...
+			//-----------------------------------------------			
+		    let _parent1Genotype = new Genotype();
+		    let _parent2Genotype = new Genotype();
+            
+            _parent1Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
+            _parent2Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES ) );
+              
+			_myGenotype.setAsOffspring( _parent1Genotype, _parent2Genotype );
+		
+        	_swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
 
             //--------------------------------------------------
             // add the new swimbot to the family tree

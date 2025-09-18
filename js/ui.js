@@ -1409,12 +1409,12 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         flashNotice(INITIAL_NUM_SWIMBOTS + " totally random swimbots", 1500);
     }
-    // T -> GENETIC BARRIER
+    // T -> QUARTET
     if (e.keyCode === 84) { // T
         e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.BARRIER);
+        choosePoolToLoad(SimulationStartMode.QUARTET);
         requestToLoadPoolFromPreset();
-        flashNotice("Genetic barrier simulation", 1500);
+        flashNotice("Quartet simulation", 1500);
     }
     
                             
