@@ -293,6 +293,7 @@ function GenePool()
 	//------------------------------------------
 	this.startSimulation = function( mode )
 	{	
+        _sound.sendMIDIpanic(); // clear any possibly stuck notes
 //looks like numOffspring didn't get reset. fix this! (and any other related side effects
 	
 		//----------------------------

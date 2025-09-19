@@ -1164,26 +1164,42 @@ let partAccelerationY = -strokeForceY;
 	// we use updateWallCollisions() OR updateCircularWallCollisions() depending on USE_CIRCULAR_VIEW
    //----------------------------------------
    
-   this.updateCircularWallCollisions = function() {
+   this.updateCircularWallCollisions = function () {
+      const R = CIRCULAR_BOUNCE_RADIUS; 
+      const dx = _position.x - POOL_X_CENTER;
+      const dy = _position.y - POOL_Y_CENTER;
+      const dist = Math.hypot(dx, dy);
+      if (dist <= R) return;
       
-      //console.log( _position.x - POOL_X_CENTER );
+      // unit outward normal from center → swimbot
+      const nx = dx / dist;
+      const ny = dy / dist;
       
-      let xx = _position.x - POOL_X_CENTER;
-      let yy = _position.y - POOL_Y_CENTER;
-      let distance = Math.sqrt( xx * xx + yy * yy );
+      // 1) position correction: put it back on (just inside) the rim
+      const penetration = dist - R;
+      _position.x -= nx * (penetration + 0.1);
+      _position.y -= ny * (penetration + 0.1);
       
+      // 2) decompose velocity into radial (n) + tangential (t)
+      const vN = _velocity.x * nx + _velocity.y * ny;        // radial (outward + / inward -)
+      const tx = -ny, ty = nx;                               // unit tangent
+      const vT = _velocity.x * tx + _velocity.y * ty;        // tangential
       
-			//let distance = poolCenter.getDistanceTo( _position );
-			if ( distance > 3000 )
-			{
-            let bounce = new Vector2D();
-            bounce.copyFrom( _position );
-            bounce.normalize();
-            bounce.scale( -100 );
-				// _velocity.add( bounce );
-			}  
-   }
-   
+      // 3) reflect radial with restitution, damp tangential to avoid rim-riding
+      const restitution = 0.2;   // 0 = dead stop, 1 = perfectly bouncy
+      const friction    = 0.25;  // 0 = no tangential damping, 1 = kill tangent
+      const newVN = (vN > 0 ? -restitution * vN : vN);       // only flip if moving outward
+      const newVT = (1 - friction) * vT;
+      
+      // 4) recompose velocity
+      _velocity.x = newVN * nx + newVT * tx;
+      _velocity.y = newVN * ny + newVT * ty;
+      
+      // 5) small inward bias so they head back toward center instead of flirting with the edge
+      const inwardBias = 3.0;
+      _velocity.x += -nx * inwardBias;
+      _velocity.y += -ny * inwardBias;
+   };   
    
 	this.updateWallCollisions = function()
 	{	

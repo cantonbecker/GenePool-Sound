@@ -44,8 +44,9 @@ const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
 const MIDI_CHANNEL_EAT = 1;
 const MIDI_CHANNEL_BIRTH = 2;
 const MIDI_CHANNEL_DEATH = 3;
-const MIDI_CHANNEL_SAMPLER = 15;
-const MIDI_CHANNEL_ATMOSPHERE = 16;
+const MIDI_CHANNEL_SAMPLER = 14;
+const MIDI_CHANNEL_ATMOSPHERE = 15;
+const MIDI_CHANNEL_SYSTEM = 16; // e.g. MIDI panic to GP
 
 var MIDI_CHANNELS_FOR_UTTERING = [
 	{	output: 'IAC Driver Bus 2', channel: 1,	lastUsed: 0 },
@@ -258,24 +259,22 @@ function Sound()
 			idx++;
 		}
 
-
-			// Test output availability for nondiagetic bus
-			if (midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]) {
-				midiOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
-				console.log(`nondiagetic MIDI output: ${midiOutput.name}`);
-			} else {
-				midiOutput = null;
-				console.error(`No MIDI output found for MIDI_OUTPUT_NONDIAGETIC: "${MIDI_OUTPUT_NONDIAGETIC}".`);
+		// Test output availability for nondiagetic bus
+		if (midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]) {
+			midiOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
+			console.log(`nondiagetic MIDI output: ${midiOutput.name}`);
+		} else {
+			midiOutput = null;
+			console.error(`No MIDI output found for MIDI_OUTPUT_NONDIAGETIC: "${MIDI_OUTPUT_NONDIAGETIC}".`);
+		}
+		
+		// Check all unique outputs needed for uttering channels
+		const utteringOutputsNeeded = [...new Set(MIDI_CHANNELS_FOR_UTTERING.map(obj => obj.output))];
+		for (const outputName of utteringOutputsNeeded) {
+			if (!(outputName in midiOutputsByName)) {
+				console.error(`MIDI_CHANNELS_FOR_UTTERING refers to unavailable output: "${outputName}".`);
 			}
-			
-			// Check all unique outputs needed for uttering channels
-			const utteringOutputsNeeded = [...new Set(MIDI_CHANNELS_FOR_UTTERING.map(obj => obj.output))];
-			for (const outputName of utteringOutputsNeeded) {
-				if (!(outputName in midiOutputsByName)) {
-					console.error(`MIDI_CHANNELS_FOR_UTTERING refers to unavailable output: "${outputName}".`);
-				}
-			}	
-
+		}	
 	}
 
 
@@ -288,7 +287,7 @@ function Sound()
 	this.setGlobalParameters = function( p0, p1, p2, p3 )
 	{
 		// console.log( "sound: setGlobalParameters: " + p0 + " " + p1 + " " + p2 + " " + p3);
-		
+		SOUND_UPDATE_COUNTER +=1;
 		_parameter_0 = p0;
 		_parameter_1 = p1;
 		_parameter_2 = p2;
@@ -297,7 +296,6 @@ function Sound()
 		// --- get the correct MIDI output by name ---
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'
 
-		SOUND_UPDATE_COUNTER +=1;
 		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
 
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
@@ -542,6 +540,19 @@ function Sound()
 		osc.stop(noteEndTime);
 	}
 
+	// Send a MIDI Panic to clear out any stuck notes
+	// In Gig Performer, configure Options -> Global MIDI -> Panic for IAC Driver Bus 1, Control change, CC #64, CH 16
+	function sendMIDIpanic() {
+		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
+		if (typeof nondiegeticOutput !== "undefined") {
+			console.log ("*** SENDING MIDI PANIC ***");
+			sendControlMIDI(64, 100, MIDI_CHANNEL_SYSTEM, nondiegeticOutput);	
+		}
+		return;
+	}
+	
+	this.sendMIDIpanic = sendMIDIpanic; // wrapper so we can call it from outside, e.g. whenever we start a new simulation in GenePool.js startSimulation
+	
 	// Actually send a MIDI note on (and schedule a note off) to the IAC bus.
 	function sendNoteMIDI(noteNumber, velocity, durationMs, midiChannel, midiOutput) {
 		let zeroIndexMidiChannel = midiChannel - 1; 
@@ -559,7 +570,7 @@ function Sound()
 		const cc = 0xB0 | zeroIndexMidiChannel;
 		midiOutput.send([cc, controllerNumber, value]);
 	}
-	
+		
 } // *** end class/object Sound () ***
 
 
