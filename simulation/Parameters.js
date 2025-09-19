@@ -1,5 +1,5 @@
 var CIRCULAR_BOUNCE_RADIUS	= 3750; // bounce swimbots this far away from the center (4000=max)
-const USE_CIRCULAR_VIEW			= true;
+const USE_CIRCULAR_VIEW		= true;
 
 
 const FOOD_TYPE_OFFSET = 0.2;
@@ -32,10 +32,10 @@ const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2250;
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 3750;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
 const MAX_SWIMBOTS = 300;
-const INITIAL_NUM_SWIMBOTS =  150;
+const INITIAL_NUM_SWIMBOTS =  290;
 const MAX_FOODBITS           = 1200;
 const MAX_FOODBITS_PER_TYPE  = 1200;
 const INITIAL_NUM_FOODBITS   = 500;
