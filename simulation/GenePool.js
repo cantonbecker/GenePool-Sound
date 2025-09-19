@@ -462,9 +462,11 @@ _camera.setScale( POOL_WIDTH );
             //this.randomizeFood();
         }
 
-        //----------------------------------
-        // initialize swimbots
-        //----------------------------------
+
+
+        //--------------------------------------------------------------
+        // *** initialize swimbots, but vary depending on simulation ***
+        //--------------------------------------------------------------
         for (let i=0; i<_numSwimbots; i++)
         {
             let initialPosition = new Vector2D();
@@ -472,20 +474,20 @@ _camera.setScale( POOL_WIDTH );
             initialPosition.setToRandomLocationInDisk( _poolCenter, _gardenOfEdenRadius ); 
 
 
-if ( mode === SimulationStartMode.SPECIES )
-{
-    let s = POOL_WIDTH * 0.4;
-
-    let x = gpRandom() * s;
-    let y = POOL_HEIGHT * ONE_HALF - s * ONE_HALF + + gpRandom() * s;
-    
-    if ( gpRandom() < ONE_HALF )
-    {
-        x = POOL_WIDTH - x;
-    }
-    
-    initialPosition.setXY( x, y )
-}
+            if ( mode === SimulationStartMode.SPECIES )
+            {
+                let s = POOL_WIDTH * 0.4;
+            
+                let x = gpRandom() * s;
+                let y = POOL_HEIGHT * ONE_HALF - s * ONE_HALF + + gpRandom() * s;
+                
+                if ( gpRandom() < ONE_HALF )
+                {
+                    x = POOL_WIDTH - x;
+                }
+                
+                initialPosition.setXY( x, y )
+            }
 
 
             //-----------------------------------------
@@ -571,14 +573,7 @@ if ( mode === SimulationStartMode.SPECIES )
             // race
             //---------------------------------
             else if ( mode === SimulationStartMode.RACE )
-            {            
-                /*
-                if ( i === 0 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_MARGULIS   ); }
-                if ( i === 1 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_MARGULIS   ); }
-                if ( i === 2 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_DAWKINS  ); }
-                if ( i === 3 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_DAWKINS  ); }
-                */
-
+            {
                 if ( i === 0 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_WILSON   ); }
                 if ( i === 1 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_WILSON   ); }
                 if ( i === 2 ) { _myGenotype.setToPreset( PRESET_GENOTYPE_DENNETT  ); }
@@ -613,12 +608,20 @@ if ( mode === SimulationStartMode.SPECIES )
             //-------------------------------------------------
             else if ( mode === SimulationStartMode.QUARTET )
             {            
-                if ( i > 3 ) 
-                	 { _myGenotype.setToPreset( PRESET_GENOTYPE_DARWIN 	); }
-                else { _myGenotype.setToPreset( PRESET_GENOTYPE_QUARTET ); }
+                if ( i <= 3 ) 
+                { 
+                    _myGenotype.setToPreset( PRESET_GENOTYPE_QUARTET );
+                    _myGenotype.randomizeUtterance(.35); // randomize song a for each of the the original quartet members
+                } else { 
+                    _myGenotype.setToPreset( PRESET_GENOTYPE_DARWIN );
+                    _myGenotype.randomizeUtterance(.20); // randomize song a little less for the invading hordes
+                    // the invaders are old and weak and most die off quickly
+                    initialAge = globalTweakers.maximumLifeSpan - 1500 - (Math.floor(gpRandom() * 200));
+                    console.log("initialAge="+initialAge);
+                }
 
-				let range = 200;
-				let offset = 0;
+				    let range = 200;
+				    let offset = 0;
                 
                 if ( i > 3 ) 
                 { 
@@ -710,18 +713,24 @@ if ( mode === SimulationStartMode.SPECIES )
             _swimbots[i].create( i, initialAge, initialPosition, initialAngle, initialEnergy, _myGenotype, _embryology );	
 
 
-if ( mode === SimulationStartMode.BIG_BANG )
-{
-	let forceAmount = 200;
-	
-	_vectorUtility.setXY( -forceAmount + Math.random() * forceAmount * 2, -forceAmount + Math.random() * forceAmount * 2 );
-	_swimbots[i].addForce( _vectorUtility );
-}
+            if ( mode === SimulationStartMode.BIG_BANG )
+            {
+                let forceAmount = 200;
+                
+                _vectorUtility.setXY( -forceAmount + Math.random() * forceAmount * 2, -forceAmount + Math.random() * forceAmount * 2 );
+                _swimbots[i].addForce( _vectorUtility );
+            }
+
             //------------------------------------------------------------------------------------
-            // add the new swimbot to the family tree
+            // FINALLY! add the new swimbot to the family tree
             //------------------------------------------------------------------------------------
             _familyTree.addNode( i, NULL_INDEX, NULL_INDEX, _clock, this.getSwimbotGenes(i) );
-        }	
+        }
+        /* end for loop "initialize swimbots" */ 	
+        
+        
+        
+        
         
         //--------------------------------------
         // initilize obstacle       
@@ -956,7 +965,7 @@ if ( mode === SimulationStartMode.SPECIES )
 	//-------------------------------------------
 	this.setFoodToQuartetConfiguration = function()
 	{	
-        _numFoodBits = 100;
+        _numFoodBits = 50;
 
         for (let f=0; f<_numFoodBits; f++)
         {

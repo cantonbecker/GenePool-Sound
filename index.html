@@ -639,44 +639,10 @@
                             id      = "createRandomSwimbotButton" 
                             class   = "basicButton" 
                             onClick = "genePool.makeNewRandomSwimbot();" >create random</button> 
-                        <!--                            
-                        <button 
-                            id      = "loadSwimbotButton" 
-                            class   = "basicButton" 
-                            onClick = "requestToLoadSwimbotFromFile(); " >load genes...</button>   
-                        -->
-                        <button 
-                            id      = "presetSwimbot1Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(0); " >Darwin</button>   
-                        <button 
-                            id      = "presetSwimbot2Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(1); " >Wallace</button>   
-                        <button 
-                            id      = "presetSwimbot3Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(2); " >Mendel</button>   
-                        <button 
-                            id      = "presetSwimbot4Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(3); " >Turing</button>   
-                        <button 
-                            id      = "presetSwimbot5Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(4); " >Margulis</button>   
-                        <button 
-                            id      = "presetSwimbot6Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(5); " >Wilson</button>   
-                        <button 
-                            id      = "presetSwimbot7Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(6); " >Dawkins</button>   
-                        <button 
-                            id      = "presetSwimbot8Button" 
-                            class   = "basicButton" 
-                            onClick = "loadSwimbotFromPreset(7); " >Dennett</button>   
+
+                        <!-- dynamic preset buttons will be injected here -->
+                        <div id="presetSwimbotButtons"></div>
+
                     </div>
 
                     <div id="selectedSwimbotPanel" class = "basicPanel">
@@ -855,7 +821,7 @@
 		<!-- also, show that autotracking is on...                        -->
 		<!-- ------------------------------------------------------------ -->
 		<script type = "text/javascript"> 	
-            resize();
+          resize();
 		    openInfoPanel();
 		    setInfoPage(2);
 		    initializeUI();

@@ -100,7 +100,29 @@ function initializeUI()
 {
     initializeEcosystemUI();    
     
-    _graph.initialize();      
+    _graph.initialize();
+
+  // set up genotype preset buttons in UI
+  const presetSwimbotButtons = document.getElementById('presetSwimbotButtons');
+  if (!presetSwimbotButtons) return;
+
+  if (typeof PRESET_LIST === 'undefined' || !Array.isArray(PRESET_LIST)) {
+    presetSwimbotButtons.textContent = '(no presets found)';
+    return;
+  }
+  
+  const frag = document.createDocumentFragment();
+
+  PRESET_LIST.forEach((NAME, i) => {
+    const btn = document.createElement('button');
+    btn.id = `presetSwimbot${i + 1}Button`;
+    btn.className = 'autoPresetButton';
+    btn.textContent = NAME;
+    btn.addEventListener('click', () => loadSwimbotFromPreset(i));
+    frag.appendChild(btn);
+  });
+
+  presetSwimbotButtons.appendChild(frag);
   
     //--------------------------------------------------
     // This starts an update loop that is called 
