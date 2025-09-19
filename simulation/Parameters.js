@@ -127,8 +127,8 @@ const SWIMBOT_DOT_RENDER_RADIUS = 20;
 //---------------------------------------------------------------------------
 function GlobalTweakers()
 {
-    this.childEnergyRatio       = DEFAULT_CHILD_ENERGY_RATIO;
-    this.maximumLifeSpan        = DEFAULT_MAXIMUM_AGE;
+   this.childEnergyRatio       = DEFAULT_CHILD_ENERGY_RATIO;
+   this.maximumLifeSpan        = DEFAULT_MAXIMUM_AGE;
 	this.foodSpread             = DEFAULT_FOOD_BIT_MAX_SPAWN_RADIUS;
 	this.foodBitEnergy          = DEFAULT_FOOD_BIT_ENERGY;
 	this.foodRegenerationPeriod = DEFAULT_FOOD_REGENERATION_PERIOD;

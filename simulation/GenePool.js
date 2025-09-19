@@ -612,12 +612,13 @@ _camera.setScale( POOL_WIDTH );
                 { 
                     _myGenotype.setToPreset( PRESET_GENOTYPE_QUARTET );
                     _myGenotype.randomizeUtterance(.35); // randomize song a for each of the the original quartet members
+                    // the quartet is vibrant and strong and lives longer than average...
+                    initialAge = YOUNG_AGE_DURATION + Math.floor( ( globalTweakers.maximumLifeSpan - YOUNG_AGE_DURATION ) * (weightedRandomNormal/4) );
                 } else { 
                     _myGenotype.setToPreset( PRESET_GENOTYPE_DARWIN );
                     _myGenotype.randomizeUtterance(.20); // randomize song a little less for the invading hordes
                     // the invaders are old and weak and most die off quickly
                     initialAge = globalTweakers.maximumLifeSpan - 1500 - (Math.floor(gpRandom() * 200));
-                    console.log("initialAge="+initialAge);
                 }
 
 				    let range = 200;
@@ -965,12 +966,14 @@ if ( mode === SimulationStartMode.SPECIES )
 	//-------------------------------------------
 	this.setFoodToQuartetConfiguration = function()
 	{	
-        _numFoodBits = 50;
+        this.setFoodGrowthDelay ( Math.floor(DEFAULT_FOOD_REGENERATION_PERIOD/4) ); // regenerate our food faster than normal 
+
+        // extra concentration of food in the middle
+        _numFoodBits = 75; 
 
         for (let f=0; f<_numFoodBits; f++)
         {
-			let radius = 700;
-
+			let radius = 500;
         	_vectorUtility.setToRandomLocationInDisk( _poolCenter, radius );
 
 			/*
