@@ -131,7 +131,8 @@ body
 
 #volumeSlider {
     display: inline-block;
-    float: left;
+    float: right;
+    margin-right: 140px;
     width: 200px;
     margin-top: 0;
 }

@@ -23,7 +23,7 @@ const MAX_FOOD_BIT_ENERGY               = 100.0;
 const DEFAULT_FOOD_BIT_ENERGY           = 50.0;  //when eaten, swimbot gets this much energy
 const FOOD_BIT_SIZE_VIEW_SCALE          = 0.03; //increase with view scale (a kind of LOD)
 const FOOD_BIT_GRAB_RADIUS              = 20.0;  // radius for grabbing food bit
-const FOOD_BIT_BOUNDARY_MARGIN          = POOL_WIDTH * 0.01; // important value - creates empty space from wall
+const FOOD_BIT_BOUNDARY_MARGIN          = POOL_WIDTH * 0.05; // important value - creates empty space from wall
 const FOOD_BIT_COLOR_COMPONENTS         = "100, 200, 100";	
 const FOOD_BIT_ROLLOVER_COLOR           = "rgba( 100, 200, 100, 0.5 )";	
 const FOOD_BIT_SELECT_COLOR             = "rgba( 200, 200, 200, 1.0 )";	
@@ -266,50 +266,70 @@ function FoodBit()
 
 
 
-    //-----------------------------------------------------------
-	this.randomizeSpawnPosition = function( parentFoodBit )
+    // --------------------------------------------------------------------------
+    // food spawning, adjusted sept 2025 by canton to account for circular pools
+    // --------------------------------------------------------------------------
+    this.randomizeSpawnPosition = function( parentFoodBit )
     {
+        // start at the parent's position
         _position.set( parentFoodBit.getPosition() );
-
+    
+        // apply the existing center-biased offset
         let xx = gpRandom() * gpRandom();
         let yy = gpRandom() * gpRandom();
-
-        if ( gpRandom() < ONE_HALF ) { xx *= -ONE; }
-        if ( gpRandom() < ONE_HALF ) { yy *= -ONE; }
-
+    
+        if ( gpRandom() < 0.5 ) { xx *= -1; }
+        if ( gpRandom() < 0.5 ) { yy *= -1; }
+    
         _position.x += xx * _maxSpawnRadius;
         _position.y += yy * _maxSpawnRadius;
-
-        //-----------------------------
-        // pool boundary collisions
-        //-----------------------------      
-        let pb = POOL_TOP       + FOOD_BIT_BOUNDARY_MARGIN;
-        let pt = POOL_BOTTOM    - FOOD_BIT_BOUNDARY_MARGIN;
-        let pl = POOL_LEFT	    + FOOD_BIT_BOUNDARY_MARGIN;
-        let pr = POOL_RIGHT	    - FOOD_BIT_BOUNDARY_MARGIN;
-        
-        //console.log( "before:" + _position.y );
-        
-                if ( _position.y < pb ) { _position.y += ( ( pb - _position.y ) * 2 ); }
-        else	if ( _position.y > pt ) { _position.y += ( ( pt - _position.y ) * 2 ); }
-                if ( _position.x > pr ) { _position.x += ( ( pr - _position.x ) * 2 ); }
-        else	if ( _position.x < pl ) { _position.x += ( ( pl - _position.x ) * 2 ); }
-        
-        //console.log( "after:" + _position.y );        
-        
-        if ( SPAWN_FOOD_RANDOMLY_IN_POOL )
+    
+        if ( USE_CIRCULAR_VIEW )
         {
-            _position.x = POOL_LEFT + gpRandom() * POOL_WIDTH;
-            _position.y = POOL_TOP  + gpRandom() * POOL_HEIGHT;
-        }   
+            // Center and radius of the inscribed circle (minus margin).
+            const cx = POOL_LEFT + POOL_WIDTH  * 0.5;
+            const cy = POOL_TOP  + POOL_HEIGHT * 0.5;
+            const R  = Math.min(POOL_WIDTH, POOL_HEIGHT) * 0.5 - FOOD_BIT_BOUNDARY_MARGIN;
         
-
-        assert( _position.x < POOL_RIGHT,   "foodbit.js: spawnNearParent: _position.x < POOL_RIGHT"  );
-        assert( _position.x > POOL_LEFT,    "foodbit.js: spawnNearParent: _position.x > POOL_LEFT"   );
-        assert( _position.y > POOL_TOP,     "foodbit.js: spawnNearParent: _position.y < POOL_TOP"	);
-        assert( _position.y < POOL_BOTTOM,  "foodbit.js: spawnNearParent: _position.y > POOL_BOTTOM" );
+            // Uniform-by-area point anywhere in the circle.
+            const theta = gpRandom() * PI2;
+            const r     = R * Math.sqrt(gpRandom());
+        
+            _position.x = cx + r * Math.cos(theta);
+            _position.y = cy + r * Math.sin(theta);
+        
+            // Optional assert (nice to keep while debugging).
+            // const dx = _position.x - cx, dy = _position.y - cy;
+            // assert(dx*dx + dy*dy <= R*R + 1e-6, "foodbit.js: position within circular view");
+        
+            return; // done; skip rectangular logic
+        }
+        else
+        {
+            // --- original rectangular boundary handling with margin ---
+            const pb = POOL_TOP    + FOOD_BIT_BOUNDARY_MARGIN;
+            const pt = POOL_BOTTOM - FOOD_BIT_BOUNDARY_MARGIN;
+            const pl = POOL_LEFT   + FOOD_BIT_BOUNDARY_MARGIN;
+            const pr = POOL_RIGHT  - FOOD_BIT_BOUNDARY_MARGIN;
+    
+                    if ( _position.y < pb ) { _position.y += ( ( pb - _position.y ) * 2 ); }
+            else    if ( _position.y > pt ) { _position.y += ( ( pt - _position.y ) * 2 ); }
+                    if ( _position.x > pr ) { _position.x += ( ( pr - _position.x ) * 2 ); }
+            else    if ( _position.x < pl ) { _position.x += ( ( pl - _position.x ) * 2 ); }
+    
+            if ( SPAWN_FOOD_RANDOMLY_IN_POOL )
+            {
+                _position.x = POOL_LEFT + gpRandom() * POOL_WIDTH;
+                _position.y = POOL_TOP  + gpRandom() * POOL_HEIGHT;
+            }
+    
+            // original rectangular asserts
+            assert( _position.x < POOL_RIGHT,   "foodbit.js: spawnNearParent: _position.x < POOL_RIGHT"  );
+            assert( _position.x > POOL_LEFT,    "foodbit.js: spawnNearParent: _position.x > POOL_LEFT"   );
+            assert( _position.y > POOL_TOP,     "foodbit.js: spawnNearParent: _position.y < POOL_TOP"    );
+            assert( _position.y < POOL_BOTTOM,  "foodbit.js: spawnNearParent: _position.y > POOL_BOTTOM" );
+        }
     }
-
 
 
     //-----------------------------

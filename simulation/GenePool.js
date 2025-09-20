@@ -114,7 +114,7 @@ function GenePool()
     const DO_HIGHLIGHT_SELECTED_SWIMBOT = false; // draw a ring around the selected swimbot?
 
     //const LEVEL_OF_DETAIL_THRESHOLD         = 1000.0;
-    const LEVEL_OF_DETAIL_THRESHOLD         = 1200.0;
+    const LEVEL_OF_DETAIL_THRESHOLD         = 3000.0; // increase to preserve curves when zoomed out
 
     const INITIAL_VIEW_SCALE                = POOL_WIDTH * 0.1;
     const RACE_VIEW_SCALE                   = POOL_WIDTH * 0.3;
