@@ -448,7 +448,8 @@ testNoEel = false;
 		// return phenotype
 		//----------------------
         return phenotype;
-    }
+    } // End generate phenotype from genotype
+    
     
     
     
