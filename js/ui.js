@@ -1452,10 +1452,11 @@ document.onkeydown = function(e)
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
-        e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.QUARTET);
-        requestToLoadPoolFromPreset();
-        flashNotice("Quartet AKA 'The Invading Hordes'", 1750);
+      if (e.metaKey || e.ctrlKey) return; // allow Command+R (mac) / Ctrl+R (win/linux) to refresh
+      e.preventDefault();
+      choosePoolToLoad(SimulationStartMode.QUARTET);
+      requestToLoadPoolFromPreset();
+      flashNotice("Quartet AKA 'The Invading Hordes'", 1750);    
     }
     // T -> RANDOM
     if (e.keyCode === 84) { // T

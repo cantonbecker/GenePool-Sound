@@ -235,7 +235,7 @@ function Sound()
 			try {
 				const access = await navigator.requestMIDIAccess();
 				onMIDISuccess(access);
-	      	flashNotice ("😎 MIDI ready.", 3000);
+	      	flashNotice ("😎 MIDI ready.", 1500);
 				MIDIworking = true;
 				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_SPAWN, false);
 			} catch (err) {
@@ -244,7 +244,6 @@ function Sound()
 		})();
 		} else {
 			console.warn("Web MIDI API not supported. Will attempt to use Web Audio API fallback.");
-      	if (!MIDIworking) flashNotice ("🙉 Web audio ready.", 3000);
 		}
 
 		// *** WEB AUDIO API FALLBACK INITIALIZATION ***
@@ -395,34 +394,29 @@ function Sound()
 				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
 				soundEventLog += " sent non-diagetic death MIDI note " + midiNote;
 			}
-		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) {
+		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) { // sequence a Q*bert-style sound: sequence distinct notes from spawn-x.wav samples
 			if (doingMidiOutput() && SOUND_OUTPUT_SPAWN) {
 				let midiChannel = MIDI_CHANNEL_ONESHOTS;
-
-// sequence a Q*bert-style sound: pick 4 distinct notes from [36 .. 36 + SPAWN_SOUND_VARIATIONS - 1]
-const base = 36;
-const max  = 36 + SPAWN_SOUND_VARIATIONS - 1;
-
-// build pool
-const pool = [];
-for (let n = base; n <= max; n++) pool.push(n);
-
-// draw without replacement
-const count = Math.min(4, pool.length);
-const picks = [];
-for (let k = 0; k < count; k++) {
-  const idx = Math.floor(Math.random() * pool.length);
-  picks.push(pool[idx]);
-  pool.splice(idx, 1); // remove chosen note
-}
-
-// schedule sequential notes (adjust 300 if you want a different note length/spacing)
-for (let i = 0; i < picks.length; i++) {
-  const note = picks[i];
-  setTimeout(() => {
-    sendNoteMIDI(note, 127, 150, midiChannel, nondiegeticOutput);
-  }, i * 150);
-}
+				const noteDuration = 150; // ms per note
+				const base = 36;
+				const max  = 36 + SPAWN_SOUND_VARIATIONS - 1;
+				const pool = [];
+				for (let n = base; n <= max; n++) pool.push(n); // build pool of MIDI notes
+				const count = Math.min(2, pool.length); // how many notes do we want to play?
+				const picks = [];
+				for (let k = 0; k < count; k++) {
+					const idx = Math.floor(Math.random() * pool.length);
+					picks.push(pool[idx]);
+					pool.splice(idx, 1); // remove chosen note so we don't reuse it
+				}
+				
+				// schedule sequential notes
+				for (let i = 0; i < picks.length; i++) {
+					const note = picks[i];
+					setTimeout(() => {
+						sendNoteMIDI(note, 127, noteDuration, midiChannel, nondiegeticOutput);
+					}, i * (noteDuration + 10) ); // schedule 10ms apart
+				}
 
 				soundEventLog += " sent non-diagetic spawn MIDI sequence ";
 			}
