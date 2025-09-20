@@ -609,7 +609,7 @@ body
     position: absolute; 
     left: 10;
     top:  340;
-    width: 200;
+    width: 400;
     color: #000000; 
     font-family: "Arial";
     font-size: 14;
@@ -617,6 +617,8 @@ body
     /* for debugging */
     /*background-color: #55ff44; */
 }
+
+#graphData span { display: inline-block; width: 80px; }
 
 
 /* -------------------------------------------- */

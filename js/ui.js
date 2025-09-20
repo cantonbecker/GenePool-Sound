@@ -23,7 +23,7 @@ const DEFAULT_BASIC_BUTTON_COLOR        = "#dadad0";
 const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";   
 const ACTIVE_BORDER_COLOR               = '#ffffff';   
 
-const UI_UPDATE_PERIOD = 500;
+const UI_UPDATE_PERIOD = 1000;
 var DEVELOPER_MODE = true; // reflects how we launch into developer mode with the panel showing
 
 const PRESET_COOLDOWN_MS = 2000; // keep visitors from mashing on preset loading buttons too fast
@@ -33,7 +33,9 @@ let _currentInfoPage            = FIRST_INFO_PAGE;
 let _graph                      = new Graph(); 
 let _tweakGenesCategory         = 0;
 let _runningFast                = false;
-
+let _rate_lastStep = 0;
+let _rate_lastTSms = 0;
+let _stepsPerSecond = 0;
 
 
 // ---- Pointer Lock state/helpers -------------------------------------------
@@ -1034,7 +1036,20 @@ function updateUI()
         {
             clearViewModeButtons();
         }
-    
+            
+        // compute sim step rate
+        const _nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+        const _curStep = genePool.getTimeStep();
+        
+        if (_rate_lastTSms) {
+          const dtMs = Math.max(1, _nowMs - _rate_lastTSms);
+          const dStep = _curStep - _rate_lastStep;
+          _stepsPerSecond = (dStep * 1000) / dtMs; // steps / second
+        }
+        _rate_lastTSms = _nowMs;
+        _rate_lastStep = _curStep;
+
+
         //-----------------------------------------------------------------------------------
         // update the swimbot panel....
         //-----------------------------------------------------------------------------------
@@ -1120,11 +1135,12 @@ function updateUI()
         if ( document.getElementById( 'graphPanel' ).style.visibility === 'visible' )
         {
             document.getElementById( 'graphData' ).innerHTML
-            = "time step: " + genePool.getTimeStep()
+            = "<span>time step:</span> " + _curStep
+            + " @ " + _stepsPerSecond.toFixed(1) + "/s"
             + "<br>"
-            + "swimbots: " + genePool.getNumSwimbots()
+            + "<span>swimbots:</span> " + genePool.getNumSwimbots()
             + "<br>"
-            + "food bits: " + genePool.getNumFoodBits()
+            + "<span>food bits:</span> " + genePool.getNumFoodBits()
             + "<br><br>"
             + "uttering / uttering in view: " + genePool.getNumUttering() + "/" + genePool.getNumUtteringInView();
             

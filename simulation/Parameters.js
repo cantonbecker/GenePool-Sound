@@ -1,8 +1,8 @@
-const SWIMBOT_VERSION			= '2025-09-20.4';
+const SWIMBOT_VERSION			= '2025-09-20.5';
 const DEBUGGING_NOISY_CONSOLE_MODE = true; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
-var CIRCULAR_BOUNCE_RADIUS		= 1750; // bounce swimbots this far away from the center (4000=max)
+var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
 
 const DEFAULT_NUM_FOOD_TYPES 	= 1;
 const FOOD_TYPE_OFFSET 			= 0.2; // only matters in a multi-food context
@@ -26,13 +26,13 @@ const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 3750;
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 3250;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-const MAX_SWIMBOTS = 300;
-const INITIAL_NUM_SWIMBOTS =  150;
+const MAX_SWIMBOTS = 400;
+const INITIAL_NUM_SWIMBOTS =  200;
 const MAX_FOODBITS           = 1200;
 const MAX_FOODBITS_PER_TYPE  = 1200;
-const INITIAL_NUM_FOODBITS   = 500;
+const INITIAL_NUM_FOODBITS   = 700;
 const DEFAULT_FOOD_REGENERATION_PERIOD  = 15;
 
 
