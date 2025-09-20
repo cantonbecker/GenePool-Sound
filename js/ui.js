@@ -1230,7 +1230,6 @@ function flashNotice(message, messageMS = 1500) {
 function resize()
 { 
     const HOLE_MARGIN = 20; // total pixels to keep from top+bottom (≈2px each)
-
     let masterPanel = document.getElementById("masterPanel");
     let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
     let rightMargin = (masterIsDisplayed !== "none") ? 420 : 0;
