@@ -2460,7 +2460,7 @@ if ( globalTweakers.numFoodTypes === 2 )
     // TK: when we invoke this, all the junk DNA is set to random values (instead of zeros) which
     // (for some reason) makes it unable to mate with other swimbots
     
-	this.makeNewRandomSwimbot = function( soundFeedback = false)
+	this.makeNewRandomSwimbot = function( soundFeedback = true)
 	{		
 	    let index = this.findLowestDeadSwimbotInArray();
 	    
@@ -2470,23 +2470,35 @@ if ( globalTweakers.numFoodTypes === 2 )
             let initialAngle    = getRandomAngleInDegrees(); //-180.0 + gpRandom() * 360.0;
             let initialEnergy   = DEFAULT_SWIMBOT_HUNGER_THRESHOLD;
 
-            // _myGenotype.randomize();
+            //--------------------------------------------------------------------------------
+            // make up some genes!
+            // sometimes we just clone a pretty archetype, sometimes we combine two archetypes
+            //--------------------------------------------------------------------------------
+            let pickMethod = Math.random();
             
-            //-----------------------------------------------
-            // inherit genes from two presets...
-            //-----------------------------------------------			
-            let _parent1Genotype = new Genotype();
-            let _parent2Genotype = new Genotype();
+            if (pickMethod < .5) {
+               // METHOD 1: just clone an archetype
+               let _archetypeGenotype = new Genotype();
+               _archetypeGenotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
+               _myGenotype.copyFromGenotype(_archetypeGenotype);
+               _myGenotype.randomizeUtterance(.3); // randomize utterance so it doesn't sound the same
+            } else {
+               // METHOD 2: inherit genes from two presets...
+               let _parent1Genotype = new Genotype();
+               let _parent2Genotype = new Genotype();               
+               _parent1Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
+               _parent2Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES ) );
+               _myGenotype.setAsOffspring( _parent1Genotype, _parent2Genotype );
+               _myGenotype.randomize();
+            }
             
-            _parent1Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
-            _parent2Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES ) );
-            
-            _myGenotype.setAsOffspring( _parent1Genotype, _parent2Genotype );
-            
+            //--------------------------------------------------
+            // now that we have a genotype, make the swimbot
+            //--------------------------------------------------
             _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
             
             //--------------------------------------------------
-            // add the new swimbot to the family tree
+            // add it to the family tree
             //--------------------------------------------------
             _familyTree.addNode( index, NULL_INDEX, NULL_INDEX, _clock, this.getSwimbotGenes( index ) );
             
@@ -2498,6 +2510,10 @@ if ( globalTweakers.numFoodTypes === 2 )
             if (soundFeedback) {
                 _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_SPAWN, index);
             }
+
+            //-----------------------------------------------------------------------
+            // JEFFREY TO DO: Special spawn animation we can see from a distance?
+            //-----------------------------------------------------------------------
             
         }
         else
