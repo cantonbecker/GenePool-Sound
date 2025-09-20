@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2025-09-20.5';
+const SWIMBOT_VERSION			= '2025-09-20.6';
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
@@ -31,10 +31,10 @@ const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2200;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
 const MAX_SWIMBOTS = 300;
 const INITIAL_NUM_SWIMBOTS =  150;
-const MAX_FOODBITS           = 2000;
-const MAX_FOODBITS_PER_TYPE  = 2000;
-const INITIAL_NUM_FOODBITS   = 500;
-const DEFAULT_FOOD_REGENERATION_PERIOD  = 15;
+const MAX_FOODBITS           = 1500;
+const MAX_FOODBITS_PER_TYPE  = 1500;
+const INITIAL_NUM_FOODBITS   = 400;
+const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
 
 
 
