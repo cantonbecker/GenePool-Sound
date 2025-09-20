@@ -1486,18 +1486,18 @@ function doToggleDeveloperMode (showHint) {
     const masterDisplayStatus = window.getComputedStyle(masterPanel).display;
 
     if (masterDisplayStatus === 'none') {
-        // SHOW developer UI -> exit pointer lock
-        masterPanel.style.display = 'block';
-        DEVELOPER_MODE = true;
-        exitPointerLock(); // <-- disengage
+      // SHOW developer UI -> exit pointer lock
+      masterPanel.style.display = 'block';
+      DEVELOPER_MODE = true;
+      exitPointerLock(); // <-- disengage
     } else {
-        genePool.deselectSwimbot();
-        // HIDE developer UI -> enter pointer lock
-        if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
-        masterPanel.style.display = 'none';
-        console.log(genePool);
-        DEVELOPER_MODE = false;
-        enterPointerLock(); // <-- engage
+      // HIDE developer UI -> enter pointer lock
+      genePool.deselectSwimbot();
+      if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
+      masterPanel.style.display = 'none';
+      console.log(genePool);
+      DEVELOPER_MODE = false;
+      enterPointerLock(); // <-- engage
     }
     resize();
     return false;
