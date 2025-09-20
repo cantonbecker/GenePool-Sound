@@ -23,6 +23,8 @@ const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
 const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
+const SOUND_EVENT_TYPE_SPAWN	=  4;
+const SOUND_EVENT_TYPE_LAUNCH	=  5;
 
 // in several places of the code we slice the genes by index just to pull out utterance-related genes
 const UTTERANCE_GENES_SLICE_START = 112;
@@ -39,14 +41,19 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 0; // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
+// How many different spawn sounds do we have? (starting from C1)
+const SPAWN_SOUND_VARIATIONS 	=	9;
+
+
 // MIDI channels are 1-16 (not zero indexed!)
 const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
-const MIDI_CHANNEL_EAT = 1;
-const MIDI_CHANNEL_BIRTH = 2;
-const MIDI_CHANNEL_DEATH = 3;
-const MIDI_CHANNEL_SAMPLER = 14;
-const MIDI_CHANNEL_ATMOSPHERE = 15;
-const MIDI_CHANNEL_SYSTEM = 16; // e.g. MIDI panic to GP
+const MIDI_CHANNEL_EAT 			= 1;
+const MIDI_CHANNEL_BIRTH 		= 2;
+const MIDI_CHANNEL_DEATH 		= 3;
+const MIDI_CHANNEL_ONESHOTS	= 13; // no reverb, used for spawn and simulation launch sounds
+const MIDI_CHANNEL_SAMPLER 	= 14; // gentle background crickets & such
+const MIDI_CHANNEL_ATMOSPHERE = 15; // synthezed drone
+const MIDI_CHANNEL_SYSTEM 		= 16; // e.g. MIDI panic to GP
 
 var MIDI_CHANNELS_FOR_UTTERING = [
 	{	output: 'IAC Driver Bus 2', channel: 1,	lastUsed: 0 },
@@ -102,11 +109,13 @@ const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // cooldown: we don't ask any ind
 const MODULATION_SPEED_MS = 15; // how fast do we twiddle modulation knobs? smaller number = smoother vocal morphs, but more MIDI data.
 
 // these are here in case we want to selectively disable some sounds during testing
-var SOUND_OUTPUT_UTTER 	= true;
-var SOUND_OUTPUT_EAT 		= true;
-var SOUND_OUTPUT_BIRTH 	= true;
-var SOUND_OUTPUT_DEATH 	= true;
+var SOUND_OUTPUT_UTTER 			= true;
+var SOUND_OUTPUT_EAT 			= true;
+var SOUND_OUTPUT_BIRTH 			= true;
+var SOUND_OUTPUT_DEATH 			= true;
 var SOUND_OUTPUT_ATMOSPHERE 	= true;
+var SOUND_OUTPUT_SPAWN		 	= true;
+var SOUND_OUTPUT_LAUNCH			= true;
 
 
 // first is always the DEFAULT unless we are a 'strange' swimbot...
@@ -314,10 +323,10 @@ function Sound()
 			sendControlMIDI(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
 			
 			// SAMPLER BACKGROUND
-			if (SOUND_UPDATE_COUNTER % 50 == 0) {
+			if (SOUND_UPDATE_COUNTER % 200 == 0) {
 				let midiChannel = MIDI_CHANNEL_SAMPLER;
 				let midiNote = 60; // lake bacalar sounds
-				sendNoteMIDI(midiNote, 127, 2000, midiChannel, nondiegeticOutput); // 2 second pulse
+				sendNoteMIDI(midiNote, 127, 5000, midiChannel, nondiegeticOutput); // 5 second note
 				console.log ("Sent sampler note @ " + SOUND_UPDATE_COUNTER);
 			}
 
@@ -349,41 +358,78 @@ function Sound()
 
 	//------------------------------------------------------------------------------------------------------
 	// doSwimbotSoundEvent is used for non-diegetic sounds, e.g. eating, being born, dying
-	this.doSwimbotSoundEvent = function( type, swimbotPosition, swimbotID )
+	this.doSwimbotSoundEvent = function( type, eventIndex = false )
 	{
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
-		let printString = "doSwimbotSoundEvent() type=";
+		let soundEventLog = "doSwimbotSoundEvent() type=";
 		
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
-			printString += 'EAT';
+			soundEventLog += 'EAT';
 			if (doingMidiOutput() && SOUND_OUTPUT_EAT) {
 				let midiChannel = MIDI_CHANNEL_EAT;
 				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
 				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
 				sendControlMIDI(14, controlValue, midiChannel, nondiegeticOutput);
 				sendNoteMIDI(midiNote, 127, 100, midiChannel, nondiegeticOutput);
-				printString += " sent MIDI note " + midiNote + " w/CC 14 " + controlValue;
+				soundEventLog += " sent non-diagetic eat MIDI note " + midiNote + " w/CC 14 " + controlValue;
 			}
-		} else if ( type === SOUND_EVENT_TYPE_BIRTH) {
-			printString += 'BIRTH';
+		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) {
+			soundEventLog += 'BIRTH';
 			if (doingMidiOutput() && SOUND_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
 				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
 				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
-				printString += " sent MIDI note " + midiNote;
+				soundEventLog += " sent non-diagetic birth MIDI note " + midiNote;
 			}
-		} else if ( type === SOUND_EVENT_TYPE_DEATH) {
-			printString += 'DEATH';
+		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
+			soundEventLog += 'DEATH';
 			if (doingMidiOutput() && SOUND_OUTPUT_DEATH) {
 				let midiChannel = MIDI_CHANNEL_DEATH;
 				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
 				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
-				printString += " sent MIDI note " + midiNote;
+				soundEventLog += " sent non-diagetic death MIDI note " + midiNote;
+			}
+		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) {
+			if (doingMidiOutput() && SOUND_OUTPUT_SPAWN) {
+				let midiChannel = MIDI_CHANNEL_ONESHOTS;
+
+// sequence a Q*bert-style sound: pick 4 distinct notes from [36 .. 36 + SPAWN_SOUND_VARIATIONS - 1]
+const base = 36;
+const max  = 36 + SPAWN_SOUND_VARIATIONS - 1;
+
+// build pool
+const pool = [];
+for (let n = base; n <= max; n++) pool.push(n);
+
+// draw without replacement
+const count = Math.min(4, pool.length);
+const picks = [];
+for (let k = 0; k < count; k++) {
+  const idx = Math.floor(Math.random() * pool.length);
+  picks.push(pool[idx]);
+  pool.splice(idx, 1); // remove chosen note
+}
+
+// schedule sequential notes (adjust 300 if you want a different note length/spacing)
+for (let i = 0; i < picks.length; i++) {
+  const note = picks[i];
+  setTimeout(() => {
+    sendNoteMIDI(note, 127, 150, midiChannel, nondiegeticOutput);
+  }, i * 150);
+}
+
+				soundEventLog += " sent non-diagetic spawn MIDI sequence ";
+			}
+		} else if ( type === SOUND_EVENT_TYPE_LAUNCH ) {
+			if (doingMidiOutput() && SOUND_OUTPUT_LAUNCH) {
+				let midiChannel = MIDI_CHANNEL_ONESHOTS;
+				let midiNote = 60 + eventIndex; // spawn sounds begin at C3
+				sendNoteMIDI(midiNote, 127, 3000, midiChannel, nondiegeticOutput);
+				soundEventLog += " sent non-diagetic launch MIDI note " + midiNote;
 			}
 		} // end if sound types
 		 
-		// printString += "; swimbotPosition = " + swimbotPosition.x.toFixed(2) + ", " + swimbotPosition.y.toFixed(2);
- 		// console.log( printString );
+ 		console.log( soundEventLog );
 		return false;
     }
 
@@ -1066,7 +1112,7 @@ function throttleMaxChannels() {
 	
 	let reducedChannelCount = Math.max(1, Math.floor(maxChannels * factor));
 	if (maxChannels != reducedChannelCount) {
-		console.log("Reducing MIDI utterance channels from " + maxChannels + " to " + reducedChannelCount + " because we are at " + current + "/" + max + " swimbots.");
+		console.log("Reduced MIDI utterance channels from " + maxChannels + " to " + reducedChannelCount + " because we are at " + current + "/" + max + " swimbots.");
 	}
 	return (reducedChannelCount);
 }

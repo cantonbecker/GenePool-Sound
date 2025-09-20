@@ -15,18 +15,18 @@
 
 const SimulationStartMode = 
 {
-    RANDOM       	: 0,
-    FROGGIES     	: 1,
-    TANGO        	: 2,
-    RACE         	: 3,
-    NEIGHBORHOOD 	: 4,
-    BIG_BANG     	: 5,
-    BAD_PARENTS  	: 6,
-    BARRIER      	: 7,
-    EMPTY        	: 8,
-    FILE         	: 9,
-    SPECIES      	: 10,
-    QUARTET			: 11
+    EMPTY        	: 0, // Q to launch
+    FROGGIES     	: 1, // W to launch
+    NEIGHBORHOOD 	: 2, // E to launch
+    QUARTET			: 3, // R to launch
+    RANDOM       	: 4, // T to launch
+    TANGO        	: 5,
+    RACE         	: 6,
+    BIG_BANG     	: 7,
+    BAD_PARENTS  	: 8,
+    BARRIER      	: 9,
+    FILE         	: 10,
+    SPECIES      	: 11
 };
 
 const CameraNavigationAction = 
@@ -290,10 +290,21 @@ function GenePool()
 		//_swimbots[ id ].setDoneUtteringSound(); 
 	}	
 	
-	//------------------------------------------
+    
+    
+   //***********************
+   // START A SIMULATION!!!
+   //***********************
 	this.startSimulation = function( mode )
 	{	
-        _sound.sendMIDIpanic(); // clear any possibly stuck notes
+        // clear any possibly stuck MIDI notes
+        _sound.sendMIDIpanic();
+        // trigger the sound for this particular simulation, but wait 250ms for the panic to finish
+        setTimeout(() => {
+            _sound.doSwimbotSoundEvent(SOUND_EVENT_TYPE_LAUNCH, mode);
+        }, 250);        
+        
+        
 //looks like numOffspring didn't get reset. fix this! (and any other related side effects
 	
 		//----------------------------
@@ -783,8 +794,7 @@ _camera.setScale( POOL_WIDTH );
 		// reset clock to 0
 		//---------------------------------
 		_clock = 0;
-	}
-	
+	} // *** END START A SIMULATION ***	
 	
 
 	//----------------------------------------
@@ -1368,7 +1378,7 @@ if ( mode === SimulationStartMode.SPECIES )
 
                     // if the swimbot is eating within view, let's hear it!
                     if (_camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
-                        _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_EAT, _swimbots[s].getPosition(), s);
+                        _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_EAT, s);
                     }                   
                 } // end eating
                 
@@ -1430,7 +1440,7 @@ if ( mode === SimulationStartMode.SPECIES )
                 {
                     // if we're dying within view, let's hear it
                     if( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
-                        _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[s].getPosition(), s);
+                        _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, s);
                     }
                     
 					_utteranceRenderer.stop(s);
@@ -1526,7 +1536,7 @@ if ( mode === SimulationStartMode.SPECIES )
                                 	
                                 // If we're born within view, let's hear it
                                 if ( _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() )) {
-                                    _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_BIRTH, _swimbots[ newBornSwimbotIndex ].getPosition(), s);
+                                    _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_BIRTH, s);
                                 }
                             
                                 //--------------------------------------------------
@@ -2438,7 +2448,7 @@ if ( globalTweakers.numFoodTypes === 2 )
     // TK: when we invoke this, all the junk DNA is set to random values (instead of zeros) which
     // (for some reason) makes it unable to mate with other swimbots
     
-	this.makeNewRandomSwimbot = function()
+	this.makeNewRandomSwimbot = function( soundFeedback = false)
 	{		
 	    let index = this.findLowestDeadSwimbotInArray();
 	    
@@ -2448,27 +2458,35 @@ if ( globalTweakers.numFoodTypes === 2 )
             let initialAngle    = getRandomAngleInDegrees(); //-180.0 + gpRandom() * 360.0;
             let initialEnergy   = DEFAULT_SWIMBOT_HUNGER_THRESHOLD;
 
-            //_myGenotype.randomize();
+            // _myGenotype.randomize();
             
-			//-----------------------------------------------
-			// inherit genes from two presets...
-			//-----------------------------------------------			
-		    let _parent1Genotype = new Genotype();
-		    let _parent2Genotype = new Genotype();
+            //-----------------------------------------------
+            // inherit genes from two presets...
+            //-----------------------------------------------			
+            let _parent1Genotype = new Genotype();
+            let _parent2Genotype = new Genotype();
             
             _parent1Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
             _parent2Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES ) );
-              
-			_myGenotype.setAsOffspring( _parent1Genotype, _parent2Genotype );
-		
-        	_swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
-
+            
+            _myGenotype.setAsOffspring( _parent1Genotype, _parent2Genotype );
+            
+            _swimbots[ index ].create( index, initialAge, _camera.getPosition(), initialAngle, initialEnergy, _myGenotype, _embryology );			
+            
             //--------------------------------------------------
             // add the new swimbot to the family tree
             //--------------------------------------------------
             _familyTree.addNode( index, NULL_INDEX, NULL_INDEX, _clock, this.getSwimbotGenes( index ) );
-
-            setSelectedSwimbot( index )
+            
+            setSelectedSwimbot( index );
+            
+            //--------------------------------------------------
+            // if we asked for sound feedback, make a noise
+            //--------------------------------------------------
+            if (soundFeedback) {
+                _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_SPAWN, index);
+            }
+            
         }
         else
         {
@@ -2564,7 +2582,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 
         // if we die within view, let's hear it
 		  if (_camera.getWithinView( _swimbots[ ID ].getPosition(), _swimbots[ ID ].getBoundingRadius() )) {
-          _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, _swimbots[ ID ].getPosition(), ID);
+          _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, ID);
         }
         
         //------------------------------

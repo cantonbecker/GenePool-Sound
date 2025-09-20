@@ -1269,13 +1269,18 @@ _canvasEl.onmousedown = function(e) {
         const y = e.pageY - _canvasEl.offsetTop;
         genePool.touchDown(x, y);
     } else {
-        // kiosk mode: click should spawn a random swimbot — but only if we’re already locked
+        // *****************************************************************
+        // when in full-screen mode, clicking will spawn a random swimbot!
+        // (unless we need to re-grab pointer lock)
+        // *****************************************************************
+        
         if (!_pointerLocked) {
             // use this click to (re)enter pointer lock; don't spawn yet
             enterPointerLock();
             return;
         }
-        genePool.makeNewRandomSwimbot();
+        // make a swimbot (true) means make it, but also trigger a spawn sound
+        genePool.makeNewRandomSwimbot(true);
     }
 
     notifyGeneTweakPanelMouseDown();
@@ -1407,35 +1412,35 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        flashNotice("Empty gene pool! Use big green button to give birth to swimbots.", 2500);
+        flashNotice("Blank canvas: Use the green button to spawn new swimbots.", 1750);
     }
     // W -> FROGGIES
     if (e.keyCode === 87) { // W
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.FROGGIES);
         requestToLoadPoolFromPreset();
-        flashNotice("FROGGIES!", 1500);
+        flashNotice("Placeholder 2", 1750);
     }
     // E -> NEIGHBORHOOD(S)
     if (e.keyCode === 69) { // E
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.NEIGHBORHOOD);
         requestToLoadPoolFromPreset();
-        flashNotice("X/Y map of range of genetic phenotypes", 1500);
+        flashNotice("Placeholder 3", 1750);
     }
-    // R -> RANDOM
+    // R -> QUARTET
     if (e.keyCode === 82) { // R
-        e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.RANDOM);
-        requestToLoadPoolFromPreset();
-        flashNotice(INITIAL_NUM_SWIMBOTS + " totally random swimbots", 1500);
-    }
-    // T -> QUARTET
-    if (e.keyCode === 84) { // T
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.QUARTET);
         requestToLoadPoolFromPreset();
-        flashNotice("Quartet simulation", 1500);
+        flashNotice("Quartet AKA 'The Invading Hordes'", 1750);
+    }
+    // T -> RANDOM
+    if (e.keyCode === 84) { // T
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.RANDOM);
+        requestToLoadPoolFromPreset();
+        flashNotice(INITIAL_NUM_SWIMBOTS + " Random swimbots", 1750);
     }
     
                             
