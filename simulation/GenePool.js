@@ -2448,11 +2448,17 @@ if ( globalTweakers.numFoodTypes === 2 )
     //--------------------------------------
     function setSelectedSwimbot( index )
     {
-        _selectedSwimbot = index;
-        
+        _selectedSwimbot = index;        
 // hey...maybe I need to turn off any other things that assume there is a selected swimbot...here        
-        
     }
+
+    //--------------------------------------------
+    // deselect wrapper so we can call this from elsewhere
+    //---------------------------------------------
+   this.deselectSwimbot = function() {
+      setSelectedSwimbot(NULL_INDEX);
+   };
+
     
     
     
@@ -2502,7 +2508,7 @@ if ( globalTweakers.numFoodTypes === 2 )
             //--------------------------------------------------
             _familyTree.addNode( index, NULL_INDEX, NULL_INDEX, _clock, this.getSwimbotGenes( index ) );
             
-            setSelectedSwimbot( index );
+            if (DEVELOPER_MODE) setSelectedSwimbot( index ); // only select it if we're in developer mode
             
             //--------------------------------------------------
             // if we asked for sound feedback, make a noise
