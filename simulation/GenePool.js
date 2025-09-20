@@ -2476,14 +2476,14 @@ if ( globalTweakers.numFoodTypes === 2 )
             //--------------------------------------------------------------------------------
             let pickMethod = Math.random();
             
-            if (pickMethod < .5) {
-               // METHOD 1: just clone an archetype
+            if (pickMethod < .33) {
+               // METHOD 1: sometimes, just clone an archetype because they're cool looking
                let _archetypeGenotype = new Genotype();
                _archetypeGenotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
                _myGenotype.copyFromGenotype(_archetypeGenotype);
                _myGenotype.randomizeUtterance(.3); // randomize utterance so it doesn't sound the same
             } else {
-               // METHOD 2: inherit genes from two presets...
+               // METHOD 2: most of the time, inherit genes from two presets...
                let _parent1Genotype = new Genotype();
                let _parent2Genotype = new Genotype();               
                _parent1Genotype.setToPreset( Math.floor( Math.random() * NUM_PRESET_GENOTYPES )  );
