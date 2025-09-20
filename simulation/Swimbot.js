@@ -1695,7 +1695,6 @@ let partAccelerationY = -strokeForceY;
             const intersection = [...notePoolA].filter(x => notePoolB.has(x));
             const union = new Set([..._phenotype.utterNotes, ...judge_phenotype.utterNotes]);
             const utterNoteOverlap = union.size === 0 ? 0 : intersection.length / union.size;
-            
                     
             // *** Figure out "noteCountSimilarity" 0-1 ***
             // How similar are the utterances in terms of complexity, i.e. how many individual notes were played?

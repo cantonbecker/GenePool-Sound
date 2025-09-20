@@ -1,8 +1,8 @@
-const SWIMBOT_VERSION			= '2025-09-20.3';
+const SWIMBOT_VERSION			= '2025-09-20.4';
 const DEBUGGING_NOISY_CONSOLE_MODE = true; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
-var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
+var CIRCULAR_BOUNCE_RADIUS		= 1750; // bounce swimbots this far away from the center (4000=max)
 
 const DEFAULT_NUM_FOOD_TYPES 	= 1;
 const FOOD_TYPE_OFFSET 			= 0.2; // only matters in a multi-food context
