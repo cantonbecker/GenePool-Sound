@@ -37,7 +37,7 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 0; // enable this to have the background tone gradually drift around the default intervals
+const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 5; // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
 // How many different spawn sounds do we have? (starting from C1)
@@ -119,8 +119,8 @@ var SOUND_OUTPUT_LAUNCH			= true;
 
 // first is always the DEFAULT unless we are a 'strange' swimbot...
 const MIDI_NOTE_INTERVAL_SETS = [
+    { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
-    // { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
 ];

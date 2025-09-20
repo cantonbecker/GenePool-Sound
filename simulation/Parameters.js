@@ -27,10 +27,11 @@ const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2200;
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 1750;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-const MAX_SWIMBOTS = 300;
-const INITIAL_NUM_SWIMBOTS =  150;
+const MAX_MAXIMUM_AGE       	= 60000; // increasing their age to compensate for more difficult utterance-based mate finding
+const MAX_SWIMBOTS 				= 350;
+const INITIAL_NUM_SWIMBOTS 	= 150;
 const MAX_FOODBITS           = 1500;
 const MAX_FOODBITS_PER_TYPE  = 1500;
 const INITIAL_NUM_FOODBITS   = 400;
@@ -42,6 +43,7 @@ const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
 /*
 const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
+const MAX_MAXIMUM_AGE       	= 40000;
 const MAX_SWIMBOTS = 1000;
 const INITIAL_NUM_SWIMBOTS =  200;
 const MAX_FOODBITS           = 1000;
@@ -54,6 +56,7 @@ const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
 /*
 const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
+const MAX_MAXIMUM_AGE       	= 40000;
 const MAX_SWIMBOTS = 2000;
 const INITIAL_NUM_SWIMBOTS =  500; // original version
 const MAX_FOODBITS           = 2000;
@@ -90,8 +93,6 @@ const DEFAULT_SWIMBOT_HUNGER_THRESHOLD	=  50;
 const YOUNG_AGE_DURATION    = 1000;
 const OLD_AGE_DURATION      = 1000;
 const MIN_MAXIMUM_AGE       = YOUNG_AGE_DURATION + OLD_AGE_DURATION;
-const MAX_MAXIMUM_AGE       = 40000;
-
 const DEFAULT_MAXIMUM_AGE   = MAX_MAXIMUM_AGE;
 
 //const MAXIMUM_LIFESPAN   = 15000; // research version //luka
