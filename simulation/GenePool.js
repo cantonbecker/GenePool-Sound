@@ -24,10 +24,10 @@ const SimulationStartMode =
     RACE         	: 6,
     BIG_BANG     	: 7,
     BAD_PARENTS  	: 8,
-    BARRIER      	: 9,
-    FILE         	: 10,
-    SPECIES      	: 11
+    BARRIER      	: 9
 };
+
+// intentionally excluding BAD_PARENTS, SPECIES, FILE which throw errors on account of wanting a variety of food?
 
 const CameraNavigationAction = 
 {
@@ -113,7 +113,7 @@ function GenePool()
     const DEFAULT_MILLISECONDS_PER_UPDATE = 20;
     const DO_HIGHLIGHT_SELECTED_SWIMBOT = false; // draw a ring around the selected swimbot?
 
-//const LEVEL_OF_DETAIL_THRESHOLD         = 1000.0;
+    //const LEVEL_OF_DETAIL_THRESHOLD         = 1000.0;
     const LEVEL_OF_DETAIL_THRESHOLD         = 1200.0;
 
     const INITIAL_VIEW_SCALE                = POOL_WIDTH * 0.1;
@@ -255,33 +255,45 @@ function GenePool()
 	//---------------------------
 	this.initialize = function()
 	{	
-		//----------------------------------
-		// get pool center
-		//----------------------------------
+        //----------------------------------
+        // get pool center
+        //----------------------------------
         _poolCenter.copyFrom( _pool.getCenter() );
         
-		//------------------------------------
-		// start with a random simulation
-		//------------------------------------
+        //------------------------------------
+        // start with a random simulation
+        //------------------------------------
         // this.startSimulation( SimulationStartMode.RANDOM ); // if you prefer to start with a random pool
         this.startSimulation( SimulationStartMode.EMPTY ); // if you prefer to start with blank canvas
         
         _millisecondsPerUpdate = DEFAULT_MILLISECONDS_PER_UPDATE;
         
-		//------------------------------------------
-		// configure view tracking
-		//------------------------------------------
-//_viewTracking.setPoolCenter( _poolCenter );	        
+        //------------------------------------------
+        // configure view tracking
+        //------------------------------------------
+        //_viewTracking.setPoolCenter( _poolCenter );	        
         _viewTracking.setSwimbots( _swimbots );	   
         _viewTracking.setMode( ViewTrackingMode.AUTOTRACK, _camera.getPosition(), _camera.getScale(), 0 );   
         
         _sound.initialize();
-        _sound.setGlobalParameters( 0.0, 0.0, 0.0, 0.0 );
         
-		//------------------------------------------------------------
-		// start up the timer
-		//------------------------------------------------------------
-		this.timer = setTimeout( "genePool.update()", _millisecondsPerUpdate );	
+        //------------------------------------------------------------
+        // start up the timer
+        //------------------------------------------------------------
+        this.timer = setTimeout( "genePool.update()", _millisecondsPerUpdate );
+        
+        //------------------------------------------------------------
+        // write to our pool panel
+        //------------------------------------------------------------
+        document.getElementById("mainTitle").textContent = "Darwin's Chorus Version " + SWIMBOT_VERSION;
+
+        //------------------------------------------------------------
+        // *** throw away the first pancake ***
+        // when we initialize gene pool, we create a random swimbot and then immediately kill it.
+        // this primes the pump, ensuring that functions like getNumGenesUsed() return valid results
+        //------------------------------------------------------------
+        this.makeNewRandomSwimbot();
+        this.killSwimbot( 0 );
 	}
 	
 	//---------------------------------------
