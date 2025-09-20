@@ -13,7 +13,6 @@
 
 "use strict";
 
-const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
@@ -229,13 +228,23 @@ function Sound()
 	//--------------------------------
 	this.initialize = function()
 	{		
-		console.log( "sound.initialize!" );
-		// request MIDI
+		console.log( "*** Sound.initialize() ***" );
+		let MIDIworking = false;
 		if (navigator.requestMIDIAccess) {
-			navigator.requestMIDIAccess()
-				.then(onMIDISuccess, onMIDIFailure);
+		(async () => {
+			try {
+				const access = await navigator.requestMIDIAccess();
+				onMIDISuccess(access);
+	      	flashNotice ("😎 MIDI ready.", 3000);
+				MIDIworking = true;
+				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_SPAWN, false);
+			} catch (err) {
+				console.error("Error attempting to initialize MIDI.");
+			}
+		})();
 		} else {
 			console.warn("Web MIDI API not supported. Will attempt to use Web Audio API fallback.");
+      	if (!MIDIworking) flashNotice ("🙉 Web audio ready.", 3000);
 		}
 
 		// *** WEB AUDIO API FALLBACK INITIALIZATION ***
@@ -247,6 +256,7 @@ function Sound()
 			console.log("Web Audio API ready.");
 		} catch (e) {
 			console.error("Web Audio API is not supported in this browser. No audio will be played.");
+      	if (!MIDIworking) flashNotice ("‼️ No MIDI or fallback Web Audio available ‼️", 5000);
 			audioCtx = null;
 		}
 		// *** END NEW ***
@@ -284,18 +294,14 @@ function Sound()
 				console.error(`MIDI_CHANNELS_FOR_UTTERING refers to unavailable output: "${outputName}".`);
 			}
 		}	
+		     
 	}
 
-
-	function onMIDIFailure() {
-		console.error("Could not access MIDI, so will rely on basic JS audio.");
-	}
 
 	
 	//----------------------------------------------------
 	this.setGlobalParameters = function( p0, p1, p2, p3 )
 	{
-		// console.log( "sound: setGlobalParameters: " + p0 + " " + p1 + " " + p2 + " " + p3);
 		SOUND_UPDATE_COUNTER +=1;
 		_parameter_0 = p0;
 		_parameter_1 = p1;
@@ -327,7 +333,7 @@ function Sound()
 				let midiChannel = MIDI_CHANNEL_SAMPLER;
 				let midiNote = 60; // lake bacalar sounds
 				sendNoteMIDI(midiNote, 127, 5000, midiChannel, nondiegeticOutput); // 5 second note
-				console.log ("Sent sampler note @ " + SOUND_UPDATE_COUNTER);
+				if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("Sent sampler note @ " + SOUND_UPDATE_COUNTER);
 			}
 
 		}
@@ -429,7 +435,7 @@ for (let i = 0; i < picks.length; i++) {
 			}
 		} // end if sound types
 		 
- 		console.log( soundEventLog );
+ 		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log( soundEventLog );
 		return false;
     }
 
@@ -647,13 +653,13 @@ for (let i = 0; i < picks.length; i++) {
 
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
-	console.log("utterPeriod/utterDuration provided as " + utterPeriod + "/" + utterDuration);
+	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utterPeriod/utterDuration provided as " + utterPeriod + "/" + utterDuration);
 	
 	let idx; // our generic index which we re-use a lot
 	UTTERANCE_COMPOSING_COUNTER ++;
 
 	for (let i = 0; i < _geneNames.length; i++) { 
-		if (_geneNames[i].includes('utter')) console.log("gene " + i + " " + _geneNames[i], genes[i]);
+		if (_geneNames[i].includes('utter') && DEBUGGING_NOISY_CONSOLE_MODE) console.log("gene " + i + " " + _geneNames[i], genes[i]);
 	}
 
 
@@ -677,10 +683,11 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		let randomSliceValue2 = Math.floor(Math.random()*255);
 		genes.splice(randomSlicePosition, 2, randomSliceValue1, randomSliceValue2);
 	}
+	// console.log ("Seeding RNG with genes: " + genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString());
 
 	*/
-
-	// console.log ("Seeding RNG with genes: " + genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString());
+	
+	
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
 
@@ -699,7 +706,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	*/
 	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
 
-// console.log('Genes: ' + genes.toString());
+	// console.log('Genes: ' + genes.toString());
 
 
 	idx = _geneNames.indexOf('utter duration');
@@ -707,7 +714,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	const utterDurationVal = genes[idx]; // 0-255
 	
 	const utterSequenceLength = utterDuration * APPROX_MS_PER_CLOCK; // range of 5-100 = 150ms-3000ms
-	console.log("utter duration is " + utterDurationVal + " which maps to " + utterDuration + " clocks, approx. " + utterSequenceLength + "ms");
+	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter duration is " + utterDurationVal + " which maps to " + utterDuration + " clocks, approx. " + utterSequenceLength + "ms");
 
 	// USE UTTER STRANGENESS GENE TO DETERMINE DEVIANT SWIMBOTS THAT JUMP THE CIRCLE OF 5ths EARLY, OR USE DIFFERENT INTERVAL SETS
 	// the universe cycles through the 5ths slowly, but sometimes (rarely) a swimbot will jump early
@@ -718,10 +725,10 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	if (rng() < chanceOfJumpingFifths) {
 		if (rng() > .5) { // are we going to jump up or down?
 			myMIDIBaseNote = myMIDIBaseNote + 7;
-			console.log("-> Rolled to jump UP a fifth!");
+			if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to jump UP a fifth!");
 		} else {
 			myMIDIBaseNote = myMIDIBaseNote -5;
-			console.log("-> Rolled to jump DOWN a fifth!");
+			if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to jump DOWN a fifth!");
 		}
 	}
 	
@@ -730,12 +737,12 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	if (rng() < chanceOfUnusualInterval) {
 		let randomUnusualIntervalIndex = 1 + Math.floor(rng() * (MIDI_NOTE_INTERVAL_SETS.length - 1));
 		myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[randomUnusualIntervalIndex];
-		console.log("-> Rolled to use non-standard interval set '" + myNoteIntervalSet.name + "'!");
+		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to use non-standard interval set '" + myNoteIntervalSet.name + "'!");
 	}
 	let myIntervalSetName = myNoteIntervalSet.name;
 	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
 
-	console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths was " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and choosing a non-standard interval was " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
+	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths was " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and choosing a non-standard interval was " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
 
 
 
@@ -752,7 +759,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		mySequenceDurationStates[1].max *= 2;
 		mySequenceDurationStates[2].min = mySequenceDurationStates[1].max; // long notes are 1x-2x as long as the longest medium notes 
 		mySequenceDurationStates[2].max = mySequenceDurationStates[2].min * 2;
-		console.log("-> Utter flavor rolled to increase sequence duration states (longer notes)");
+		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Utter flavor rolled to increase sequence duration states (longer notes)");
 	}
 
 
@@ -766,7 +773,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,48,48];
 	idx = Math.floor(utterSpin / 255 * (octaveShiftOptions.length - 1));
 	let myOctaveNoteShift = octaveShiftOptions[idx];
-	console.log("utter spin is " + utterSpin + " which corresponds to octave +" + myOctaveNoteShift/12);
+	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter spin is " + utterSpin + " which corresponds to octave +" + myOctaveNoteShift/12);
 
 	// USE UTTER CHARM TO DETERMINE HOW MUCH WE MUTATE OUR RHYTHMS
 	// 0-10: mutationFactor determines how many times our music note and duration markov chain matrices will be mutated, weighted towards less
@@ -776,7 +783,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	const mutationFactorOptions = [0,0,0,0,0,0,,1,1,1,2,2,5,8,10,20]; // mostly no mutation, or a little bit, a few outliers
 	idx = Math.floor(utterCharm / 255 * (mutationFactorOptions.length - 1));
 	let mutationFactor = mutationFactorOptions[idx];
-	console.log("utter charm is " + utterCharm + ", which encourages us to mutate our rhythm and interval probabilities " + mutationFactor + "/10 times.");
+	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter charm is " + utterCharm + ", which encourages us to mutate our rhythm and interval probabilities " + mutationFactor + "/10 times.");
 	
 	// numberOfIntervalRotations adjusts how far away our *starting* note might drift from the center note
 	// we don't use a gene to determine this, all swimbots have an equal inclination/disinclination in this regard
@@ -1112,7 +1119,7 @@ function throttleMaxChannels() {
 	
 	let reducedChannelCount = Math.max(1, Math.floor(maxChannels * factor));
 	if (maxChannels != reducedChannelCount) {
-		console.log("Reduced MIDI utterance channels from " + maxChannels + " to " + reducedChannelCount + " because we are at " + current + "/" + max + " swimbots.");
+		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("Reduced MIDI utterance channels from " + maxChannels + " to " + reducedChannelCount + " because we are at " + current + "/" + max + " swimbots.");
 	}
 	return (reducedChannelCount);
 }

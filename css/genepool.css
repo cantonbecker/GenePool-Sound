@@ -129,6 +129,13 @@ body
     /*background-color: #9999ff;*/
 }
 
+#volumeSlider {
+    display: inline-block;
+    float: left;
+    width: 200px;
+    margin-top: 0;
+}
+
 .EcoSlider
 {
     position: absolute; 
@@ -500,80 +507,19 @@ body
     top: 0;
 }
 
-#startPoolTitle
+#poolWebVolume
 {
     position: absolute; 
     left: 0;
     top: 0;
-    width: 300;
-
-    /* for debugging */
-    /*background-color: #ccccff;*/
+    width: 400;
 }
 
-#pool1Button
-{
-    position: absolute; 
-    left: 0;
-    top:  20;
-    width: 150;
+#poolPresets {
+    position: absolute;
+    top: 30;
+    height: 400;
 }
-
-#pool2Button
-{
-    position: absolute; 
-    left: 160;
-    top:  20;
-    width: 150;
-}
-
-#pool3Button
-{
-    position: absolute; 
-    left: 0;
-    top:  55;
-    width: 150;
-}
-#pool4Button
-{
-    position: absolute; 
-    left: 160;
-    top:  55;
-    width: 150;
-}
-#pool5Button
-{
-    position: absolute; 
-    left: 0;
-    top:  90;
-    width: 150;
-}
-
-#pool6Button
-{
-    position: absolute; 
-    left: 160;
-    top:  90;
-    width: 150;
-}
-
-#pool7Button
-{
-    position: absolute; 
-    left: 0;
-    top:  125;
-    width: 150;
-}
-
-#pool8Button
-{
-    position: absolute; 
-    left: 160;
-    top:  125;
-    width: 150;
-}
-
-
 
 #saveLoadPanel
 {

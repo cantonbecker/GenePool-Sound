@@ -1,34 +1,28 @@
-var CIRCULAR_BOUNCE_RADIUS	= 3750; // bounce swimbots this far away from the center (4000=max)
-const USE_CIRCULAR_VIEW		= true;
+const SWIMBOT_VERSION			= '2025-09-20.2';
+const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
+const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
+const USE_CIRCULAR_VIEW			= true;
+var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
 
-
-const FOOD_TYPE_OFFSET = 0.2;
-
-const DEFAULT_NUM_FOOD_TYPES = 1;
+const DEFAULT_NUM_FOOD_TYPES 	= 1;
+const FOOD_TYPE_OFFSET 			= 0.2; // only matters in a multi-food context
 
 
 //----------------------------------------
-//  LOD 
+//  LEVEL OF DETAIL 
 //----------------------------------------
 const SWIMBOT_LEVEL_OF_DETAIL_DOT  = 0;
 const SWIMBOT_LEVEL_OF_DETAIL_LOW  = 1;
 const SWIMBOT_LEVEL_OF_DETAIL_HIGH = 2;
 
-// I then changed food regeneration period to 15 (from 20) to make it come back even faster to help prevent extinctions (that have been occuring a lot)
-// I ran two simulations, both survived: food_niche_3.txt and food_niche_4.txt
 const MIN_FOOD_REGENERATION_PERIOD      = 1;
 const MAX_FOOD_REGENERATION_PERIOD      = 200;
-
-//const DEFAULT_FOOD_REGENERATION_PERIOD  = 15;  // research version
-//luka 15
-
 
 const DEFAULT_CHILD_ENERGY_RATIO = ONE_HALF;
 
 const MIN_CHILD_ENERGY_RATIO                = ZERO;
 const MAX_CHILD_ENERGY_RATIO                = ONE;
 const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
-
 
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)

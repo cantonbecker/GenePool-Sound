@@ -332,7 +332,7 @@ let testNoEel = true;
         phenotype.utterNoteCount    = utterancePhenotypeObj.recordNoteCount;    // how many individual notes?
         phenotype.utterModCount     = utterancePhenotypeObj.recordModCount;     // how many control events (e.g. modwheel spins)?
 
-        console.log('*** A SWIMBOT IS BORN! ***', phenotype);
+        if ( DEBUGGING_NOISY_CONSOLE_MODE ) console.log('*** A SWIMBOT IS BORN! ***', phenotype);
 		
         /*
         let preferredFoodType  = 0;

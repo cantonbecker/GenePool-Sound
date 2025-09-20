@@ -14,7 +14,9 @@
 	<head>
 		<title>
 			Swimbots: Darwin's Chorus
-		</title>		
+		</title>
+        <link rel="icon" href="http://cantonbecker.com/favicon.ico">
+
         <link rel="stylesheet" type="text/css" href="css/genepool.css">                        
         <meta charset  = "utf-8"/>
         <meta property = "og:title"         content = "Gene Pool Swimbots">
@@ -107,7 +109,8 @@
         <div id = "masterPanel">
             <div id="closeMasterButton"><a href="" onClick="doToggleDeveloperMode(true); return(false);">X</a></div>
             <div id = "mainTitle">
-                Swimbots: Darwin's Chorus
+                Initializing...
+                <!-- dynamically set in GenePool.js init -->
             </div> 
 
 
@@ -122,7 +125,6 @@
             <!-- ------------------------------------------------------------ -->
             <div id="viewPanel"  class = "basicPanel" >
                 <div id="viewNavPanel" >
-                    <!--&nbsp&nbsppan/zoom-->
                     <button 
                         id           = "leftNav" 
                         class        = "navigationButton"
@@ -532,48 +534,22 @@
                         pool
                     </div>
                     -->                    
-                    <div id = "startPoolTitle" >           
-                        start a new pool with one of these presets...
-                    </div> 
-                    <button 
-                        id      = "pool1Button"
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.RANDOM ); requestToLoadPoolFromPreset();" >random</button>    
-                    <button 
-                        id      = "pool2Button"   
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.NEIGHBORHOOD ); requestToLoadPoolFromPreset();" >neighborhoods</button>     
-                    <button 
-                        id      = "pool3Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.FROGGIES ); requestToLoadPoolFromPreset();" >froggies</button>    
-                    <!--       
-                    <button 
-                        id      = "pool4Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.TANGO ); requestToLoadPoolFromPreset();" >two to tango</button>  
-                    -->
-                    <button 
-                        id      = "pool4Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.SPECIES ); requestToLoadPoolFromPreset();" >**Speciation**</button>
-                    <button 
-                        id      = "pool5Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.RACE ); requestToLoadPoolFromPreset();" >food race</button>            
-                    <button 
-                        id      = "pool6Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.BIG_BANG ); requestToLoadPoolFromPreset();" >big bang</button>            
-                    <button 
-                        id      = "pool7Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.BARRIER ); requestToLoadPoolFromPreset();" >genetic barrier</button>            
-                    <button 
-                        id      = "pool8Button" 
-                        class   = "basicButton" 
-                        onClick = "choosePoolToLoad( SimulationStartMode.EMPTY ); requestToLoadPoolFromPreset();" >empty</button>            
+                    <div id = "poolWebVolume" >           
+                        <label for="poolWebVolume">&nbsp; Volume</label> 
 
+                        <input 
+                            type            = "range" 
+                            id              = "volumeSlider"         
+                            step            = 1
+                            autocomplete    = "off"
+                            value           = 0
+                            oninput="WEB_AUDIO_VOLUME = (this.value / 100) * .75;"
+                        >
+                        <script>document.getElementById("volumeSlider").value = WEB_AUDIO_VOLUME * 100;</script><!-- init -->
+                    </div>
+                    <div id = "poolPresets">
+                        <!-- these will be auto-filled by ui.js -->
+                    </div>
                     <div id = "saveLoadPanel" >
                         SORRY! At the moment, you cannot save or load pool files: the save/load feature of 
                         Gene Pool is under construction. I will try to get that done soon. I am 
@@ -822,8 +798,8 @@
 		<!-- ------------------------------------------------------------ -->
 		<script type = "text/javascript"> 	
           resize();
-		    openInfoPanel();
-		    setInfoPage(2);
+		    // openInfoPanel(); // open up with instructions
+          openPanel( 'menuPoolButton' ); // open up in pool  
 		    initializeUI();
         </script>
 	</body>

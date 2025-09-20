@@ -95,14 +95,16 @@ document.addEventListener('pointerlockchange', () => {
 
 
 
-//----------------------------
+//-------------------------
+//  *** INITIALIZE UI ***
+//-------------------------
 function initializeUI()
 {
     initializeEcosystemUI();    
     
     _graph.initialize();
 
-  // set up genotype preset buttons in UI
+  // *** AUTO GENERATE SWIMBOT PRESET BUTTONS IN UI ****
   const presetSwimbotButtons = document.getElementById('presetSwimbotButtons');
   if (!presetSwimbotButtons) return;
 
@@ -123,7 +125,27 @@ function initializeUI()
   });
 
   presetSwimbotButtons.appendChild(frag);
+
+  // *** AUTO GENERATE POOL PRESET BUTTONS IN UI ****
+  const container = document.getElementById('poolPresets');
+  if (container && typeof SimulationStartMode === 'object') {
+    container.innerHTML = '';
+    const frag = document.createDocumentFragment();
   
+    Object.entries(SimulationStartMode).forEach(([name, value]) => {
+      const btn = document.createElement('button');
+      btn.className = 'autoPresetButton';
+      btn.textContent = name; // use the enum key as the label
+      btn.addEventListener('click', () => {
+        choosePoolToLoad(value);
+        requestToLoadPoolFromPreset();
+      });
+      frag.appendChild(btn);
+    });
+  
+    container.appendChild(frag);
+  }
+
     //--------------------------------------------------
     // This starts an update loop that is called 
     // periodically to adjust UI states and stuff. 
