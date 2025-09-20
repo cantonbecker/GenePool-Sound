@@ -29,11 +29,11 @@ const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
 const DEFAULT_GARDEN_OF_EDEN_RADIUS = 1750;
 const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-const MAX_MAXIMUM_AGE       	= 60000; // increasing their age to compensate for more difficult utterance-based mate finding
-const MAX_SWIMBOTS 				= 350;
+const MAX_MAXIMUM_AGE       	= 60000; // increasing their age to compensate for more difficult utterance-based mate finding and fewer mates in pool
+const MAX_SWIMBOTS 				= 300;
 const INITIAL_NUM_SWIMBOTS 	= 150;
-const MAX_FOODBITS           = 1500;
-const MAX_FOODBITS_PER_TYPE  = 1500;
+const MAX_FOODBITS           = 1250;
+const MAX_FOODBITS_PER_TYPE  = 1250;
 const INITIAL_NUM_FOODBITS   = 400;
 const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
 
