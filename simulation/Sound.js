@@ -51,7 +51,7 @@ const MIDI_CHANNEL_BIRTH 		= 2;
 const MIDI_CHANNEL_DEATH 		= 3;
 const MIDI_CHANNEL_ONESHOTS	= 13; // no reverb, used for spawn and simulation launch sounds
 const MIDI_CHANNEL_BACKGROUND = 14; // looping backgrounds
-const DEFAULT_BACKGROUND_NOTE	= 60; // lake bacalar sounds
+const DEFAULT_BACKGROUND_NOTE	= 48; // lake bacalar dusk insects loop
 const MIDI_CHANNEL_ATMOSPHERE = 15; // synthezed drone
 const MIDI_CHANNEL_SYSTEM 		= 16; // e.g. MIDI panic to GP
 
@@ -1108,7 +1108,7 @@ function determineCurrentMusicParameters () {
 		shortestNoteMs = 90; // shortest notes will be 90ms
 		seqDurationStates[0].min = 100; // lengthen 'short' min to 100ms
 		seqDurationStates[0].max = 140; // lengthen 'short' max to 140mx
-		backgroundMIDInote = 51;
+		backgroundMIDInote = 36; // bell drone
 	} else if (_chosenPoolToLoad == 4) { // random
 		mySet = MIDI_NOTE_INTERVAL_SETS[1];
 	}
