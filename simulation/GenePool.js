@@ -285,7 +285,7 @@ function GenePool()
         //------------------------------------------------------------
         // write to our pool panel
         //------------------------------------------------------------
-        document.getElementById("mainTitle").textContent = "Darwin's Chorus Version " + SWIMBOT_VERSION;
+        updateUItitle();
 
         //------------------------------------------------------------
         // *** throw away the first pancake ***

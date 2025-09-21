@@ -890,6 +890,7 @@ function requestToLoadPoolFromPreset()
 
     // Immediately switch (no save prompt)
     switchToChosenPresetPool();
+    updateUItitle(); 
     return true;
 }
 
@@ -1361,8 +1362,10 @@ _canvasEl.onmouseout = function(e) {
     }
 };
 
-
-
+/* Set the panel title to include the version number and the current simulation (ID) */
+function updateUItitle() {
+  document.getElementById("mainTitle").textContent = "Darwin's Chorus v. " + SWIMBOT_VERSION + " (" + _chosenPoolToLoad + ")";
+}
 
 
 //--------------------------------
@@ -1449,21 +1452,21 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        flashNotice("Blank canvas: Use the green button to spawn new swimbots.", 1750);
+        flashNotice("Tap the green button 🟢 to generate random swimbots.", 4000);
     }
     // W -> FROGGIES
     if (e.keyCode === 87) { // W
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.FROGGIES);
         requestToLoadPoolFromPreset();
-        flashNotice("Placeholder 2", 1750);
+        flashNotice("1: Placeholder", 1750);
     }
     // E -> NEIGHBORHOOD(S)
     if (e.keyCode === 69) { // E
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.NEIGHBORHOOD);
         requestToLoadPoolFromPreset();
-        flashNotice("Placeholder 3", 1750);
+        flashNotice("2: Placeholder", 1750);
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
@@ -1471,14 +1474,14 @@ document.onkeydown = function(e)
       e.preventDefault();
       choosePoolToLoad(SimulationStartMode.QUARTET);
       requestToLoadPoolFromPreset();
-      flashNotice("Quartet AKA 'The Invading Hordes'", 1750);    
+      flashNotice("3: Quartet AKA 'The Invading Hordes'", 1750);    
     }
     // T -> RANDOM
     if (e.keyCode === 84) { // T
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.RANDOM);
         requestToLoadPoolFromPreset();
-        flashNotice(INITIAL_NUM_SWIMBOTS + " Random swimbots", 1750);
+        flashNotice("4: " + INITIAL_NUM_SWIMBOTS + " Random swimbots", 1750);
     }
     
                             

@@ -1,11 +1,62 @@
-const SWIMBOT_VERSION			= '2025-09-20.08';
+const SWIMBOT_VERSION			= '2025-09-21 50K/400/1000/20';
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
 
-const DEFAULT_NUM_FOOD_TYPES 	= 1;
-const FOOD_TYPE_OFFSET 			= 0.2; // only matters in a multi-food context
+
+
+// KYOTO 2025 VERSION (Mac Mini 2018 i9)
+// initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
+const DEFAULT_GARDEN_OF_EDEN_RADIUS 		= 1750;
+const INITIAL_NUM_SWIMBOTS 					= 150;
+const MAX_SWIMBOTS 								= 300;
+const MAX_MAXIMUM_AGE       					= 50000; // increase to compensate for more difficult utterance-based mate finding and fewer mates
+const INITIAL_NUM_FOODBITS   					= 400;
+const MAX_FOODBITS           					= 1000;
+const DEFAULT_FOOD_REGENERATION_PERIOD  	= 20; 	// lower for faster food drops
+const MIN_FOOD_REGENERATION_PERIOD      	= 1;
+const MAX_FOOD_REGENERATION_PERIOD      	= 200;
+
+
+
+// AUDIO DEMO VERSION JULY 2025
+/*
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
+const INITIAL_NUM_SWIMBOTS =  200;
+const INITIAL_NUM_FOODBITS   = 500;
+const MAX_SWIMBOTS = 1000;
+const MAX_MAXIMUM_AGE       	= 40000;
+const MAX_FOODBITS           = 1000;
+const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
+const MIN_FOOD_REGENERATION_PERIOD      = 1;
+const MAX_FOOD_REGENERATION_PERIOD      = 200;
+*/
+
+
+// ORIGINAL VERSION
+/*
+const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
+const INITIAL_NUM_SWIMBOTS =  500; // original version
+const INITIAL_NUM_FOODBITS   = 1000; // original version
+const MAX_SWIMBOTS = 2000;
+const MAX_MAXIMUM_AGE       	= 40000;
+const MAX_FOODBITS           = 2000;
+const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
+const MIN_FOOD_REGENERATION_PERIOD      = 1;
+const MAX_FOOD_REGENERATION_PERIOD      = 200;
+*/
+
+
+const GARDEN_OF_EDEN_RADIUS 						= DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
+const DEFAULT_CHILD_ENERGY_RATIO					= ONE_HALF;
+const MIN_CHILD_ENERGY_RATIO           		= ZERO;
+const MAX_CHILD_ENERGY_RATIO             		= ONE;
+const MIN_SWIMBOT_HUNGER_THRESHOLD      		= ZERO;
+const MAX_FOODBITS_PER_TYPE  						= 500;	// defunct, would be 1/2 of max foodbits if we were using it
+const DEFAULT_NUM_FOOD_TYPES 						= 1;
+const FOOD_TYPE_OFFSET 								= 0.2; // only matters in a multi-food context
+
 
 
 //----------------------------------------
@@ -15,55 +66,8 @@ const SWIMBOT_LEVEL_OF_DETAIL_DOT  = 0;
 const SWIMBOT_LEVEL_OF_DETAIL_LOW  = 1;
 const SWIMBOT_LEVEL_OF_DETAIL_HIGH = 2;
 
-const MIN_FOOD_REGENERATION_PERIOD      = 1;
-const MAX_FOOD_REGENERATION_PERIOD      = 200;
-
-const DEFAULT_CHILD_ENERGY_RATIO = ONE_HALF;
-
-const MIN_CHILD_ENERGY_RATIO                = ZERO;
-const MAX_CHILD_ENERGY_RATIO                = ONE;
-const MIN_SWIMBOT_HUNGER_THRESHOLD          = ZERO;
 
 
-// KYOTO 2025 VERSION (Mac Mini 2018 i9)
-// initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 1750;
-const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-const MAX_MAXIMUM_AGE       	= 60000; // increasing their age to compensate for more difficult utterance-based mate finding and fewer mates in pool
-const MAX_SWIMBOTS 				= 300;
-const INITIAL_NUM_SWIMBOTS 	= 150;
-const MAX_FOODBITS           = 1250;
-const MAX_FOODBITS_PER_TYPE  = 1250;
-const INITIAL_NUM_FOODBITS   = 400;
-const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
-
-
-
-// AUDIO DEMO VERSION JULY 2025
-/*
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
-const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-const MAX_MAXIMUM_AGE       	= 40000;
-const MAX_SWIMBOTS = 1000;
-const INITIAL_NUM_SWIMBOTS =  200;
-const MAX_FOODBITS           = 1000;
-const MAX_FOODBITS_PER_TYPE  = 500;
-const INITIAL_NUM_FOODBITS   = 500;
-const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
-*/
-
-// ORIGINAL VERSION
-/*
-const DEFAULT_GARDEN_OF_EDEN_RADIUS = 2000;
-const GARDEN_OF_EDEN_RADIUS = DEFAULT_GARDEN_OF_EDEN_RADIUS;  // original version
-const MAX_MAXIMUM_AGE       	= 40000;
-const MAX_SWIMBOTS = 2000;
-const INITIAL_NUM_SWIMBOTS =  500; // original version
-const MAX_FOODBITS           = 2000;
-const MAX_FOODBITS_PER_TYPE  = 1000; // make this one-half of MAX_FOODBITS (because there are two types)
-const INITIAL_NUM_FOODBITS   = 1000; // original version
-const DEFAULT_FOOD_REGENERATION_PERIOD  = 20;
-*/
 
 const NON_REPRODUCING_JUNK_DNA_LIMIT = 0; // essentially disabled by CB for sonified genepool  
 //0.9 appears to be a good threshold for species differences. Any less and it takes way too long

@@ -37,7 +37,7 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT = 5; // enable this to have the background tone gradually drift around the default intervals
+const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = 5; // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
 // How many different spawn sounds do we have? (starting from C1)
@@ -50,7 +50,8 @@ const MIDI_CHANNEL_EAT 			= 1;
 const MIDI_CHANNEL_BIRTH 		= 2;
 const MIDI_CHANNEL_DEATH 		= 3;
 const MIDI_CHANNEL_ONESHOTS	= 13; // no reverb, used for spawn and simulation launch sounds
-const MIDI_CHANNEL_SAMPLER 	= 14; // gentle background crickets & such
+const MIDI_CHANNEL_BACKGROUND = 14; // looping backgrounds
+const DEFAULT_BACKGROUND_NOTE	= 60; // lake bacalar sounds
 const MIDI_CHANNEL_ATMOSPHERE = 15; // synthezed drone
 const MIDI_CHANNEL_SYSTEM 		= 16; // e.g. MIDI panic to GP
 
@@ -117,33 +118,28 @@ var SOUND_OUTPUT_SPAWN		 	= true;
 var SOUND_OUTPUT_LAUNCH			= true;
 
 
-// first is always the DEFAULT unless we are a 'strange' swimbot...
+const MIN_REVERB_DEFAULT = 15; // 0-127
+const MAX_REVERB_DEFAULT = 75;
+
+
+// different simulations use different interval sets
 const MIDI_NOTE_INTERVAL_SETS = [
     { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
-	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] }
+	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] },
+	 { name: "whole tone A", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] },
+	 { name: "whole tone B", 			intervals: [-9, -7, -5, -3, 0, +1, +3, +5, +7] }
 ];
-
-// startup idiot check
-for (const set of MIDI_NOTE_INTERVAL_SETS) {
-    if (set.intervals.length !== 9) {
-        throw new Error(`MIDI_NOTE_INTERVAL_SETS: set named "${set.name}" has an incorrect number of intervals (${set.intervals.length}) -- should be 9.`);
-    }
-}
-
-const GLOBAL_MIN_REVERB = 15; // 0-127
-const GLOBAL_MAX_REVERB = 75;
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
 	For more typically rhythmic phrases, set identical min/max for each length so each length is identical
 */
+const SHORTEST_NOTE_MS_DEFAULT = 35;
 
-const SHORTEST_NOTE_MS = 35;
-
-const SEQUENCE_DURATION_STATES = [
-	{ name: 'short',  min: 60,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS 
+const DEFAULT_SEQUENCE_DURATION_STATES = [
+	{ name: 'short',  min: 60,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS_DEFAULT 
 	{ name: 'medium', min: 140, max: 210 },   // 120ms is an 8th note at 125 BPM
 	{ name: 'long',   min: 280, max: 420 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 ];
@@ -160,48 +156,44 @@ const IOI_DURATION_PROBABILITY_MATRIX = [
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
 // each set of numbers needs to add up to 1 (100%). Default is bell-curve like around middle note
 
-
-/*
-const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // BELL CURVE
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -4
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -3
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -2
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from -1
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from 0
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from +1
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from +2
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], // from +3
-  [0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02]  // from +4
-];
-*/
-
-/*
-const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // SHARP BELL CURVE
-  [0.80, 0.15, 0.03, 0.01, 0.005, 0.003, 0.001, 0.0005, 0.0005], // from -4
-  [0.15, 0.70, 0.10, 0.03, 0.01, 0.005, 0.003, 0.001, 0.001], // from -3
-  [0.03, 0.10, 0.65, 0.15, 0.05, 0.01, 0.005, 0.003, 0.002], // from -2
-  [0.01, 0.03, 0.15, 0.60, 0.15, 0.07, 0.015, 0.007, 0.003], // from -1
-  [0.005, 0.01, 0.05, 0.15, 0.50, 0.15, 0.05, 0.01, 0.005], // from 0
-  [0.003, 0.007, 0.015, 0.07, 0.15, 0.60, 0.15, 0.03, 0.01], // from +1
-  [0.002, 0.003, 0.005, 0.01, 0.05, 0.15, 0.65, 0.10, 0.03], // from +2
-  [0.001, 0.001, 0.003, 0.005, 0.01, 0.03, 0.10, 0.70, 0.15], // from +3
-  [0.0005, 0.0005, 0.001, 0.003, 0.005, 0.01, 0.03, 0.15, 0.80]  // from +4
-];
-*/
-
-
-const IOI_MIDI_NOTE_PROBABILITY_MATRIX = [ // REALLY SHARP BELL CURVE
-  //         -4      -3      -2      -1       0      +1      +2      +3      +4
-  [0.93,   0.06,   0.009, 0.001, 0,     0,     0,     0,     0   ], // from -4
-  [0.06,   0.90,   0.03,  0.009, 0.001, 0,     0,     0,     0   ], // from -3
-  [0.009,  0.03,   0.85,  0.03,  0.009, 0.001, 0,     0,     0   ], // from -2
-  [0.001,  0.009,  0.03,  0.80,  0.15,  0.009, 0.001, 0,     0   ], // from -1
-  [0.001,  0.004,  0.01,  0.015, 0.95,  0.015, 0.01,  0.004, 0.001], // from  0
-  [0,      0.001,  0.009, 0.15,  0.80,  0.03,  0.009, 0.001, 0   ], // from +1
-  [0,      0,      0.001, 0.009, 0.009, 0.03,  0.85,  0.03,  0.009], // from +2
-  [0,      0,      0,     0.001, 0.001, 0.009, 0.03,  0.90,  0.06 ], // from +3
-  [0,      0,      0,     0,     0.001, 0.009, 0.06,  0.93,  0.06 ]  // from +4
-];
+const IOI_MIDI_NOTE_PROBABILITY_MATRICES = {
+	// -4   -3    -2    -1     0    +1    +2    +3    +4
+	bell: [ // BELL CURVE (each row sums to 1.0)
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from -4
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from -3
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from -2
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from -1
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from 0
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from +1
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from +2
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from +3
+	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02]  					// from +4
+	],
+	
+	sharp: [ // SHARP BELL CURVE
+	[0.80,   0.15,  0.03,  0.01,  0.005, 0.003, 0.001, 0.0005, 0.0005], 	// from -4
+	[0.15,   0.70,  0.10,  0.03,  0.01,  0.005, 0.003, 0.001,  0.001 ], 	// from -3
+	[0.03,   0.10,  0.65,  0.15,  0.05,  0.01,  0.005, 0.003,  0.002 ], 	// from -2
+	[0.01,   0.03,  0.15,  0.60,  0.15,  0.04,  0.010, 0.007,  0.003 ], 	// from -1 
+	[0.005,  0.01,  0.05,  0.185, 0.50,  0.185, 0.05,  0.01,   0.005 ], 	// from  0 
+	[0.003,  0.007, 0.010, 0.04,  0.15,  0.60,  0.15,  0.03,   0.01  ], 	// from +1
+	[0.002,  0.003, 0.005, 0.01,  0.05,  0.15,  0.65,  0.10,   0.03  ], 	// from +2
+	[0.001,  0.001, 0.003, 0.005, 0.01,  0.03,  0.10,  0.70,   0.15  ], 	// from +3
+	[0.0005, 0.0005,0.001, 0.003, 0.005, 0.01,  0.03,  0.15,   0.80  ]  	// from +4
+	],
+	
+	super: [ // SUPER SHARP BELL CURVE
+	[0.93,   0.06,   0.009,  0.001,  0,      0,      0,      0,      0     ], // from -4
+	[0.06,   0.90,   0.03,   0.009,  0.001,  0,      0,      0,      0     ], // from -3
+	[0.009,  0.03,   0.921,  0.03,   0.009,  0.001,  0,      0,      0     ], // from -2
+	[0.001,  0.009,  0.03,   0.80,   0.15,   0.009,  0.001,  0,      0     ], // from -1
+	[0.001,  0.004,  0.01,   0.01,   0.95,   0.01,   0.01,   0.004,  0.001 ], // from  0
+	[0,      0,      0.001,  0.009,  0.15,   0.80,   0.03,   0.009,  0.001 ], // from +1
+	[0,      0,      0,      0.001,  0.009,  0.03,   0.921,  0.03,   0.009 ], // from +2
+	[0,      0,      0,      0,      0.001,  0.009,  0.03,   0.90,   0.06  ], // from +3
+	[0,      0,      0,      0,      0,      0.001,  0.009,  0.06,   0.93  ]  // from +4
+	]
+}
 
 
 
@@ -301,6 +293,13 @@ function Sound()
 	//----------------------------------------------------
 	this.setGlobalParameters = function( p0, p1, p2, p3 )
 	{
+		// retrieves interval, shortest note, etc. based on current running simulation
+		const musicParameters = determineCurrentMusicParameters (); 
+		let minReverb = musicParameters.minReverb;
+		let maxReverb = musicParameters.maxReverb;
+		let minBetweenUnivNoteShift = musicParameters.minBetweenUnivNoteShift;
+		let backgroundMIDInote = musicParameters.backgroundMIDInote;
+
 		SOUND_UPDATE_COUNTER +=1;
 		_parameter_0 = p0;
 		_parameter_1 = p1;
@@ -313,8 +312,8 @@ function Sound()
 		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
 
 		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
-		let _p3_scaled = Math.max(GLOBAL_MIN_REVERB, Math.min(GLOBAL_MAX_REVERB, Math.round((_parameter_3 - 500) * GLOBAL_MAX_REVERB / (3000 - 500))));
-		let _p3_scaled_inverse = GLOBAL_MAX_REVERB - _p3_scaled;
+		let _p3_scaled = Math.max(minReverb, Math.min(maxReverb, Math.round((_parameter_3 - 500) * maxReverb / (3000 - 500))));
+		let _p3_scaled_inverse = maxReverb - _p3_scaled;
 		
 		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
 		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE && nondiegeticOutput) {
@@ -329,8 +328,8 @@ function Sound()
 			
 			// SAMPLER BACKGROUND
 			if (SOUND_UPDATE_COUNTER % 200 == 0) {
-				let midiChannel = MIDI_CHANNEL_SAMPLER;
-				let midiNote = 60; // lake bacalar sounds
+				let midiChannel = MIDI_CHANNEL_BACKGROUND;
+				let midiNote = backgroundMIDInote;
 				sendNoteMIDI(midiNote, 127, 5000, midiChannel, nondiegeticOutput); // 5 second note
 				if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("Sent sampler note @ " + SOUND_UPDATE_COUNTER);
 			}
@@ -349,7 +348,7 @@ function Sound()
 
 
 		// THE UNIVERSE BACKGROUND HUM moves around to generate interest
-		if (MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT && SOUND_UPDATE_COUNTER % (soundUpdatesPerMinute * MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT) === 0) {
+		if (minBetweenUnivNoteShift && SOUND_UPDATE_COUNTER % (soundUpdatesPerMinute * minBetweenUnivNoteShift) === 0) {
   	 		const defaultIntervals = MIDI_NOTE_INTERVAL_SETS[0].intervals; // pentatonic
   			UNIVERSAL_NOTE_SHIFT = defaultIntervals[Math.floor(Math.random() * defaultIntervals.length)];
 			console.log ("*** UNIVERSAL BACKGROUND SHIFTED " + UNIVERSAL_NOTE_SHIFT + " ***");
@@ -647,6 +646,18 @@ function Sound()
 
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
+	// retrieves interval, shortest note, etc. based on current running simulation
+	const musicParameters = determineCurrentMusicParameters (); 
+	let myNoteIntervalSet = musicParameters.intervalSet; // e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]
+	let myIntervalSetName = musicParameters.intervalSetName;
+	let shortestNoteMs = musicParameters.shortestNoteMs;
+	let myNoteProbabilities = musicParameters.noteProbabilityMatrix;
+	let mySequenceDurationStates = musicParameters.seqDurationStates;
+
+	/*** Assign duration and note probability matrices ***/
+	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
+
+
 	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utterPeriod/utterDuration provided as " + utterPeriod + "/" + utterDuration);
 	
 	let idx; // our generic index which we re-use a lot
@@ -685,21 +696,6 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// WHAT IS MY MIDI BASE NOTE?
 	let myMIDIBaseNote = MIDI_BASE_NOTE;
 
-	// Make a copy of sequence duration states in case we want to mess with it
-	let mySequenceDurationStates = structuredClone(SEQUENCE_DURATION_STATES);
-
-	/* WHAT NOTES ARE WE ALLOWED TO PLAY? */
-
-	// One option is that we can swap out our interval scale
-	/*
-	const pickIntervalIndex = Math.floor(rng() * MIDI_NOTE_INTERVAL_SETS.length);
-	const pickIntervalSet = MIDI_NOTE_INTERVAL_SETS[pickIntervalIndex];
-	const MIDI_intervalName = pickIntervalSet.name;
-	var myNoteIntervals = pickIntervalSet.intervals;
-	console.log('Picked ' + MIDI_intervalName);
-	*/
-	// const myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[Math.floor(rng() * 4)];
-
 	// console.log('Genes: ' + genes.toString());
 
 
@@ -727,16 +723,12 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	}
 	
 	const chanceOfUnusualInterval = (utterStrangeness/255) ** 8; // heavily weighted towards default interval set
-	let myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[0]; // default is always the first
 	if (rng() < chanceOfUnusualInterval) {
-		let randomUnusualIntervalIndex = 1 + Math.floor(rng() * (MIDI_NOTE_INTERVAL_SETS.length - 1));
-		myNoteIntervalSet = MIDI_NOTE_INTERVAL_SETS[randomUnusualIntervalIndex];
-		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to use non-standard interval set '" + myNoteIntervalSet.name + "'!");
+		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to tweak intervals for '" + myNoteIntervalSet.name + "'!");
+		// TK - tweak them intervals!
 	}
-	let myIntervalSetName = myNoteIntervalSet.name;
-	let myNoteIntervals = myNoteIntervalSet.intervals.slice(); // GOTCHA! If you don't slice() you will be modifying the global somehow... slice forces a copy.
 
-	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths was " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and choosing a non-standard interval was " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
+	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths was " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and mutating interval was " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
 
 
 
@@ -792,15 +784,9 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// for example, this:		[-10, -8, -5, -3, 0, +2, +4, +7, +9];
 	// might turn into this:	[+7, +9, -10, -8, -5, -3, 0, +2, +4]; (rotated two positions)
 	for (let i = 0; i < numberOfIntervalRotations; i++) {
-		myNoteIntervals.unshift(myNoteIntervals.pop());
+		myNoteIntervalSet.unshift(myNoteIntervalSet.pop());
 	}
-		
-	// console.log ("myNoteIntervals based on " + myIntervalSetName + " are " + myNoteIntervals);
-
-	/*** Assign duration and note probability matrices ***/
-	let myDurationProbabilities = IOI_DURATION_PROBABILITY_MATRIX;
-	let myNoteProbabilities = IOI_MIDI_NOTE_PROBABILITY_MATRIX; // make a copy we can mess with
-
+	
 	/*** Mutate our markov tables? if so how much? ***/
 	for (let i = 0; i < mutationFactor; i++) { // the more times we mutate it, the more we stray from the default bell-curve
 		myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.2);
@@ -808,7 +794,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	}
 	
 	/*
-   logProbabilityMatrix('Original Note Probability Matrix:', IOI_MIDI_NOTE_PROBABILITY_MATRIX);
+   logProbabilityMatrix('Original Note Probability Matrix:', musicParameters.noteProbabilityMatrix);
    logProbabilityMatrix('Mutated x' + mutationFactor + ' Note Probability Matrix:', myNoteProbabilities);
 	*/
 	 
@@ -897,24 +883,24 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		const interOnsetIntervalMs = band.min + Math.round(rng() * (band.max - band.min));
 	
 		// HOW LONG SHOULD THIS NOTE PLAY?
-		let thisNoteDuration = SHORTEST_NOTE_MS;
+		let thisNoteDuration = shortestNoteMs;
 		
 		if (noteLengthStyle == 'staccato') { // short note
-			thisNoteDuration = SHORTEST_NOTE_MS; // default AKA 'staccato'
+			thisNoteDuration = shortestNoteMs; // default AKA 'staccato'
 	   } else if (noteLengthStyle == 'legato') { // as long as possible
-			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs - (SHORTEST_NOTE_MS * 1.5)); // leave some space between notes
+			thisNoteDuration = Math.max(shortestNoteMs, interOnsetIntervalMs - (shortestNoteMs * 1.5)); // leave some space between notes
 		} else if (noteLengthStyle == 'complex') { // anywhere in between, random
-			thisNoteDuration = Math.max(SHORTEST_NOTE_MS, interOnsetIntervalMs * Math.floor(rng())); 
+			thisNoteDuration = Math.max(shortestNoteMs, interOnsetIntervalMs * Math.floor(rng())); 
 		}
 	
 		// ——— pick next interval state ———
 		p = rng(); cumulativeProb = 0; let nextIntState;
-		for (let i = 0; i < myNoteIntervals.length; i++) {
+		for (let i = 0; i < myNoteIntervalSet.length; i++) {
 			cumulativeProb += myNoteProbabilities[lastInt][i];
 			if (p < cumulativeProb) { nextIntState = i; break; }
 		}
-		if (nextIntState === undefined) nextIntState = myNoteIntervals.length - 1;
-		const thisNoteShift = myNoteIntervals[nextIntState];
+		if (nextIntState === undefined) nextIntState = myNoteIntervalSet.length - 1;
+		const thisNoteShift = myNoteIntervalSet[nextIntState];
 		let thisNoteNumber = myMIDIBaseNote + myOctaveNoteShift + thisNoteShift;
 		
 		// record some phenotypical info
@@ -1085,6 +1071,64 @@ function pruneOldMods() {
 }
 
 
+
+/***************************************************************
+	determineCurrentMusicParameters()
+	specifies the MIDI note intervals and other parameters that
+	influence utterance generation and general sonic parameters
+	_chosenPoolToLoad is our current simulation, normally 0-4
+	MIDI_NOTE_INTERVAL_SETS has our stable of interval sets
+****************************************************************/
+
+function determineCurrentMusicParameters () {
+	// set / reestablish defaults
+	let mySet = MIDI_NOTE_INTERVAL_SETS[0];
+	let minReverb = MIN_REVERB_DEFAULT;
+	let maxReverb = MAX_REVERB_DEFAULT;
+	let minBetweenUnivNoteShift = MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
+	let shortestNoteMs = SHORTEST_NOTE_MS_DEFAULT;
+	let noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['super']); // default to bell curve instead of 'sharp' or 'super'
+	let seqDurationStates = structuredClone(DEFAULT_SEQUENCE_DURATION_STATES);
+	let backgroundMIDInote = DEFAULT_BACKGROUND_NOTE;
+	
+	seqDurationStates
+	/*
+	{ name: 'short',  min: 60,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS_DEFAULT 
+	{ name: 'medium', min: 140, max: 210 },   // 120ms is an 8th note at 125 BPM
+	{ name: 'long',   min: 280, max: 420 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
+	*/
+	if (_chosenPoolToLoad == 0) { // blank
+		backgroundMIDInote = 1; // no background loop sound
+	} else if (_chosenPoolToLoad == 1) { // placeholder 1
+		mySet = MIDI_NOTE_INTERVAL_SETS[1];
+	} else if (_chosenPoolToLoad == 3) { // quartet / horde
+		minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
+		mySet = MIDI_NOTE_INTERVAL_SETS[3]; // octaves!
+		minBetweenUnivNoteShift = 1; // shorter shifts
+		shortestNoteMs = 90; // shortest notes will be 90ms
+		seqDurationStates[0].min = 100; // lengthen 'short' min to 100ms
+		seqDurationStates[0].max = 140; // lengthen 'short' max to 140mx
+		backgroundMIDInote = 51;
+	} else if (_chosenPoolToLoad == 4) { // random
+		mySet = MIDI_NOTE_INTERVAL_SETS[1];
+	}
+	
+	// build up our musicParameters object and return it
+	let musicParameters = {
+			shortestNoteMs:				shortestNoteMs,
+			minReverb:						minReverb,
+			maxReverb:						maxReverb,
+			backgroundMIDInote:			backgroundMIDInote,
+			minBetweenUnivNoteShift:	minBetweenUnivNoteShift,
+			intervalSet:					mySet.intervals.slice(),		// e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]. Slice makes a safe copy dereferenced from original object
+			intervalSetName: 				mySet.name,							// e.g. 'minor pentatonic'
+			noteProbabilityMatrix:		noteProbabilityMatrix,
+			seqDurationStates:			seqDurationStates
+		};
+	return musicParameters;
+}
+
+
 /* throttleMaxChannels reduces how many synthesizers we are using when our JS is loaded up with swimbots
 	at 50% of max swimbots, we don't throttle at all
 	then we steeply throttle our channels by up to THROTTLE_MIDI_WHEN_LOADED (e.g. .25 = 25%) 
@@ -1180,3 +1224,71 @@ function getPitchHistogram() {
 
 	return { histogram, totalNotes, totalMods, tableHTML }; // return as an object
 }
+
+
+
+// --- startup sanity checks ---
+function sanityCheckMusicConfig() {
+  // 1) Interval sets: shape + types (+ center 0)
+  if (!Array.isArray(MIDI_NOTE_INTERVAL_SETS) || MIDI_NOTE_INTERVAL_SETS.length === 0) {
+    throw new Error("MIDI_NOTE_INTERVAL_SETS must be a non-empty array.");
+  }
+
+  MIDI_NOTE_INTERVAL_SETS.forEach((set, i) => {
+    if (!set || typeof set.name !== "string" || !Array.isArray(set.intervals)) {
+      throw new Error(`MIDI_NOTE_INTERVAL_SETS[${i}] must be { name: string, intervals: number[] }`);
+    }
+    if (set.intervals.length !== 9) {
+      throw new Error(`MIDI_NOTE_INTERVAL_SETS: set "${set.name}" has ${set.intervals.length} intervals; expected 9.`);
+    }
+    // Require numeric (integers ok), and root at center index 4
+    set.intervals.forEach((iv, j) => {
+      if (typeof iv !== "number" || !Number.isFinite(iv)) {
+        throw new Error(`MIDI_NOTE_INTERVAL_SETS "${set.name}" intervals[${j}] is not a finite number.`);
+      }
+    });
+    if (set.intervals[4] !== 0) {
+      throw new Error(`MIDI_NOTE_INTERVAL_SETS "${set.name}" must have 0 at center (index 4).`);
+    }
+  });
+
+  // 2) Probability matrices: 9x9, non-negative, each row sums to ~1
+  const EPS = 1e-6;
+  const matrices = IOI_MIDI_NOTE_PROBABILITY_MATRICES;
+  if (typeof matrices !== "object" || matrices == null) {
+    throw new Error("IOI_MIDI_NOTE_PROBABILITY_MATRICES must be an object of named matrices.");
+  }
+
+  for (const [name, M] of Object.entries(matrices)) {
+    if (!Array.isArray(M) || M.length !== 9) {
+      throw new Error(`Matrix "${name}" must have 9 rows; got ${Array.isArray(M) ? M.length : typeof M}.`);
+    }
+    M.forEach((row, r) => {
+      if (!Array.isArray(row) || row.length !== 9) {
+        throw new Error(`Matrix "${name}" row ${r} must have 9 columns; got ${Array.isArray(row) ? row.length : typeof row}.`);
+      }
+      let sum = 0;
+      row.forEach((p, c) => {
+        if (typeof p !== "number" || !Number.isFinite(p)) {
+          throw new Error(`Matrix "${name}" row ${r} col ${c} is not a finite number.`);
+        }
+        if (p < 0) {
+          throw new Error(`Matrix "${name}" row ${r} col ${c} is negative (${p}).`);
+        }
+        sum += p;
+      });
+      if (Math.abs(sum - 1) > EPS) {
+        throw new Error(`Matrix "${name}" row ${r} sums to ${sum.toFixed(6)} (expected 1).`);
+      }
+    });
+  }
+
+  // Optional: freeze to prevent accidental mutation at runtime
+  // Object.freeze(MIDI_NOTE_INTERVAL_SETS);
+  // Object.freeze(IOI_MIDI_NOTE_PROBABILITY_MATRICES);
+
+  console.log("Music config sanity OK");
+}
+
+// Call once at startup
+sanityCheckMusicConfig();
