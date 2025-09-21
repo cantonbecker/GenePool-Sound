@@ -13,7 +13,7 @@
 
 "use strict";
 
-const SOUND_UPDATE_PERIOD =  5; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
+const SOUND_UPDATE_PERIOD =  10; 	// every this many _clock iterations, update global audio parameters (like overall reverb/zoom level)
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
 var UTTERANCE_COMPOSING_COUNTER = 0;
@@ -37,7 +37,8 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = 5; // enable this to have the background tone gradually drift around the default intervals
+const SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT = 20; // enable this to have the background tone gradually drift around the default intervals
+const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = (5 * 60); // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
 // How many different spawn sounds do we have? (starting from C1)
@@ -298,10 +299,11 @@ function Sound()
 	{
 		// retrieves interval, shortest note, etc. based on current running simulation
 		const musicParameters = determineCurrentMusicParameters (); 
-		let minReverb = musicParameters.minReverb;
-		let maxReverb = musicParameters.maxReverb;
-		let minBetweenUnivNoteShift = musicParameters.minBetweenUnivNoteShift;
-		let backgroundMIDInote = musicParameters.backgroundMIDInote;
+		let minReverb = 						musicParameters.minReverb;
+		let maxReverb = 						musicParameters.maxReverb;
+		let secBetweenUnivNoteShift = 	musicParameters.secBetweenUnivNoteShift;
+		let backgroundMIDInote = 			musicParameters.backgroundMIDInote;
+		let backgroundRetriggerSec = 		musicParameters.backgroundRetriggerSec;
 
 		SOUND_UPDATE_COUNTER +=1;
 		_parameter_0 = p0;
@@ -309,40 +311,42 @@ function Sound()
 		_parameter_2 = p2;
 		_parameter_3 = p3; // camera zoom, ranges from about 500 to 8000
 
+		// grab camera zoom and use it for some globals
+		const zoomPercentage = Math.min(1, Math.max(0, (_parameter_3 - 500) / (8000 - 500)));
+
+		UTTER_ATTENUATION = Math.round(zoomPercentage * MAX_UTTER_ATTENUATION);
+
 		// --- get the correct MIDI output by name ---
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'
 
-		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
-
-		// use camera zoom to set global reverb mix and utter attenuation
-		let _p3_scaled = Math.max(minReverb, Math.min(maxReverb, Math.round((_parameter_3 - 500) * maxReverb / (3000 - 500))));
-		let _p3_scaled_inverse = maxReverb - _p3_scaled;
-		const t_zoom = Math.min(1, Math.max(0, (_parameter_3 - 500) / (8000 - 500)));
-		UTTER_ATTENUATION = Math.round(t_zoom * MAX_UTTER_ATTENUATION);
+		let soundUpdatesPerSecond = Math.round(1000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals a second?
 		
 		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
 		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE && nondiegeticOutput) {
-			sendControlMIDI(21, _p3_scaled, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // dry/wet global reverb level
-			sendControlMIDI(20, Math.max(_p3_scaled, 60), MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // cutoff metaphysical function B (rhythmic background)
+			// GLOBAL REVERB
+			const reverbAmount = Math.floor(minReverb + (zoomPercentage * (maxReverb-minReverb)) );
+			sendControlMIDI(21, reverbAmount, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // dry/wet global reverb level
 
-			// DRONE: controls 16 & 17 of metaphysical function B reaktor are pitch knobs that should match our base note
-			let controlAdjustment16 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT - 6 ;
+			// SYNTHESIZED DRONE
+			const controlAdjustment15 = Math.floor(90 - Math.floor(zoomPercentage * 60)); // inverted range of 30-90
+			sendControlMIDI(15, controlAdjustment15, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // cutoff section A of meta. function B
+			const controlAdjustment16 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT - 6 ;
 			sendControlMIDI(16, controlAdjustment16, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
-			let controlAdjustment17 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT + 6 ;
+			const controlAdjustment17 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT + 6 ;
 			sendControlMIDI(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
 			
-			// SAMPLER BACKGROUND
-			if (SOUND_UPDATE_COUNTER % 200 == 0) {
+			// SAMPLER BACKGROUND -- retrigger every so often
+			if (SOUND_UPDATE_COUNTER % (soundUpdatesPerSecond * backgroundRetriggerSec) == 0) {
 				let midiChannel = MIDI_CHANNEL_BACKGROUND;
 				let midiNote = backgroundMIDInote;
 				sendNoteMIDI(midiNote, 127, 5000, midiChannel, nondiegeticOutput); // 5 second note
-				if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("Sent sampler note @ " + SOUND_UPDATE_COUNTER);
+				if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("Retriggered background sampler note @ " + SOUND_UPDATE_COUNTER);
 			}
 
 		}
 		
 		// every minute, tweak background sound just for variation
-		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % soundUpdatesPerMinute === 0 && nondiegeticOutput) {			
+		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % (soundUpdatesPerSecond * 60) === 0 && nondiegeticOutput) {			
 			
 			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
 			sendControlMIDI(18, controlAdjustment18, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
@@ -353,7 +357,7 @@ function Sound()
 
 
 		// THE UNIVERSE BACKGROUND HUM moves around to generate interest
-		if (minBetweenUnivNoteShift && SOUND_UPDATE_COUNTER % (soundUpdatesPerMinute * minBetweenUnivNoteShift) === 0) {
+		if (secBetweenUnivNoteShift && SOUND_UPDATE_COUNTER % (soundUpdatesPerSecond * secBetweenUnivNoteShift) === 0) {
   	 		const defaultIntervals = MIDI_NOTE_INTERVAL_SETS[0].intervals; // pentatonic
   			UNIVERSAL_NOTE_SHIFT = defaultIntervals[Math.floor(Math.random() * defaultIntervals.length)];
 			console.log ("*** UNIVERSAL BACKGROUND SHIFTED " + UNIVERSAL_NOTE_SHIFT + " ***");
@@ -610,6 +614,12 @@ function Sound()
 	
 	// Actually send a MIDI note on (and schedule a note off) to the IAC bus.
 	function sendNoteMIDI(noteNumber, velocity, durationMs, midiChannel, midiOutput) {
+		// clamp/filter note and warn
+		let originalNote = noteNumber; // copy for compare
+		noteNumber = Math.round(noteNumber);		
+		noteNumber = Math.max(0, noteNumber);
+		noteNumber = Math.min(127, noteNumber);
+		if (noteNumber != originalNote) console.warn(`*** Had to clamp MIDI note (ch ${midiChannel}) from ${originalNote} to ${noteNumber}`);
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const noteOn = 0x90 | zeroIndexMidiChannel;
 		const noteOff = 0x80 | zeroIndexMidiChannel;
@@ -620,10 +630,16 @@ function Sound()
 	}
 	
 	// Actually send a MIDI control value
-	function sendControlMIDI(controllerNumber, value, midiChannel, midiOutput) {
+	function sendControlMIDI(controllerNumber, controlValue, midiChannel, midiOutput) {
+		// clamp/filter controlValue and warn
+		let originalValue = controlValue; // copy for compare
+		controlValue = Math.round(controlValue);		
+		controlValue = Math.max(0, controlValue);
+		controlValue = Math.min(127, controlValue);
+		if (controlValue != originalValue) console.warn(`*** Had to clamp CC no. ${controllerNumber} (ch ${midiChannel}) from ${originalValue} to ${controlValue}`);
 		let zeroIndexMidiChannel = midiChannel - 1; 
 		const cc = 0xB0 | zeroIndexMidiChannel;
-		midiOutput.send([cc, controllerNumber, value]);
+		midiOutput.send([cc, controllerNumber, controlValue]);
 	}
 		
 } // *** end class/object Sound () ***
@@ -820,7 +836,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	let noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];		
 		
 	// how strong should our mod wheel wiggling be, and how often should we do it?
-	const modulationStrength = Math.floor(rng() * 16) * 4; // how fast to twist knobs
+	const modulationStrength = Math.floor((rng() * 16) * 4); // how fast to twist knobs
 	const modChanceOptions = [0,0,.10,.10,.20,.20,.50,.50,.50,.50]; // weighed towards middle and high chance of wiggle
 	let chanceOfModulation = modChanceOptions[Math.floor(rng() * modChanceOptions.length)];
 		
@@ -842,14 +858,14 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		{ cc: 14, min: 94,	max: 97,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// wave
 		{ cc: 15, min: 0,		max: 127,	initalVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
 		{ cc: 16, min: 32,	max: 127,	initalVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
-		{ cc: 17, min: 70,	max: 95,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, 	// "tone" 
+		{ cc: 17, min: 70,	max: 95,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" 
 		{ cc: 19, min: 0,		max: 70,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  },	// "level 2" resonance
-		{ cc: 20, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  } // "level 3"
+		{ cc: 20, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  } 	// "level 3"
 	];
 	
 	for (let setting of myControls) {
 		const range = setting.max - setting.min + 1;
-		let myCCval = Math.floor(rng() * range) + setting.min;
+		let myCCval = Math.floor((rng() * range) + setting.min);
 		setting.initalVal = myCCval; // remember our initial home position
 		setting.lastVal = myCCval; // this will also be our last known position
 		if (rng() > .5) setting.lastDir = 'down'; // randomly override initial spin direction
@@ -988,7 +1004,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 				delay: t,  // current moment in ms
 				type: 'cc',
 				cc: setting.cc,
-				value: ccVal
+				value: Math.floor(ccVal)
 			});
 			recordModCount += modulationStrength;
 		} // end modulation insertion
@@ -1095,11 +1111,12 @@ function determineCurrentMusicParameters () {
 	let mySet = MIDI_NOTE_INTERVAL_SETS[0];
 	let minReverb = MIN_REVERB_DEFAULT;
 	let maxReverb = MAX_REVERB_DEFAULT;
-	let minBetweenUnivNoteShift = MINUTES_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
+	let secBetweenUnivNoteShift = SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
 	let shortestNoteMs = SHORTEST_NOTE_MS_DEFAULT;
 	let noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['super']); // default to bell curve instead of 'sharp' or 'super'
 	let seqDurationStates = structuredClone(DEFAULT_SEQUENCE_DURATION_STATES);
 	let backgroundMIDInote = DEFAULT_BACKGROUND_NOTE;
+	let backgroundRetriggerSec = SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT;
 	
 	seqDurationStates
 	/*
@@ -1114,11 +1131,12 @@ function determineCurrentMusicParameters () {
 	} else if (_chosenPoolToLoad == 3) { // quartet / horde
 		minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
 		mySet = MIDI_NOTE_INTERVAL_SETS[3]; // octaves!
-		minBetweenUnivNoteShift = 1; // shorter shifts
+		secBetweenUnivNoteShift = 10; // shorter shifts
 		shortestNoteMs = 90; // shortest notes will be 90ms
 		seqDurationStates[0].min = 100; // lengthen 'short' min to 100ms
 		seqDurationStates[0].max = 140; // lengthen 'short' max to 140mx
 		backgroundMIDInote = 36; // bell drone
+		backgroundRetriggerSec = 12; // faster retrigger
 	} else if (_chosenPoolToLoad == 4) { // random
 		mySet = MIDI_NOTE_INTERVAL_SETS[1];
 	}
@@ -1129,7 +1147,8 @@ function determineCurrentMusicParameters () {
 			minReverb:						minReverb,
 			maxReverb:						maxReverb,
 			backgroundMIDInote:			backgroundMIDInote,
-			minBetweenUnivNoteShift:	minBetweenUnivNoteShift,
+			backgroundRetriggerSec:		backgroundRetriggerSec,
+			secBetweenUnivNoteShift:	secBetweenUnivNoteShift,
 			intervalSet:					mySet.intervals.slice(),		// e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]. Slice makes a safe copy dereferenced from original object
 			intervalSetName: 				mySet.name,							// e.g. 'minor pentatonic'
 			noteProbabilityMatrix:		noteProbabilityMatrix,

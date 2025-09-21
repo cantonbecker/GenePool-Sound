@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2025-09-21 50K/400/1000/20';
+const SWIMBOT_VERSION			= '2025-09-21 A';
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
@@ -8,13 +8,19 @@ var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the ce
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
+// increase max age to compensate for more difficult utterance-based mate finding and fewer mates
+// lower food regeneration period for faster food drops
+// 9/21: 45000/400/450/20 always succeeds, very occasional rabbit foxing
+
 const DEFAULT_GARDEN_OF_EDEN_RADIUS 		= 1750;
 const INITIAL_NUM_SWIMBOTS 					= 150;
 const MAX_SWIMBOTS 								= 300;
-const MAX_MAXIMUM_AGE       					= 50000; // increase to compensate for more difficult utterance-based mate finding and fewer mates
-const INITIAL_NUM_FOODBITS   					= 400;
-const MAX_FOODBITS           					= 1000;
-const DEFAULT_FOOD_REGENERATION_PERIOD  	= 20; 	// lower for faster food drops
+
+const MAX_MAXIMUM_AGE       					= 45000;		// 40000
+const INITIAL_NUM_FOODBITS   					= 400; 		// 400
+const MAX_FOODBITS           					= 450; 		// 500
+const DEFAULT_FOOD_REGENERATION_PERIOD  	= 20; 		// 30
+
 const MIN_FOOD_REGENERATION_PERIOD      	= 1;
 const MAX_FOOD_REGENERATION_PERIOD      	= 200;
 
