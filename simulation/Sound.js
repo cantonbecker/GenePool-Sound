@@ -118,6 +118,9 @@ var SOUND_OUTPUT_SPAWN		 	= true;
 var SOUND_OUTPUT_LAUNCH			= true;
 
 
+const MAX_UTTER_ATTENUATION = 40; // when zooming out, we can quiet our swimbots by this much
+var UTTER_ATTENUATION = 0; // stores current attenuation level
+
 const MIN_REVERB_DEFAULT = 15; // 0-127
 const MAX_REVERB_DEFAULT = 75;
 
@@ -311,9 +314,11 @@ function Sound()
 
 		let soundUpdatesPerMinute = Math.round(60000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals about a minute?
 
-		// use camera zoom to set global reverb mix for eating sounds (minimum 5)
+		// use camera zoom to set global reverb mix and utter attenuation
 		let _p3_scaled = Math.max(minReverb, Math.min(maxReverb, Math.round((_parameter_3 - 500) * maxReverb / (3000 - 500))));
 		let _p3_scaled_inverse = maxReverb - _p3_scaled;
+		const t_zoom = Math.min(1, Math.max(0, (_parameter_3 - 500) / (8000 - 500)));
+		UTTER_ATTENUATION = Math.round(t_zoom * MAX_UTTER_ATTENUATION);
 		
 		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
 		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE && nondiegeticOutput) {
@@ -486,6 +491,11 @@ function Sound()
 					if (!playAudio) return;
 	
 					if (step.type === 'note') {
+						if (UTTER_ATTENUATION) { // are we making our swimbot utterances quieter?
+							step.velocity = step.velocity - UTTER_ATTENUATION;
+							step.velocity = Math.max(20, step.velocity); // but no lower than 20
+						}
+						
 						if (useMidi && midiOutput) {
 							sendNoteMIDI(step.note, step.velocity, step.duration, midiChannel, midiOutput); // pass midiOutput!
 						} else if (useWebAudio) {
