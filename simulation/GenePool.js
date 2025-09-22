@@ -17,12 +17,12 @@ const SimulationStartMode =
 {
     EMPTY        	: 0, // Q to launch
     FROGGIES     	: 1, // W to launch
-    NEIGHBORHOOD 	: 2, // E to launch
+    BIG_BANG 	   : 2, // E to launch
     QUARTET			: 3, // R to launch
     RANDOM       	: 4, // T to launch
     TANGO        	: 5,
     RACE         	: 6,
-    BIG_BANG     	: 7,
+    NEIGHBORHOOD  : 7,
     BAD_PARENTS  	: 8,
     BARRIER      	: 9
 };

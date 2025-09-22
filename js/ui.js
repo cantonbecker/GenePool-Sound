@@ -1464,9 +1464,9 @@ document.onkeydown = function(e)
     // E -> NEIGHBORHOOD(S)
     if (e.keyCode === 69) { // E
         e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.NEIGHBORHOOD);
+        choosePoolToLoad(SimulationStartMode.BIG_BANG);
         requestToLoadPoolFromPreset();
-        flashNotice("2: Placeholder", 1750);
+        flashNotice("2: Big Bang", 1750);
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
