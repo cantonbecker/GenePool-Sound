@@ -916,8 +916,10 @@ if ( mode === SimulationStartMode.SPECIES )
                 position.y - size + yFraction * size * 2
             ); 
 
-            _foodBits[f].initialize(f);
-            _foodBits[f].setPosition( foodBitPosition );
+            if (_foodBits[f] !== undefined) { // added so we don't bomb out if INITIAL_NUM_FOODBITS is insufficient
+               _foodBits[f].initialize(f);
+               _foodBits[f].setPosition( foodBitPosition );
+            }
         }
 	}
 	
