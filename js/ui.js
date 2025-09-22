@@ -1454,7 +1454,7 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        flashNotice("Cleared! Green button 🟢 generates random swimbots.", 1000, -10);
+        flashNotice("Playground: Green button 🟢 generates random Swimbots.", 3000, -10);
     }
     // W -> FLOCKS
     if (e.keyCode === 87) { // W
@@ -1463,12 +1463,12 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         flashNotice("Six flocks of Swimbots", 2250, -20);
     }
-    // E -> NEIGHBORHOOD(S)
+    // E -> ???
     if (e.keyCode === 69) { // E
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.BIG_BANG);
         requestToLoadPoolFromPreset();
-        flashNotice("2: Big bang", 2250, -10);
+        flashNotice("??? Available ???", 2250, -10);
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
@@ -1476,7 +1476,7 @@ document.onkeydown = function(e)
       e.preventDefault();
       choosePoolToLoad(SimulationStartMode.QUARTET);
       requestToLoadPoolFromPreset();
-      flashNotice("3: Genetic intrusion", 2250, -10);    
+      flashNotice("Invasion!", 1800, -10);    
     }
     // T -> RANDOM
     if (e.keyCode === 84) { // T

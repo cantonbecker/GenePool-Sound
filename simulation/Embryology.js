@@ -680,6 +680,7 @@ if ( testNoEel )
 	//--------------------------------
 	this.getNumGenesUsed = function()
 	{
+       if (_numGenesUsed < 1 || _numGenesUsed > NUM_GENES) console.warn("Turd alert! getNumGenesUsed() thinks there are only " + _numGenesUsed + " genes!");
 	    return _numGenesUsed;
 	}
     
