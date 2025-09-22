@@ -464,13 +464,15 @@ _camera.setScale( POOL_WIDTH );
 	        
             //console.log( "if ( mode === SimulationStartMode.BAD_PARENTS ): setOffspringEnergyRatio to 0.001" );
             
-            _camera.setScale( POOL_WIDTH * 0.1 );
+            _camera.setScale( 2500 );
+            setTimeout(() => _camera.doScaleShift(600, 20), 1500); // wait 1.5s before fast zooming in
         }
         else if ( mode === SimulationStartMode.FLOCKS )
         {        
             _numSwimbots = 60;            
         	   _camera.setScale( 300 );
-            _camera.doScaleShift( 3900, 300 );
+            setTimeout(() => _camera.doScaleShift(3900, 300), 2000); // wait 2s before slow zooming out
+
         }
         else if ( mode === SimulationStartMode.BARRIER )
         {        
