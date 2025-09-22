@@ -1181,8 +1181,9 @@ function notifyGeneTweakPanelMouseDown()
 
 
 // show a brief, fading modal notice (message) for (messageMS) duration -- without blocking interaction
+// use offsetVh e.g. 10 or -10 to shift vertical position
 let _modalNoticeTimer = null;
-function flashNotice(message, messageMS = 1500) {
+function flashNotice(message, messageMS = 1500, offsetVh = 0) {
     const id = 'devpanelNotice';
     let container = document.getElementById(id);
 
@@ -1199,11 +1200,12 @@ function flashNotice(message, messageMS = 1500) {
             background: 'rgba(0,0,0,0.35)',   // dim backdrop
             pointerEvents: 'none',            // don’t block clicks
             opacity: '0',
-            transition: 'opacity 500ms ease'
+            transition: 'opacity 400ms ease'
         });
 
         const msg = document.createElement('div');
-        msg.textContent = message;;
+        msg.textContent = message;
+        msg.style.transform = offsetVh ? `translateY(${offsetVh}vh)` : '';
         Object.assign(msg.style, {
             fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, sans-serif',
             fontSize: '22px',
@@ -1452,21 +1454,21 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        flashNotice("Tap the green button 🟢 to generate random swimbots.", 4000);
+        flashNotice("Cleared! Green button 🟢 generates random swimbots.", 1000, -10);
     }
     // W -> FLOCKS
     if (e.keyCode === 87) { // W
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.FLOCKS);
         requestToLoadPoolFromPreset();
-        flashNotice("Five Flocks of Swimbots", 2250);
+        flashNotice("Five flocks of Swimbots", 2250, -10);
     }
     // E -> NEIGHBORHOOD(S)
     if (e.keyCode === 69) { // E
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.BIG_BANG);
         requestToLoadPoolFromPreset();
-        flashNotice("2: Big Bang", 2250);
+        flashNotice("2: Big bang", 2250, -10);
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
@@ -1474,14 +1476,14 @@ document.onkeydown = function(e)
       e.preventDefault();
       choosePoolToLoad(SimulationStartMode.QUARTET);
       requestToLoadPoolFromPreset();
-      flashNotice("3: Quartet AKA 'The Invading Hordes'", 2250);    
+      flashNotice("3: Genetic intrusion", 2250, -10);    
     }
     // T -> RANDOM
     if (e.keyCode === 84) { // T
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.RANDOM);
         requestToLoadPoolFromPreset();
-        flashNotice("4: " + INITIAL_NUM_SWIMBOTS + " Random Swimbots", 2250);
+        flashNotice(INITIAL_NUM_SWIMBOTS + " Random Swimbots", 3000, -10);
     }
     
                             

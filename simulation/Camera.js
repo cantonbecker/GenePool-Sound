@@ -18,8 +18,8 @@
 function Camera()
 {
     const FRICTION   			=  8.0;
-	const BUTTON_FORCE          =  0.3;
-	const DRAG_FORCE            =  0.03;
+	 const BUTTON_FORCE          =  0.3;
+	 const DRAG_FORCE            =  0.03;
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
 //const SCALE_SHIFT_DURATION	=  70;
@@ -168,7 +168,7 @@ function Camera()
 	this.doScaleShift = function( toScale, duration )
 	{	
 		_scaleShift.active	 	= true;
-		_scaleShift.clock	 	= 0;
+		_scaleShift.clock	 		= 0;
 		_scaleShift.startScale 	= _scale;
 		_scaleShift.duration 	= duration;
 		_scaleShift.endScale 	= toScale;
