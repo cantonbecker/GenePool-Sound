@@ -468,9 +468,9 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.FLOCKS )
         {        
-            _numSwimbots = 50;            
+            _numSwimbots = 60;            
         	   _camera.setScale( 300 );
-            _camera.doScaleShift( 3700, 200 );
+            _camera.doScaleShift( 3900, 300 );
         }
         else if ( mode === SimulationStartMode.BARRIER )
         {        
@@ -687,11 +687,12 @@ _camera.setScale( POOL_WIDTH );
             	let xx = _poolCenter.x;
             	let yy = _poolCenter.y;
 
-            		 if (( i >=  0 ) && ( i < 10 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_BEAUTYFAN		); xx += ss *  0.0; yy += ss *  0.0; } // center
-            	else if (( i >= 10 ) && ( i < 20 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_VORPAL			); xx += ss * -0.75; yy += ss *  0.0; } // nine o'clock
-            	else if (( i >= 20 ) && ( i < 30 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_ONEARMEDBANDIT	); xx += ss *  0.75; yy += ss *  0.0; } // three o'clock
-            	else if (( i >= 30 ) && ( i < 40 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_TINKERTOY			); xx += ss *  0.0; yy += ss *  0.75; } // six o'clock 
-            	else if (( i >= 40 ) && ( i < 50 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_FROGGY			); xx += ss *  0.0; yy += ss * -0.75; } // twelve o'clock
+            		 if (( i >=  0 ) && ( i < 10 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_BEAUTYFAN        ); xx += ss *  0.000; yy += ss *  0.000; } // center
+            	else if (( i >= 10 ) && ( i < 20 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_DOG             ); xx += ss *  0.232; yy += ss * -0.713; } // one o'clock
+            	else if (( i >= 20 ) && ( i < 30 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_FROGGY          ); xx += ss *  0.750; yy += ss *  0.000; } // three o'clock
+            	else if (( i >= 30 ) && ( i < 40 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_ONEARMEDBANDIT  ); xx += ss *  0.232; yy += ss *  0.713; } // five o'clock
+            	else if (( i >= 40 ) && ( i < 50 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_TINKERTOY       ); xx += ss * -0.607; yy += ss *  0.441; } // eight o'clock 
+            	else if (( i >= 50 ) && ( i < 60 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_VORPAL          ); xx += ss * -0.607; yy += ss * -0.441; } // ten o'clock
 
                _myGenotype.randomizeUtterance(.05); // very small randomizations of utterances
 

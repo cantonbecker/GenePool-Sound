@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2025-09-22 A';
+const SWIMBOT_VERSION			= '2025-09-22 B';
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;

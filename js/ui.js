@@ -1461,7 +1461,7 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.FLOCKS);
         requestToLoadPoolFromPreset();
-        flashNotice("Five flocks of Swimbots", 2250, -10);
+        flashNotice("Six flocks of Swimbots", 2250, -10);
     }
     // E -> NEIGHBORHOOD(S)
     if (e.keyCode === 69) { // E
