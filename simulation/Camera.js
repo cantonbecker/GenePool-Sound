@@ -22,7 +22,16 @@ function Camera()
 	const DRAG_FORCE            =  0.03;
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
+    const SCALE_SHIFT_DURATION	=  70;
     const MINIMUM_SCALE 		=  500.0;
+    
+	function ScaleShift()
+	{
+		this.active		= false;
+		this.clock		= 0;
+		this.startScale = ZERO;
+		this.endScale 	= ZERO;
+    }    
     
 	//------------------------------------------
 	// members
@@ -30,6 +39,7 @@ function Camera()
 	let _position  		    = new Vector2D();
 	let _velocity  		    = new Vector2D();
 	let _vectorUtility      = new Vector2D();
+	let _scaleShift			= new ScaleShift();
 	let _scaleDelta 	    = ZERO;
 	let _scale      	    = ONE;
     let _aspectRatio        = ONE;
@@ -74,6 +84,35 @@ function Camera()
         // apply constraints
         //----------------------
         applyConstraints();
+        
+
+        //----------------------
+        // scale shift
+        //----------------------
+		if ( _scaleShift.active )
+		{
+			//console.log( "scaleShift" );
+		
+			_scaleShift.clock ++;			
+			
+			if ( _scaleShift.clock > SCALE_SHIFT_DURATION )
+			{
+				//console.log( "DONE" );
+				
+				_scaleShift.active = false;
+			}
+			else
+			{
+				//console.log( _scaleShift.clock );
+
+				let fraction = _scaleShift.clock / SCALE_SHIFT_DURATION;
+				
+				fraction = ONE_HALF - ONE_HALF * Math.cos( fraction * Math.PI );
+				
+				_scale = _scaleShift.startScale + ( _scaleShift.endScale - _scaleShift.startScale ) * fraction;
+			
+			}
+		}        
 
 		//-----------------------------------
 		// update seconds
@@ -122,6 +161,18 @@ function Camera()
 		_bottom	= _position.y - _scale * ONE_HALF;
 	}
 
+
+
+	//-----------------------------------------
+	this.startScaleShift = function( toScale )
+	{	
+		//console.log( "startScaleShift" );
+		
+		_scaleShift.active	 	= true;
+		_scaleShift.clock	 	= 0;
+		_scaleShift.startScale 	= _scale;
+		_scaleShift.endScale 	= toScale;
+	}
 
 	//--------------------------
 	function applyConstraints()

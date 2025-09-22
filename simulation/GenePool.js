@@ -430,6 +430,7 @@ _camera.setScale( POOL_WIDTH );
             //_numSwimbots = 150;
 //this.setFoodToBangConfiguration();
             _camera.setScale( BANG_VIEW_SCALE );
+            _camera.startScaleShift( BANG_VIEW_SCALE * 2 );
         }
         else if ( mode === SimulationStartMode.BAD_PARENTS )
         {        
