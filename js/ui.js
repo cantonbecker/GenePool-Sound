@@ -1454,19 +1454,19 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         flashNotice("Tap the green button 🟢 to generate random swimbots.", 4000);
     }
-    // W -> FROGGIES
+    // W -> FLOCKS
     if (e.keyCode === 87) { // W
         e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.FROGGIES);
+        choosePoolToLoad(SimulationStartMode.FLOCKS);
         requestToLoadPoolFromPreset();
-        flashNotice("1: Placeholder", 1750);
+        flashNotice("Five Flocks of Swimbots", 2250);
     }
     // E -> NEIGHBORHOOD(S)
     if (e.keyCode === 69) { // E
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.BIG_BANG);
         requestToLoadPoolFromPreset();
-        flashNotice("2: Big Bang", 1750);
+        flashNotice("2: Big Bang", 2250);
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
@@ -1474,14 +1474,14 @@ document.onkeydown = function(e)
       e.preventDefault();
       choosePoolToLoad(SimulationStartMode.QUARTET);
       requestToLoadPoolFromPreset();
-      flashNotice("3: Quartet AKA 'The Invading Hordes'", 1750);    
+      flashNotice("3: Quartet AKA 'The Invading Hordes'", 2250);    
     }
     // T -> RANDOM
     if (e.keyCode === 84) { // T
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.RANDOM);
         requestToLoadPoolFromPreset();
-        flashNotice("4: " + INITIAL_NUM_SWIMBOTS + " Random swimbots", 1750);
+        flashNotice("4: " + INITIAL_NUM_SWIMBOTS + " Random Swimbots", 2250);
     }
     
                             

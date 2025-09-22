@@ -15,16 +15,17 @@
 
 const SimulationStartMode = 
 {
-    EMPTY        	: 0, // Q to launch
-    FROGGIES     	: 1, // W to launch
-    BIG_BANG 	   : 2, // E to launch
-    QUARTET			: 3, // R to launch
-    RANDOM       	: 4, // T to launch
-    TANGO        	: 5,
-    RACE         	: 6,
-    NEIGHBORHOOD  : 7,
-    BAD_PARENTS  	: 8,
-    BARRIER      	: 9
+    EMPTY        	:  0, // Q to launch
+    FLOCKS     	:  1, // W to launch
+    BIG_BANG 	   :  2, // E to launch
+    QUARTET			:  3, // R to launch
+    RANDOM       	:  4, // T to launch
+    TANGO        	:  5,
+    RACE         	:  6,
+    NEIGHBORHOOD  :  7,
+    FROGGIES  		:  8,
+    BAD_PARENTS  	:  9,
+    BARRIER      	: 10
 };
 
 // intentionally excluding BAD_PARENTS, SPECIES, FILE which throw errors on account of wanting a variety of food?
@@ -430,7 +431,7 @@ _camera.setScale( POOL_WIDTH );
             //_numSwimbots = 150;
 //this.setFoodToBangConfiguration();
             _camera.setScale( BANG_VIEW_SCALE );
-            _camera.startScaleShift( BANG_VIEW_SCALE * 2 );
+            _camera.doScaleShift( BANG_VIEW_SCALE * 2, 70 );
         }
         else if ( mode === SimulationStartMode.BAD_PARENTS )
         {        
@@ -463,6 +464,12 @@ _camera.setScale( POOL_WIDTH );
             //console.log( "if ( mode === SimulationStartMode.BAD_PARENTS ): setOffspringEnergyRatio to 0.001" );
             
             _camera.setScale( POOL_WIDTH * 0.1 );
+        }
+        else if ( mode === SimulationStartMode.FLOCKS )
+        {        
+            _numSwimbots = 50;            
+        	   _camera.setScale( 300 );
+            _camera.doScaleShift( 3700, 400 );
         }
         else if ( mode === SimulationStartMode.BARRIER )
         {        
@@ -627,6 +634,8 @@ _camera.setScale( POOL_WIDTH );
                 if ( i === 0 ) { initialPosition.setXY( _poolCenter.x - 200 * ONE_HALF, _poolCenter.y ); }
                 if ( i === 1 ) { initialPosition.setXY( _poolCenter.x + 200 * ONE_HALF, _poolCenter.y ); }
             }
+            
+            
             //-------------------------------------------------
             // Quartet
             //-------------------------------------------------
@@ -664,6 +673,26 @@ _camera.setScale( POOL_WIDTH );
 					if ( i === 2 ) { initialPosition.setXY( _poolCenter.x + range *  0.333, _poolCenter.y - offset ); }
 					if ( i === 3 ) { initialPosition.setXY( _poolCenter.x + range *  1.000, _poolCenter.y - offset ); }
                 }
+            }
+            
+               
+            //-------------------------------------------------
+            // Flocks
+            //-------------------------------------------------
+            else if ( mode === SimulationStartMode.FLOCKS )
+            {                 	
+                let ss = 2000;
+            	let rr = 100;
+            	let xx = _poolCenter.x;
+            	let yy = _poolCenter.y;
+
+            		 if (( i >=  0 ) && ( i < 10 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_BEAUTYFAN		); xx += ss *  0.0; yy += ss *  0.0; }
+            	else if (( i >= 10 ) && ( i < 20 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_VORPAL			); xx += ss * -0.4; yy += ss *  0.0; }
+            	else if (( i >= 20 ) && ( i < 30 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_ONEARMEDBANDIT	); xx += ss *  0.4; yy += ss *  0.0; }
+            	else if (( i >= 30 ) && ( i < 40 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_LONGLEGS			); xx += ss *  0.0; yy += ss *  0.8; }
+            	else if (( i >= 40 ) && ( i < 50 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_FROGGY			); xx += ss *  0.0; yy += ss * -0.8; }
+
+				initialPosition.setXY( xx - rr * ONE_HALF + rr * Math.random(), yy - rr * ONE_HALF + rr * Math.random() );
             }
             
             /*
@@ -986,7 +1015,7 @@ if ( mode === SimulationStartMode.SPECIES )
     	
         this.setFoodSpread( MIN_FOOD_BIT_MAX_SPAWN_RADIUS );
 	}
-	
+
 	
 	//-------------------------------------------
 	this.setFoodToQuartetConfiguration = function()

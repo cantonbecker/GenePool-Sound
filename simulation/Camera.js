@@ -22,13 +22,14 @@ function Camera()
 	const DRAG_FORCE            =  0.03;
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
-    const SCALE_SHIFT_DURATION	=  70;
+//const SCALE_SHIFT_DURATION	=  70;
     const MINIMUM_SCALE 		=  500.0;
     
 	function ScaleShift()
 	{
 		this.active		= false;
 		this.clock		= 0;
+		this.duration 	= ZERO;
 		this.startScale = ZERO;
 		this.endScale 	= ZERO;
     }    
@@ -95,7 +96,7 @@ function Camera()
 		
 			_scaleShift.clock ++;			
 			
-			if ( _scaleShift.clock > SCALE_SHIFT_DURATION )
+			if ( _scaleShift.clock > _scaleShift.duration )
 			{
 				//console.log( "DONE" );
 				
@@ -105,7 +106,7 @@ function Camera()
 			{
 				//console.log( _scaleShift.clock );
 
-				let fraction = _scaleShift.clock / SCALE_SHIFT_DURATION;
+				let fraction = _scaleShift.clock / _scaleShift.duration;
 				
 				fraction = ONE_HALF - ONE_HALF * Math.cos( fraction * Math.PI );
 				
@@ -163,14 +164,13 @@ function Camera()
 
 
 
-	//-----------------------------------------
-	this.startScaleShift = function( toScale )
+	//------------------------------------------------
+	this.doScaleShift = function( toScale, duration )
 	{	
-		//console.log( "startScaleShift" );
-		
 		_scaleShift.active	 	= true;
 		_scaleShift.clock	 	= 0;
 		_scaleShift.startScale 	= _scale;
+		_scaleShift.duration 	= duration;
 		_scaleShift.endScale 	= toScale;
 	}
 
@@ -271,6 +271,7 @@ function Camera()
 	//---------------------------------
 	this.setScale = function( scale )
 	{	
+		_scaleShift.active = false;
 		_scale = scale;
 		_scaleDelta = ZERO;
 
@@ -283,6 +284,12 @@ function Camera()
 	//-------------------------------------
 	this.setScaleToMax = function()
 	{	
+        _position.setXY( POOL_LEFT + _scale * ONE_HALF, POOL_TOP + _scale * ONE_HALF );
+	    _velocity.clear()
+	
+		this.setScale( POOL_RIGHT - POOL_LEFT );
+		
+		/*
 		_scale = POOL_RIGHT - POOL_LEFT;
 	    _scaleDelta = ZERO;
         _position.setXY( POOL_LEFT + _scale * ONE_HALF, POOL_TOP + _scale * ONE_HALF );
@@ -292,6 +299,8 @@ function Camera()
         // important
         //---------------------
         calculateFrame();
+        */
+        
 	}
 
 	//---------------------------
