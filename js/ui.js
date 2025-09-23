@@ -1463,12 +1463,12 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         flashNotice("Six flocks of Swimbots", 2250, -20);
     }
-    // E -> ???
+    // E -> RADIAL
     if (e.keyCode === 69) { // E
         e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.BIG_BANG);
+        choosePoolToLoad(SimulationStartMode.RADIAL);
         requestToLoadPoolFromPreset();
-        flashNotice("??? Available ???", 2250, -10);
+        flashNotice("Radial", 2250, -10);
     }
     // R -> QUARTET
     if (e.keyCode === 82) { // R
@@ -1485,7 +1485,6 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         flashNotice(INITIAL_NUM_SWIMBOTS + " Random Swimbots", 3000, -10);
     }
-    
                             
     //console.log( "onkeydown " + e.keyCode );
 }

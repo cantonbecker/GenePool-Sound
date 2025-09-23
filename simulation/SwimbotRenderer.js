@@ -37,12 +37,24 @@ var    flopperYV = 0;
     //---------------------------------
     const DEFAULT_SPLINE_FACTOR = 0.4;
     const EGG_SIZE = 5.0;
+    
+	function CreationEffect()
+	{
+		this.active		= false;
+		this.randomizer	= ZERO;
+		this.clock		= 0;
+		this.duration	= ZERO;
+		this.image 		= new Image();
+		this.position 	= new Vector2D();
+		this.scale 		= ZERO;
+	}
 
 	//--------------------------------
 	// variables
 	//--------------------------------
 	let _colorUtility   = new Color();
 	let _phenotype      = new Phenotype(); 
+	let _creationEffect	= new CreationEffect();
 	let _growthScale    = ZERO;
 	let _focusDirection = new Vector2D();
 	let _brain          = new Brain();
@@ -74,6 +86,17 @@ var    flopperYV = 0;
 	    _renderingGenitalsAndMouths = r;
     }
 
+	//-----------------------------------------------
+	this.doCreationEffect = function( viewScale )
+	{	
+		_creationEffect.clock 		= 0;
+		_creationEffect.duration 	= 40;
+		_creationEffect.active 		= true;
+		_creationEffect.scale 		= viewScale * ONE_HALF;
+		_creationEffect.randomizer	= Math.random();
+	    _creationEffect.image.src	= 'images/creation.png';   
+    }
+
 	//-----------------------
 	// render
 	//-----------------------
@@ -94,7 +117,12 @@ var    flopperYV = 0;
     	_energy         = energy;
     	_growthScale    = growthScale;
     	_focusDirection = focusDirection;
-        
+    	
+        if ( _creationEffect.active )
+        {
+        	this.renderCreationEffect();
+		}       
+    	
 		if ( levelOfDetail == SWIMBOT_LEVEL_OF_DETAIL_DOT )
 		{
 		    let p = 1;
@@ -281,11 +309,71 @@ if ( _index === 0 )
                 this.renderGenital();
             }
         }
-
+		 
 	}// render funtion
 
 
+	//-----------------------------------
+	// render creation effect
+	//-----------------------------------
+	this.renderCreationEffect = function()
+	{
+		_creationEffect.clock ++;
+		
+		if ( _creationEffect.clock === 1 )
+		{		
+			_creationEffect.position.copyFrom( _phenotype.parts[1].position );
+		}	
 
+		if ( _creationEffect.clock > _creationEffect.duration )
+		{
+			_creationEffect.active = false;
+		}
+		else
+		{
+			let fraction = _creationEffect.clock / _creationEffect.duration;
+			
+			let alpha = ( ONE - fraction ) * 0.3;
+			
+			let scale = _creationEffect.scale * Math.sqrt( fraction );
+	
+			//canvas.lineWidth = _creationEffect.scale * 0.005;	
+			//canvas.strokeStyle = "rgba( 255, 255, 240, " + alpha + " )";
+			
+			/*
+			for (let i=0; i<8; i++)
+			{	
+				let ss = scale * ( ONE + 0.2 * Math.sin( i * 2.0 + _creationEffect.randomizer + _creationEffect.clock * 0.1 ) );
+				canvas.beginPath();
+				canvas.arc( _creationEffect.position.x, _creationEffect.position.y, ss, 0, PI2, false );
+				canvas.stroke();
+				canvas.closePath();	        	
+			}
+			*/
+			
+			let num = 3;
+			let rot = 4;
+			for (let i=0; i<num; i++)
+			{	
+				canvas.save();              
+				canvas.translate( _creationEffect.position.x, _creationEffect.position.y );
+				canvas.rotate( ( -rot * ONE_HALF + ( i / num ) * rot ) * fraction );
+				canvas.globalAlpha = alpha;
+				canvas.drawImage
+				(
+					_creationEffect.image, 
+					- scale * ONE_HALF,
+					- scale * ONE_HALF, 
+					scale, 
+					scale
+				);   
+
+				canvas.globalAlpha = 1.0;
+				canvas.restore();   
+			}			
+		}	
+	}
+	
 
 	//-----------------------------------
 	// render part normal (not splined)

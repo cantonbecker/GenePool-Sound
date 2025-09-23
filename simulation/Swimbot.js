@@ -2290,7 +2290,11 @@ console.log( "contributeToOffspring: _childEnergyRatio = " + _childEnergyRatio )
 	    
     }
 
-
+	//----------------------------------------------
+	this.doCreationEffect = function( viewScale )
+	{	
+	    _swimbotRenderer.doCreationEffect( viewScale );
+    }
 
 	//-------------------------------------------
 	// set rendering goals

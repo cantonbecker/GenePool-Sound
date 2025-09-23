@@ -17,7 +17,7 @@ const SimulationStartMode =
 {
     EMPTY        	:  0, // Q to launch
     FLOCKS     	:  1, // W to launch
-    BIG_BANG 	   :  2, // E to launch
+    RADIAL 	      :  2, // E to launch
     QUARTET			:  3, // R to launch
     RANDOM       	:  4, // T to launch
     TANGO        	:  5,
@@ -25,7 +25,8 @@ const SimulationStartMode =
     NEIGHBORHOOD  :  7,
     FROGGIES  		:  8,
     BAD_PARENTS  	:  9,
-    BARRIER      	: 10
+    BARRIER			: 10,
+    BIG_BANG     	: 11
 };
 
 // intentionally excluding BAD_PARENTS, SPECIES, FILE which throw errors on account of wanting a variety of food?
@@ -474,6 +475,15 @@ _camera.setScale( POOL_WIDTH );
             setTimeout(() => _camera.doScaleShift(3900, 300), 2000); // wait 2s before slow zooming out
 
         }
+        else if ( mode === SimulationStartMode.RADIAL )
+        {        
+            _numSwimbots = 300; // decreased from 600 by CB            
+        	_camera.setScale( 400 );
+            this.randomizeNeighborhood(); // important
+
+            _camera.doScaleShift( 4000, 400 );
+        }
+        
         else if ( mode === SimulationStartMode.BARRIER )
         {        
             // the obstacle is initialized below to be in the middle of the pool!
@@ -699,6 +709,31 @@ _camera.setScale( POOL_WIDTH );
                _myGenotype.randomizeUtterance(.05); // very small randomizations of utterances
 
 				   initialPosition.setXY( xx - rr * ONE_HALF + rr * Math.random(), yy - rr * ONE_HALF + rr * Math.random() );
+            }
+            //-------------------------------------------------
+            // Radial
+            //-------------------------------------------------
+            else if ( mode === SimulationStartMode.RADIAL )
+            {
+            	let r = 3000;
+            	let a = 100;
+            	let fraction = Math.sqrt( i / _numSwimbots );
+            	
+            	let xx = _poolCenter.x + fraction * r * Math.sin( fraction * a );
+            	let yy = _poolCenter.y + fraction * r * Math.cos( fraction * a );
+				initialPosition.setXY( xx, yy );
+				
+                for (let g=0; g<NUM_GENES; g++)
+                {
+                    let value = ONE_HALF + ONE_HALF * Math.sin( ( _neighborhoodX[g] + ( - ONE_HALF + fraction ) ) * 5  );
+                       
+                    if ( value < ZERO ) { value = ZERO; }
+                    if ( value > ONE  ) { value = ONE;  }
+                    
+                    let geneValue = Math.floor( ( BYTE_SIZE - 1 ) * value );
+ 
+                    _myGenotype.setGeneValue( g, geneValue );
+                }
             }
             
             /*
@@ -2558,7 +2593,7 @@ if ( globalTweakers.numFoodTypes === 2 )
             //-----------------------------------------------------------------------
             // JEFFREY TO DO: Special spawn animation we can see from a distance?
             //-----------------------------------------------------------------------
-            
+			_swimbots[ index ].doCreationEffect( _camera.getScale() );
         }
         else
         {
