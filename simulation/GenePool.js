@@ -19,14 +19,15 @@ const SimulationStartMode =
     FLOCKS     	:  1, // W to launch
     RADIAL 	      :  2, // E to launch
     QUARTET			:  3, // R to launch
-    RANDOM       	:  4, // T to launch
-    TANGO        	:  5,
-    RACE         	:  6,
-    NEIGHBORHOOD  :  7,
-    FROGGIES  		:  8,
-    BAD_PARENTS  	:  9,
-    BARRIER			: 10,
-    BIG_BANG     	: 11
+    BIG_BANG      :  4, // T to launch
+    AUTOPILOT     :  5, // (invoked during user inactivity)
+    TANGO        	:  6,
+    RACE         	:  7,
+    NEIGHBORHOOD  :  8,
+    FROGGIES  		:  9,
+    BAD_PARENTS  	: 10,
+    BARRIER			: 11,
+    RANDOM     	: 12
 };
 
 // intentionally excluding BAD_PARENTS, SPECIES, FILE which throw errors on account of wanting a variety of food?
@@ -504,6 +505,12 @@ _camera.setScale( POOL_WIDTH );
         {
             _numSwimbots = 0;
             //this.randomizeFood();
+        }
+        else if ( mode === SimulationStartMode.AUTOPILOT )
+        {
+            /*** UNATTENDED OPEREATION MODE ***/
+        	   _camera.setScale( 300 );
+            _camera.doScaleShift( 4500, 30 );
         }
 
 

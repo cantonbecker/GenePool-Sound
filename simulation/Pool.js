@@ -211,11 +211,15 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 		//------------------
 		// show boundary
 		//------------------
+		
+		// commented out to remove black area beyond circular boundary
+		/*
 		canvas.fillStyle = BOUNDARY_MARGIN_COLOR;	
 		canvas.fillRect( POOL_LEFT,                         POOL_TOP - POOL_BOUNDARY_MARGIN,    POOL_WIDTH,             POOL_BOUNDARY_MARGIN    );
 		canvas.fillRect( POOL_LEFT,                         POOL_BOTTOM,                        POOL_WIDTH,             POOL_BOUNDARY_MARGIN    );
 		canvas.fillRect( POOL_LEFT - POOL_BOUNDARY_MARGIN,  POOL_TOP,                           POOL_BOUNDARY_MARGIN,   POOL_HEIGHT             );
 		canvas.fillRect( POOL_RIGHT,                        POOL_TOP,                           POOL_BOUNDARY_MARGIN,   POOL_HEIGHT             );
+		*/
 	}
 	
 

@@ -1151,9 +1151,15 @@ function determineCurrentMusicParameters () {
 		backgroundMIDInote = 36; 						// bell drone
 		backgroundRetriggerSec = 12; 					// faster retrigger
 
-	/*** RANDOM ***/
+	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {
 		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// minor pentatonic
+		secBetweenUnivNoteShift = 60 * 2; 			// shorter shifts
+		
+	/*** AUTOPILOT ***/
+	} else if (_chosenPoolToLoad == 5) {
+		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// minor pentatonic
+		backgroundMIDInote = 36; 						// bell drone
 	}
 	
 	// build up our musicParameters object and return it
