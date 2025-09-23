@@ -40,17 +40,16 @@
         
         /* full-viewport dark overlay with a circular hole */
         #viewHole {
-        position: fixed;
-        inset: 0;
-        z-index: 999;
-        pointer-events: none;              /* don't block clicks on the canvas */
-        background: #283343;
-        );   /* outside darkness */
-        /* center is transparent, outside is opaque (Safari + others) */
-        -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--mask-radius), #000 calc(var(--mask-radius) + 1px));
-        mask-image: radial-gradient(circle at 50% 50%, transparent var(--mask-radius), #000 calc(var(--mask-radius) + 1px));
-        -webkit-mask-repeat: no-repeat;
-        mask-repeat: no-repeat;
+                position: fixed;
+                inset: 0;
+                z-index: 999;
+                pointer-events: none;              /* don't block clicks on the canvas */
+                background: #000;
+                /* center is transparent, outside is opaque (Safari + others) */
+                -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent var(--mask-radius), #000 calc(var(--mask-radius) + 1px));
+                mask-image: radial-gradient(circle at 50% 50%, transparent var(--mask-radius), #000 calc(var(--mask-radius) + 1px));
+                -webkit-mask-repeat: no-repeat;
+                mask-repeat: no-repeat;
         }
         </style>
         

@@ -1108,7 +1108,7 @@ function pruneOldMods() {
 
 function determineCurrentMusicParameters () {
 	// set / reestablish defaults
-	let mySet = MIDI_NOTE_INTERVAL_SETS[0];
+	let mySet = MIDI_NOTE_INTERVAL_SETS[0]; // minor pentatonic default
 	let minReverb = MIN_REVERB_DEFAULT;
 	let maxReverb = MAX_REVERB_DEFAULT;
 	let secBetweenUnivNoteShift = SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
@@ -1124,21 +1124,36 @@ function determineCurrentMusicParameters () {
 	{ name: 'medium', min: 140, max: 210 },   // 120ms is an 8th note at 125 BPM
 	{ name: 'long',   min: 280, max: 420 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 	*/
-	if (_chosenPoolToLoad == 0) { // blank
-		backgroundMIDInote = 1; // no background loop sound
-	} else if (_chosenPoolToLoad == 1) { // placeholder 1
-		mySet = MIDI_NOTE_INTERVAL_SETS[1];
-	} else if (_chosenPoolToLoad == 3) { // quartet / horde
+	
+	/*** BLANK POOL ***/
+	if (_chosenPoolToLoad == 0) {
+		backgroundMIDInote = 1; 						// no background loop sound
+		
+	/*** FLOCKS ***/
+	} else if (_chosenPoolToLoad == 1) {
+		backgroundMIDInote = 36; 						// bell drone
+		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// major pentatonic
+		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
+
+	/*** RADIAL ***/
+	} else if (_chosenPoolToLoad == 2) {
+		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
+		mySet = MIDI_NOTE_INTERVAL_SETS[4]; 		// wholetone
+		maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
+	/*** INVASION ***/
+	} else if (_chosenPoolToLoad == 3) { // INVASION
 		minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
-		mySet = MIDI_NOTE_INTERVAL_SETS[3]; // octaves!
-		secBetweenUnivNoteShift = 10; // shorter shifts
-		shortestNoteMs = 90; // shortest notes will be 90ms
-		seqDurationStates[0].min = 100; // lengthen 'short' min to 100ms
-		seqDurationStates[0].max = 140; // lengthen 'short' max to 140mx
-		backgroundMIDInote = 36; // bell drone
-		backgroundRetriggerSec = 12; // faster retrigger
-	} else if (_chosenPoolToLoad == 4) { // random
-		mySet = MIDI_NOTE_INTERVAL_SETS[1];
+		mySet = MIDI_NOTE_INTERVAL_SETS[3]; 		// octaves & 5ths
+		secBetweenUnivNoteShift = 10; 				// shorter shifts
+		shortestNoteMs = 90; 							// shortest notes will be 90ms
+		seqDurationStates[0].min = 100; 				// lengthen 'short' min to 100ms
+		seqDurationStates[0].max = 140; 				// lengthen 'short' max to 140mx
+		backgroundMIDInote = 36; 						// bell drone
+		backgroundRetriggerSec = 12; 					// faster retrigger
+
+	/*** RANDOM ***/
+	} else if (_chosenPoolToLoad == 4) {
+		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// minor pentatonic
 	}
 	
 	// build up our musicParameters object and return it
@@ -1156,6 +1171,11 @@ function determineCurrentMusicParameters () {
 		};
 	return musicParameters;
 }
+
+
+
+
+
 
 
 /* throttleMaxChannels reduces how many synthesizers we are using when our JS is loaded up with swimbots

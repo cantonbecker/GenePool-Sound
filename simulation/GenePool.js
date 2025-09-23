@@ -477,7 +477,7 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.RADIAL )
         {        
-            _numSwimbots = 600; // decreased from 600 by CB            
+            _numSwimbots = 300; // decreased from 600 by CB to prevent error         
         	_camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
 

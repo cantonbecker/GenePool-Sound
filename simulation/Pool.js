@@ -89,7 +89,8 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
     	// _backgroundImage.src = 'images/background.png';   
     	// _backgroundImage.src = 'images/background-upscaled.jpg';   
     	// _backgroundImage.src = 'images/background-upscaled-blur.jpg';   
-    	_backgroundImage.src = 'images/background-dark-circle.jpg';   
+    	// _backgroundImage.src = 'images/background-dark-circle.jpg';   
+    	_backgroundImage.src 	= 'images/background-dark-circle-brighter.jpg';   
     	
     	for (let b=0; b<NUM_EFFECT_BLOBS; b++)
     	{
@@ -160,8 +161,9 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
         //canvas.clearRect( POOL_LEFT, POOL_TOP, POOL_WIDTH, POOL_HEIGHT );
         
         
-        canvas.drawImage  (  _backgroundImage, POOL_LEFT, POOL_TOP, POOL_RIGHT, POOL_BOTTOM );        // draw image                       
-        
+        // canvas.drawImage  (  _backgroundImage, POOL_LEFT, POOL_TOP, POOL_RIGHT, POOL_BOTTOM );                      
+        canvas.drawImage	(_backgroundImage, POOL_LEFT, POOL_TOP, POOL_WIDTH, POOL_HEIGHT); // more correct?
+
         
 
 		//------------------------------------------------------------
