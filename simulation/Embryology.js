@@ -316,6 +316,7 @@ let testNoEel = true;
         // when a swimbot is born, its unique and individual life-long MIDI "song" is composed
         // and its utterance-related phenotypes (utterHighNote, utterNoteCount, etc.) are determined ...
         //------------------------------------------------------------------------------------------------
+        
         let utterancePhenotypeObj = 
             generateUtterancePhenotypes (
                 genotype.getGenes(),

@@ -1454,7 +1454,7 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        flashNotice("Empty Pool. Green button 🟢 generates random Swimbots.", 3000, -10);
+        flashNotice("Press 🟢 button to create Swimbots.", 3000, 0);
     }
     // W -> QUARTET
     if (e.keyCode === 87) { // W
