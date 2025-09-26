@@ -17,12 +17,11 @@
 //------------------------------------------
 function Camera()
 {
-    const FRICTION   			=  8.0;
-	 const BUTTON_FORCE          =  0.3;
-	 const DRAG_FORCE            =  0.03;
+	const FRICTION   			=  8.0;
+	const BUTTON_FORCE          =  0.3;
+	const DRAG_FORCE            =  0.03;
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
-//const SCALE_SHIFT_DURATION	=  70;
     const MINIMUM_SCALE 		=  500.0;
     
 	function ScaleShift()
@@ -34,12 +33,22 @@ function Camera()
 		this.endScale 	= ZERO;
     }    
     
+	function PositionShift()
+	{
+		this.active			= false;
+		this.clock			= 0;
+		this.duration 		= ZERO;
+		this.startPosition 	= new Vector2D();
+		this.endPosition 	= new Vector2D();
+    }    
+    
 	//------------------------------------------
 	// members
 	//------------------------------------------
 	let _position  		    = new Vector2D();
 	let _velocity  		    = new Vector2D();
 	let _vectorUtility      = new Vector2D();
+	let _positionShift		= new PositionShift();
 	let _scaleShift			= new ScaleShift();
 	let _scaleDelta 	    = ZERO;
 	let _scale      	    = ONE;
@@ -86,32 +95,40 @@ function Camera()
         //----------------------
         applyConstraints();
         
+        //----------------------------
+        // position shift
+        //-----------------------------
+		if ( _positionShift.active )
+		{
+			_positionShift.clock ++;						
+			if ( _positionShift.clock > _positionShift.duration )
+			{
+				_positionShift.active = false;
+			}
+			else
+			{
+				let fraction = _positionShift.clock / _positionShift.duration;				
+				fraction = ONE_HALF - ONE_HALF * Math.cos( fraction * Math.PI );
+				_position.x = _positionShift.startPosition.x + ( _positionShift.endPosition.x - _positionShift.startPosition.x ) * fraction;
+				_position.y = _positionShift.startPosition.y + ( _positionShift.endPosition.y - _positionShift.startPosition.y ) * fraction;
+			}
+		}        
 
-        //----------------------
+        //--------------------------
         // scale shift
-        //----------------------
+        //--------------------------
 		if ( _scaleShift.active )
 		{
-			//console.log( "scaleShift" );
-		
-			_scaleShift.clock ++;			
-			
+			_scaleShift.clock ++;						
 			if ( _scaleShift.clock > _scaleShift.duration )
 			{
-				//console.log( "DONE" );
-				
 				_scaleShift.active = false;
 			}
 			else
 			{
-				//console.log( _scaleShift.clock );
-
-				let fraction = _scaleShift.clock / _scaleShift.duration;
-				
+				let fraction = _scaleShift.clock / _scaleShift.duration;				
 				fraction = ONE_HALF - ONE_HALF * Math.cos( fraction * Math.PI );
-				
 				_scale = _scaleShift.startScale + ( _scaleShift.endScale - _scaleShift.startScale ) * fraction;
-			
 			}
 		}        
 
@@ -162,16 +179,33 @@ function Camera()
 		_bottom	= _position.y - _scale * ONE_HALF;
 	}
 
-
-
 	//------------------------------------------------
 	this.doScaleShift = function( toScale, duration )
 	{	
 		_scaleShift.active	 	= true;
-		_scaleShift.clock	 		= 0;
+		_scaleShift.clock	 	= 0;
 		_scaleShift.startScale 	= _scale;
 		_scaleShift.duration 	= duration;
 		_scaleShift.endScale 	= toScale;
+	}
+
+	//--------------------------------------------------------
+	this.doPositionShift = function( toPosition, duration )
+	{		
+		_positionShift.active	 		= true;
+		_positionShift.clock	 		= 0;
+		_positionShift.startPosition	= _position;
+		_positionShift.duration 		= duration;
+		_positionShift.endPosition.copyFrom( toPosition );
+	}
+
+	//---------------------------------
+	// Cancel in case these are active
+	//---------------------------------
+	this.stopShift = function()
+	{	
+		_scaleShift.active 		= false;
+		_positionShift.active 	= false;
 	}
 
 	//--------------------------
@@ -255,10 +289,10 @@ function Camera()
 		}
     }
     
-    
 	//--------------------------------------
 	this.setPosition = function( position )
 	{	
+		_positionShift.active = false;
 		_position.copyFrom( position );
 		_velocity.clear();
 

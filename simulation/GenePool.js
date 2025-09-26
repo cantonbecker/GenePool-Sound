@@ -16,9 +16,9 @@
 const SimulationStartMode = 
 {
     EMPTY        	:  0, // Q to launch
-    FLOCKS     	:  1, // W to launch
-    RADIAL 	      :  2, // E to launch
-    QUARTET			:  3, // R to launch
+    QUARTET			:  1, // R to launch
+    FLOCKS     	:  2, // W to launch
+    RADIAL 	      :  3, // E to launch
     BIG_BANG      :  4, // T to launch
     AUTOPILOT     :  5, // (invoked during user inactivity)
     TANGO        	:  6,
@@ -132,6 +132,14 @@ function GenePool()
     const FOOD_RACE_SIZE                    = 1000;
     const FOOD_BANG_SIZE                    = 1700;
     
+	function GlobalOutwardPush()
+	{
+		this.active		= false;
+		this.clock 		= 0;
+		this.duration	= 0;
+		this.force		= ZERO;
+	}    
+    
 	//----------------------------------------------------
 	// variables
 	//----------------------------------------------------
@@ -183,6 +191,7 @@ function GenePool()
 	let _debugTrail 		    = new Array( TRAIL_LENGTH ); 
 	let _familyTree             = new FamilyTree();
 	let _phyloTree              = new PhyloTree();
+    let _globalOutwardPush 		= new GlobalOutwardPush();
 	let _panningLeft            = false;
 	let _panningRight           = false;
 	let _panningUp              = false;
@@ -192,11 +201,11 @@ function GenePool()
     let _renderingGoals         = false;
     let _showViewTrackingMode   = false;
     let _windowWidth            = 0;
-    let _windowHeight           = 0;
-    
+    let _windowHeight           = 0;    
     let hhh = 0;	
 	
-    let _tempCameraShift = new Vector2D();
+	// HACK - Ideally, this should be incorporated into viewTracking, but this will do for now.
+    let _autoPilotMode = false;
 	
 	
 	
@@ -346,6 +355,9 @@ function GenePool()
         // reset view control
         //-------------------------
         _viewTracking.reset();
+        
+        
+        _autoPilotMode = false;
 
         //-------------------------
         // reset family tree
@@ -397,7 +409,7 @@ function GenePool()
         //---------------------------------------------------------------------
         if ( mode === SimulationStartMode.RANDOM )
         {
-        	   _camera.setScale( 300 );
+        	_camera.setScale( 300 );
             _camera.doScaleShift( 4500, 50 );
         }
         else if ( mode === SimulationStartMode.SPECIES )
@@ -432,9 +444,9 @@ _camera.setScale( POOL_WIDTH );
         else if ( mode === SimulationStartMode.BIG_BANG )
         {        
             //_numSwimbots = 150;
-//this.setFoodToBangConfiguration();
+			//this.setFoodToBangConfiguration();
             _camera.setScale( BANG_VIEW_SCALE );
-            _camera.doScaleShift( BANG_VIEW_SCALE * 2, 70 );
+            _camera.doScaleShift( BANG_VIEW_SCALE * 2.5, 100 );
         }
         else if ( mode === SimulationStartMode.BAD_PARENTS )
         {        
@@ -507,10 +519,11 @@ _camera.setScale( POOL_WIDTH );
             //this.randomizeFood();
         }
         else if ( mode === SimulationStartMode.AUTOPILOT )
-        {
+        {        
             /*** UNATTENDED OPEREATION MODE ***/
-        	   _camera.setScale( 300 );
-            _camera.doScaleShift( 4500, 30 );
+        	_autoPilotMode = true;
+        	_camera.setScale( 4000 );
+            _camera.doScaleShift( 600, 500 );
         }
 
 
@@ -817,10 +830,15 @@ _camera.setScale( POOL_WIDTH );
 
             if ( mode === SimulationStartMode.BIG_BANG )
             {
-                let forceAmount = 200;
+                let forceAmount = 300;
                 
                 _vectorUtility.setXY( -forceAmount + Math.random() * forceAmount * 2, -forceAmount + Math.random() * forceAmount * 2 );
-                _swimbots[i].addForce( _vectorUtility );
+				_swimbots[i].addForce( _vectorUtility );
+                
+                _globalOutwardPush.active 	= true;
+                _globalOutwardPush.duration = 100;
+                _globalOutwardPush.force 	= 8.0;
+                _globalOutwardPush.clock 	= 0;
             }
 
             //------------------------------------------------------------------------------------
@@ -1329,6 +1347,16 @@ if ( mode === SimulationStartMode.SPECIES )
 		//-------------------------------------
 		_seconds = ( (new Date).getTime() - _startTime ) / MILLISECONDS_PER_SECOND;
 		
+		if ( _globalOutwardPush.active )
+		{
+			_globalOutwardPush.clock ++;
+
+			if ( _globalOutwardPush.clock > _globalOutwardPush.duration )
+			{
+				_globalOutwardPush.active = false;
+			}
+		}	
+		
 		//-------------------------------------
 		// calculate frame rate...
 		//-------------------------------------
@@ -1388,6 +1416,32 @@ if ( mode === SimulationStartMode.SPECIES )
                     _camera.addForce( _viewTracking.getCameraForce(), _viewTracking.getCameraScaleForce() );
                 }
             }
+            
+            
+            //----------------------------------------------
+            // update auto-pilot behavior
+            //----------------------------------------------
+ 			if ( _autoPilotMode )
+        	{        
+        		if ( _clock % 500 === 0 )
+        		{
+        			let scale = 500 + 1000 * Math.random();
+        			_camera.doScaleShift( scale, 450 );
+        		}
+
+        		if ( _clock % 600 === 3 )
+        		{
+        			_vectorUtility.copyFrom( _camera.getPosition() );
+        			
+        			let s = _camera.getScale();
+        			let range = 1.0 * s;
+        			
+        			_vectorUtility.x += -range * ONE_HALF + range * Math.random();
+        			_vectorUtility.y += -range * ONE_HALF + range * Math.random();
+        			_camera.doPositionShift( _vectorUtility, 550 );
+        		}
+			}            
+            
         
             //------------------------------
             // update camera navigation
@@ -1449,7 +1503,22 @@ if ( mode === SimulationStartMode.SPECIES )
 				// detection of uttering needs continual sensing, unlike the code above...
                 //--------------------------------------------------------------------------------
 				this.giveSwimbotNearbyUtteringStimuli(s);
-
+				
+				if ( _globalOutwardPush.active )
+				{
+					if ( s % 2 === 0 )
+					{				
+						_vectorUtility.x = _swimbots[s].getPosition().x - ( POOL_WIDTH  * ONE_HALF ); 
+						_vectorUtility.y = _swimbots[s].getPosition().y - ( POOL_HEIGHT * ONE_HALF ); 
+					
+						_vectorUtility.normalize();
+					
+						let fraction = ONE - ( _globalOutwardPush.clock / _globalOutwardPush.duration );
+						_vectorUtility.scale( fraction * _globalOutwardPush.force );										
+						_swimbots[s].addForce( _vectorUtility );
+					}
+				}	
+				
                 //--------------------------------------------------------------------------------------------------------
                 // check for obstacle collision....
                 //--------------------------------------------------------------------------------------------------------
@@ -1688,11 +1757,13 @@ if ( mode === SimulationStartMode.SPECIES )
                     //_viewTracking.setMode( ViewTrackingMode.NULL, 0 );
                     //this.clearViewMode();
                     _viewTracking.stopTracking();
+			    	_camera.stopShift();
                 }
             }	
             else
             {
                 _viewTracking.stopTracking();
+		    	_camera.stopShift();
             }
         }
     }
@@ -3300,6 +3371,7 @@ if ( globalTweakers.numFoodTypes === 2 )
     this.startCameraNavigation = function( action )
     {
         _viewTracking.stopTracking();
+    	_camera.stopShift();
         
              if ( action === CameraNavigationAction.LEFT  ) { _panningLeft  = true; }
         else if ( action === CameraNavigationAction.RIGHT ) { _panningRight = true; }
@@ -3328,6 +3400,7 @@ if ( globalTweakers.numFoodTypes === 2 )
     this.panCameraToPresetSwimbot = function(s)
     {
     	_viewTracking.stopTracking();
+    	_camera.stopShift();
     
     	this.stopCameraNavigation();
     	
@@ -3371,6 +3444,7 @@ if ( globalTweakers.numFoodTypes === 2 )
             // in case view control is tracking, stop it...
             //-----------------------------------------------
             _viewTracking.stopTracking();
+	    	_camera.stopShift();
             
             //------------------------------------------
             // has a swimmer been clicked?

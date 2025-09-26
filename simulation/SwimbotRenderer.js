@@ -92,7 +92,7 @@ var    flopperYV = 0;
 		_creationEffect.clock 		= 0;
 		_creationEffect.duration 	= 40;
 		_creationEffect.active 		= true;
-		_creationEffect.scale 		= viewScale * ONE_HALF;
+		_creationEffect.scale 		= viewScale;
 		_creationEffect.randomizer	= Math.random();
 	    _creationEffect.image.src	= 'images/creation.png';   
     }
@@ -335,7 +335,7 @@ if ( _index === 0 )
 			
 			let alpha = ( ONE - fraction ) * 0.3;
 			
-			let scale = _creationEffect.scale * Math.sqrt( fraction );
+			let scale = 150 + 0.2 * _creationEffect.scale * Math.sqrt( fraction );
 	
 			//canvas.lineWidth = _creationEffect.scale * 0.005;	
 			//canvas.strokeStyle = "rgba( 255, 255, 240, " + alpha + " )";

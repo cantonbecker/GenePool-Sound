@@ -1129,19 +1129,8 @@ function determineCurrentMusicParameters () {
 	if (_chosenPoolToLoad == 0) {
 		backgroundMIDInote = 1; 						// no background loop sound
 		
-	/*** FLOCKS ***/
-	} else if (_chosenPoolToLoad == 1) {
-		backgroundMIDInote = 36; 						// bell drone
-		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// major pentatonic
-		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
-
-	/*** RADIAL ***/
-	} else if (_chosenPoolToLoad == 2) {
-		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
-		mySet = MIDI_NOTE_INTERVAL_SETS[4]; 		// wholetone
-		maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
 	/*** INVASION ***/
-	} else if (_chosenPoolToLoad == 3) { // INVASION
+	} else if (_chosenPoolToLoad == 1) { // INVASION
 		minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
 		mySet = MIDI_NOTE_INTERVAL_SETS[3]; 		// octaves & 5ths
 		secBetweenUnivNoteShift = 10; 				// shorter shifts
@@ -1150,6 +1139,18 @@ function determineCurrentMusicParameters () {
 		seqDurationStates[0].max = 140; 				// lengthen 'short' max to 140mx
 		backgroundMIDInote = 36; 						// bell drone
 		backgroundRetriggerSec = 12; 					// faster retrigger
+
+	/*** FLOCKS ***/
+	} else if (_chosenPoolToLoad == 2) {
+		backgroundMIDInote = 36; 						// bell drone
+		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// major pentatonic
+		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
+
+	/*** RADIAL ***/
+	} else if (_chosenPoolToLoad == 3) {
+		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
+		mySet = MIDI_NOTE_INTERVAL_SETS[4]; 		// wholetone
+		maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
 
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {

@@ -1454,36 +1454,36 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        flashNotice("Empty: Green button 🟢 generates random Swimbots.", 3000, -10);
+        flashNotice("Empty Pool. Green button 🟢 generates random Swimbots.", 3000, -10);
     }
-    // W -> FLOCKS
+    // W -> QUARTET
     if (e.keyCode === 87) { // W
+        e.preventDefault();
+        choosePoolToLoad(SimulationStartMode.QUARTET);
+        requestToLoadPoolFromPreset();
+        // flashNotice("Invasion!", 2250, -20);
+    }
+    // E -> FLOCKS
+    if (e.keyCode === 69) { // E
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.FLOCKS);
         requestToLoadPoolFromPreset();
-        flashNotice("Six flocks of Swimbots", 2250, -20);
+        // flashNotice("Six flocks of Swimbots", 2250, -10);
     }
-    // E -> RADIAL
-    if (e.keyCode === 69) { // E
-        e.preventDefault();
-        choosePoolToLoad(SimulationStartMode.RADIAL);
-        requestToLoadPoolFromPreset();
-        flashNotice("Radial", 2250, -10);
-    }
-    // R -> QUARTET
+    // R -> RADIAL
     if (e.keyCode === 82) { // R
       if (e.metaKey || e.ctrlKey) return; // allow Command+R (mac) / Ctrl+R (win/linux) to refresh
       e.preventDefault();
-      choosePoolToLoad(SimulationStartMode.QUARTET);
+      choosePoolToLoad(SimulationStartMode.RADIAL);
       requestToLoadPoolFromPreset();
-      flashNotice("Invasion!", 1800, -10);    
+      // flashNotice("Radial", 1800, -10);    
     }
     // T -> BIG BANG
     if (e.keyCode === 84) { // T
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.BIG_BANG);
         requestToLoadPoolFromPreset();
-        flashNotice("Big Bang (" + INITIAL_NUM_SWIMBOTS + " Swimbots)", 3000, -10);
+        // flashNotice("Big Bang (" + INITIAL_NUM_SWIMBOTS + " Swimbots)", 3000, -10);
     }
                             
     //console.log( "onkeydown " + e.keyCode );
