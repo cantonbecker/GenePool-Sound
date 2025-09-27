@@ -866,6 +866,8 @@ function requestToLoadPoolFromFile()
 //--------------------------------------
 function requestToLoadPoolFromPreset()
 {
+    genePool.notifyUserInteraction();
+
     const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     if (now - _lastPresetRequestTS < PRESET_COOLDOWN_MS) {
         return false; // blocked by cooldown
@@ -1320,6 +1322,9 @@ _canvasEl.onmousedown = function(e) {
             return;
         }
         // make a swimbot (true) means make it, but also trigger a spawn sound
+        
+        genePool.notifyUserInteraction();
+        
         genePool.makeNewRandomSwimbot(true);
     }
 

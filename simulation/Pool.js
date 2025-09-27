@@ -90,7 +90,7 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
     	// _backgroundImage.src = 'images/background-upscaled.jpg';   
     	// _backgroundImage.src = 'images/background-upscaled-blur.jpg';   
     	// _backgroundImage.src = 'images/background-dark-circle.jpg';   
-    	_backgroundImage.src 	= 'images/background-dark-circle-brighter.jpg';   
+    	_backgroundImage.src 	= 'images/background-dark-circle-brighter_2.jpg';   
     	
     	for (let b=0; b<NUM_EFFECT_BLOBS; b++)
     	{

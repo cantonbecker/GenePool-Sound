@@ -131,6 +131,7 @@ function GenePool()
     const CLONE_SEPARATION                  = 10.0;
     const FOOD_RACE_SIZE                    = 1000;
     const FOOD_BANG_SIZE                    = 1700;
+    const USER_INACTION_TIME_OUT			= 5.0; //how many seconds of user [ inaction ] before the default sim kicks in
     
 	function GlobalOutwardPush()
 	{
@@ -173,6 +174,8 @@ function GenePool()
 	let _poolCenter             = new Vector2D();   
 	let _canvas                 = null;  
 	let _clock                  = 0;
+	let _lastUserActionTime		= ZERO;
+	let _interactiveMode		= false;
 	let _numSwimbots 	        = 0;
     let _numNearbySwimbots      = 0;
 	let _numFoodBits 	        = 0;
@@ -206,8 +209,6 @@ function GenePool()
 	
 	// HACK - Ideally, this should be incorporated into viewTracking, but this will do for now.
     let _autoPilotMode = false;
-	
-	
 	
 	//-------------------------------------
 	// create fixed-sized swimbot array
@@ -340,6 +341,8 @@ function GenePool()
 		// initialize pool
 		//----------------------------------
 		_seconds = ( (new Date).getTime() - _startTime ) / MILLISECONDS_PER_SECOND;
+		_lastUserActionTime = _seconds;
+
 	    _pool.initialize( _seconds );
 	    
 	    
@@ -355,7 +358,6 @@ function GenePool()
         // reset view control
         //-------------------------
         _viewTracking.reset();
-        
         
         _autoPilotMode = false;
 
@@ -521,7 +523,7 @@ _camera.setScale( POOL_WIDTH );
         else if ( mode === SimulationStartMode.AUTOPILOT )
         {        
             /*** UNATTENDED OPEREATION MODE ***/
-        	_autoPilotMode = true;
+        	//_autoPilotMode = true;
         	_camera.setScale( 4000 );
             _camera.doScaleShift( 600, 500 );
         }
@@ -1342,6 +1344,20 @@ if ( mode === SimulationStartMode.SPECIES )
 	//------------------------
 	this.update = function()
 	{	
+		if ( _interactiveMode )
+		{
+			if ( _seconds > _lastUserActionTime + USER_INACTION_TIME_OUT )
+			{
+				_interactiveMode = false; 				
+
+				console.log( "user non-action timed out!" );
+				this.startSimulation( SimulationStartMode.AUTOPILOT );
+
+				// after the above...
+				_autoPilotMode   = true;
+			}
+		}
+		
 		//-------------------------------------
 		// get seconds since started...
 		//-------------------------------------
@@ -3229,8 +3245,10 @@ if ( globalTweakers.numFoodTypes === 2 )
 	//--------------------------------
 	this.touchDown = function( x, y )
 	{
-        _touch.setToDown( x, y ); 	
-       this.handleNonUITouchDownActions( x, y );
+    	this.notifyUserInteraction();
+
+    	_touch.setToDown( x, y ); 	
+       	this.handleNonUITouchDownActions( x, y );
 	}
 	
 	//--------------------------------------------------------------
@@ -3246,6 +3264,8 @@ if ( globalTweakers.numFoodTypes === 2 )
 	//-------------------------------
 	this.touchMove = function( x, y )
 	{	
+    	this.notifyUserInteraction();
+	
         if (( x < _canvasWidth  )
         &&  ( y < _canvasHeight ))
     	{		
@@ -3370,6 +3390,8 @@ if ( globalTweakers.numFoodTypes === 2 )
 	//------------------------------------------------
     this.startCameraNavigation = function( action )
     {
+    	this.notifyUserInteraction();    
+    
         _viewTracking.stopTracking();
     	_camera.stopShift();
         
@@ -3432,6 +3454,14 @@ if ( globalTweakers.numFoodTypes === 2 )
         	        	    
         let selectedSwimbot = _viewTracking.setMode( viewMode, _camera.getPosition(), _camera.getScale(), _selectedSwimbot );
         setSelectedSwimbot( selectedSwimbot );
+	}
+	
+	//---------------------------------------
+	this.notifyUserInteraction = function()
+	{
+		_autoPilotMode 	 	= false;
+		_interactiveMode 	= true;
+		_lastUserActionTime = _seconds;
 	}
 	
 	//--------------------------------------------------
