@@ -207,7 +207,9 @@ function GenePool()
     let hhh = 0;	
 	
 	// HACK - Ideally, this should be incorporated into viewTracking, but this will do for now.
-    let _autoPilotMode = false; // console.log( "_autoPilotMode = false" );
+    let _autoPilotMode = false;
+    
+    let _flockGenotype = new Genotype();
 	
 	//-------------------------------------
 	// create fixed-sized swimbot array
@@ -285,7 +287,7 @@ function GenePool()
         //------------------------------------------
         //_viewTracking.setPoolCenter( _poolCenter );	        
         _viewTracking.setSwimbots( _swimbots );	   
-        _viewTracking.setMode( ViewTrackingMode.AUTOTRACK, _camera.getPosition(), _camera.getScale(), 0 );   
+        //_viewTracking.setMode( ViewTrackingMode.AUTOTRACK, _camera.getPosition(), _camera.getScale(), 0 );   
         
         _sound.initialize();
         
@@ -358,7 +360,7 @@ function GenePool()
         //-------------------------
         _viewTracking.reset();
         
-        _autoPilotMode = false; //console.log( "_autoPilotMode = false" );
+        _autoPilotMode = false;
 
         //-------------------------
         // reset family tree
@@ -404,7 +406,12 @@ function GenePool()
         this.randomizeFood();
         
         //console.log( "startSimulation: setOffspringEnergyRatio to default: " + DEFAULT_CHILD_ENERGY_RATIO );
-        
+
+		// these will be used in radial mode below...
+        let radialPreset0 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+        let radialPreset1 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+        let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+
         //---------------------------------------------------------------------
         // initialize various parameters according to simulation start mode
         //---------------------------------------------------------------------
@@ -485,17 +492,17 @@ _camera.setScale( POOL_WIDTH );
         else if ( mode === SimulationStartMode.FLOCKS )
         {        
             _numSwimbots = 60;            
-        	   _camera.setScale( 300 );
+        	_camera.setScale( 300 );
             setTimeout(() => _camera.doScaleShift(3900, 300), 2000); // wait 2s before slow zooming out
 
         }
         else if ( mode === SimulationStartMode.RADIAL )
         {        
-            _numSwimbots = 300; // decreased from 600 by CB to prevent error         
+            _numSwimbots = 200; // decreased from 600 by CB to prevent error         
         	_camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
 
-            _camera.doScaleShift( 4000, 400 );
+            _camera.doScaleShift( 6500, 400 );
         }
         
         else if ( mode === SimulationStartMode.BARRIER )
@@ -516,19 +523,18 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.EMPTY )
         {
-         _numSwimbots = 0;
-        	_camera.setScale( 7900 );
-         setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
-         this.randomizeNeighborhood(); // important
+            _numSwimbots = 0;
+            _camera.setScale( 7900 );
+            setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
+            this.randomizeNeighborhood(); // important
         }
         else if ( mode === SimulationStartMode.AUTOPILOT )
         {        
-            /*** UNATTENDED OPEREATION MODE ***/
-        	//_autoPilotMode = true;
         	_camera.setScale( 4000 );
-            _camera.doScaleShift( 600, 500 );
+            _camera.doScaleShift( 700, 700 );
         }
-
+        
+        _flockGenotype.randomize(); 
 
 
         //--------------------------------------------------------------
@@ -722,16 +728,16 @@ _camera.setScale( POOL_WIDTH );
             	let xx = _poolCenter.x;
             	let yy = _poolCenter.y;
 
-            		 if (( i >=  0 ) && ( i < 10 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_BEAUTYFAN        ); xx += ss *  0.000; yy += ss *  0.000; } // center
-            	else if (( i >= 10 ) && ( i < 20 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_DOG             ); xx += ss *  0.232; yy += ss * -0.713; } // one o'clock
-            	else if (( i >= 20 ) && ( i < 30 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_FROGGY          ); xx += ss *  0.750; yy += ss *  0.000; } // three o'clock
-            	else if (( i >= 30 ) && ( i < 40 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_ONEARMEDBANDIT  ); xx += ss *  0.232; yy += ss *  0.713; } // five o'clock
-            	else if (( i >= 40 ) && ( i < 50 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_TINKERTOY       ); xx += ss * -0.607; yy += ss *  0.441; } // eight o'clock 
-            	else if (( i >= 50 ) && ( i < 60 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_VORPAL          ); xx += ss * -0.607; yy += ss * -0.441; } // ten o'clock
+            		 if (( i >=  0 ) && ( i < 10 )) { _myGenotype.copyFromGenotype( _flockGenotype );			 	xx += ss *  0.000; yy += ss *  0.000; } // center
+            	else if (( i >= 10 ) && ( i < 20 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_DOG             ); 	xx += ss *  0.232; yy += ss * -0.713; } // one o'clock
+            	else if (( i >= 20 ) && ( i < 30 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_FROGGY          ); 	xx += ss *  0.750; yy += ss *  0.000; } // three o'clock
+            	else if (( i >= 30 ) && ( i < 40 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_ONEARMEDBANDIT  ); 	xx += ss *  0.232; yy += ss *  0.713; } // five o'clock
+            	else if (( i >= 40 ) && ( i < 50 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_TINKERTOY       ); 	xx += ss * -0.607; yy += ss *  0.441; } // eight o'clock 
+            	else if (( i >= 50 ) && ( i < 60 )) { _myGenotype.setToPreset( PRESET_GENOTYPE_VORPAL          ); 	xx += ss * -0.607; yy += ss * -0.441; } // ten o'clock
 
                _myGenotype.randomizeUtterance(.05); // very small randomizations of utterances
 
-				   initialPosition.setXY( xx - rr * ONE_HALF + rr * Math.random(), yy - rr * ONE_HALF + rr * Math.random() );
+				initialPosition.setXY( xx - rr * ONE_HALF + rr * Math.random(), yy - rr * ONE_HALF + rr * Math.random() );
             }
             //-------------------------------------------------
             // Radial
@@ -746,6 +752,8 @@ _camera.setScale( POOL_WIDTH );
             	let yy = _poolCenter.y + fraction * r * Math.cos( fraction * a );
 				initialPosition.setXY( xx, yy );
 				
+				// this version uses the neighborhood array
+				/*
                 for (let g=0; g<NUM_GENES; g++)
                 {
                     let value = ONE_HALF + ONE_HALF * Math.sin( ( _neighborhoodX[g] + ( - ONE_HALF + fraction ) ) * 5  );
@@ -756,6 +764,38 @@ _camera.setScale( POOL_WIDTH );
                     let geneValue = Math.floor( ( BYTE_SIZE - 1 ) * value );
  
                     _myGenotype.setGeneValue( g, geneValue );
+                }
+         		*/
+                
+				// this version interpolates between preset archetypes
+            	let _parent0Genotype = new Genotype();
+            	let _parent1Genotype = new Genotype();
+               	let _parent2Genotype = new Genotype();
+               	        
+				_parent0Genotype.setToPreset( radialPreset0 );
+				_parent1Genotype.setToPreset( radialPreset1 );
+				_parent2Genotype.setToPreset( radialPreset2 );
+                
+            	for (let g=0; g<NUM_GENES; g++)
+                {
+                    let g0 = _parent0Genotype.getGeneValue(g);
+                    let g1 = _parent1Genotype.getGeneValue(g);
+					let g2 = _parent2Genotype.getGeneValue(g);
+					
+					let blend = g0;
+					
+					if ( fraction < ONE_HALF )
+					{
+						let ff = fraction / ONE_HALF;
+						blend = Math.floor( g0 + ( g1 - g0 ) * ff );
+					}
+					else
+					{
+						let ff = ( fraction - ONE_HALF ) / ONE_HALF;
+						blend = Math.floor( g1 + ( g2 - g1 ) * ff );
+					}
+
+                    _myGenotype.setGeneValue( g, blend );
                 }
             }
             
@@ -1355,7 +1395,7 @@ if ( mode === SimulationStartMode.SPECIES )
 				this.startSimulation( SimulationStartMode.AUTOPILOT );
 
 				// after the above...
-				_autoPilotMode = true; // console.log( "_autoPilotMode = true" );
+				_autoPilotMode = true;
 			}
 		}
 		
@@ -1440,22 +1480,16 @@ if ( mode === SimulationStartMode.SPECIES )
             //----------------------------------------------
  			if ( _autoPilotMode )
         	{        
-        		if ( _clock % 500 === 0 )
+        		if ( _clock % 640 === 0 )
         		{
-        			let scale = 500 + 1000 * Math.random();
-        			_camera.doScaleShift( scale, 450 );
+        			let scale = 500 + Math.random() * 2000;        			
+        			_camera.doScaleShift( scale, 500 );
         		}
 
-        		if ( _clock % 600 === 3 )
+        		if ( _clock % 700 === 0 )
         		{
-        			_vectorUtility.copyFrom( _camera.getPosition() );
-        			
-        			let s = _camera.getScale();
-        			let range = 1.0 * s;
-        			
-        			_vectorUtility.x += -range * ONE_HALF + range * Math.random();
-        			_vectorUtility.y += -range * ONE_HALF + range * Math.random();
-        			_camera.doPositionShift( _vectorUtility, 550 );
+					let s = Math.floor( Math.random() * _numSwimbots );
+					_camera.doPositionShift( _swimbots[s].getPosition(), 600 );
         		}
 			}            
             
@@ -1711,6 +1745,13 @@ if ( mode === SimulationStartMode.SPECIES )
                                 	_childGenotype, 
                                 	_embryology 
                                 );
+                                
+                                
+            //-----------------------------------------------------------------------
+            // Spawn animation
+            //-----------------------------------------------------------------------
+			_swimbots[ newBornSwimbotIndex ].doCreationEffect( _camera.getScale() );
+                                
                                 	
                                 // If we're born within view, let's hear it
                                 if ( _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() )) {
@@ -2686,7 +2727,7 @@ if ( globalTweakers.numFoodTypes === 2 )
             }
 
             //-----------------------------------------------------------------------
-            // JEFFREY TO DO: Special spawn animation we can see from a distance?
+            // Spawn animation
             //-----------------------------------------------------------------------
 			_swimbots[ index ].doCreationEffect( _camera.getScale() );
         }
@@ -3463,7 +3504,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 		//console.log( "notifyUserInteraction" );
 	
 		_camera.stopShift();
-		_autoPilotMode 	 	= false; // console.log( "_autoPilotMode = false" );
+		_autoPilotMode 	 	= false;
 		_interactiveMode 	= true;
 		_lastUserActionTime = _seconds;
 	}

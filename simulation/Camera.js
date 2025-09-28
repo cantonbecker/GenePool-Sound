@@ -100,17 +100,16 @@ function Camera()
         //-----------------------------
 		if ( _positionShift.active )
 		{
-			_positionShift.clock ++;						
+			_positionShift.clock ++;									
 			if ( _positionShift.clock > _positionShift.duration )
 			{
 				_positionShift.active = false;
 			}
 			else
-			{
-				let fraction = _positionShift.clock / _positionShift.duration;				
-				fraction = ONE_HALF - ONE_HALF * Math.cos( fraction * Math.PI );
-				_position.x = _positionShift.startPosition.x + ( _positionShift.endPosition.x - _positionShift.startPosition.x ) * fraction;
-				_position.y = _positionShift.startPosition.y + ( _positionShift.endPosition.y - _positionShift.startPosition.y ) * fraction;
+			{			
+				let fraction = ONE_HALF - ONE_HALF * Math.cos( ( _positionShift.clock / _positionShift.duration ) * Math.PI );
+				_velocity.setToDifference( _positionShift.endPosition, _position );
+				_velocity.scale( fraction * 0.1 );
 			}
 		}        
 
@@ -126,8 +125,7 @@ function Camera()
 			}
 			else
 			{
-				let fraction = _scaleShift.clock / _scaleShift.duration;				
-				fraction = ONE_HALF - ONE_HALF * Math.cos( fraction * Math.PI );
+				let fraction = ONE_HALF - ONE_HALF * Math.cos( _scaleShift.clock / _scaleShift.duration * Math.PI );
 				_scale = _scaleShift.startScale + ( _scaleShift.endScale - _scaleShift.startScale ) * fraction;
 			}
 		}        
@@ -211,7 +209,10 @@ function Camera()
 	//--------------------------
 	function applyConstraints()
 	{	
-        let scaleOvershoot = _scale - ( POOL_RIGHT - POOL_LEFT );
+		//-------------------------------------------
+		// constrain scale
+		//-------------------------------------------
+        let scaleOvershoot = _scale - POOL_WIDTH;
         if ( scaleOvershoot > ZERO )
         {
             _scale -= scaleOvershoot * SCALE_OVERSHOOT_PUSH;
@@ -222,6 +223,20 @@ function Camera()
         {
             _scale -= scaleUndershoot * SCALE_OVERSHOOT_PUSH;
         }
+
+		//-------------------------------------------
+		// constrain position
+		//-------------------------------------------
+		_vectorUtility.x = _position.x - POOL_X_CENTER;
+		_vectorUtility.y = _position.y - POOL_Y_CENTER;
+		
+		let distance = _vectorUtility.getMagnitude();
+		
+		let max = POOL_WIDTH * ONE_HALF - _scale * 0.4;
+		if ( distance > max )
+		{
+			_position.addScaled( _vectorUtility, ( distance - max ) / distance * -PAN_OVERSHOOT_PUSH );
+		}
 
         let rightOverShoot  = _right  - POOL_RIGHT;
         let leftOverShoot   = _left   + POOL_LEFT;
