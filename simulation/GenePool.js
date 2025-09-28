@@ -126,12 +126,11 @@ function GenePool()
     const NEIGHBORHOOD_VIEW_SCALE           = POOL_WIDTH * 0.4;
     const NEIGHBORHOOD_FREQ                 = 5.0;
     const DEBUG_SHOW_SWIMBOT_TRAIL          = false;
-    //const SWIMBOT_DATA_UPDATE_PERIOD        = 30;
     const CAMERA_TRACKING_UPDATE_PERIOD     = 10;
     const CLONE_SEPARATION                  = 10.0;
     const FOOD_RACE_SIZE                    = 1000;
     const FOOD_BANG_SIZE                    = 1700;
-    const USER_INACTION_TIME_OUT			= 5.0; //how many seconds of user [ inaction ] before the default sim kicks in
+    const USER_INACTION_TIME_OUT			= 60.0; //how many seconds of user [ inaction ] before the default sim kicks in
     
 	function GlobalOutwardPush()
 	{
@@ -208,7 +207,7 @@ function GenePool()
     let hhh = 0;	
 	
 	// HACK - Ideally, this should be incorporated into viewTracking, but this will do for now.
-    let _autoPilotMode = false;
+    let _autoPilotMode = false; // console.log( "_autoPilotMode = false" );
 	
 	//-------------------------------------
 	// create fixed-sized swimbot array
@@ -359,7 +358,7 @@ function GenePool()
         //-------------------------
         _viewTracking.reset();
         
-        _autoPilotMode = false;
+        _autoPilotMode = false; //console.log( "_autoPilotMode = false" );
 
         //-------------------------
         // reset family tree
@@ -1350,11 +1349,11 @@ if ( mode === SimulationStartMode.SPECIES )
 			{
 				_interactiveMode = false; 				
 
-				console.log( "user non-action timed out!" );
+				//console.log( "user non-action timed out!" );
 				this.startSimulation( SimulationStartMode.AUTOPILOT );
 
 				// after the above...
-				_autoPilotMode   = true;
+				_autoPilotMode = true; // console.log( "_autoPilotMode = true" );
 			}
 		}
 		
@@ -3459,7 +3458,10 @@ if ( globalTweakers.numFoodTypes === 2 )
 	//---------------------------------------
 	this.notifyUserInteraction = function()
 	{
-		_autoPilotMode 	 	= false;
+		//console.log( "notifyUserInteraction" );
+	
+		_camera.stopShift();
+		_autoPilotMode 	 	= false; // console.log( "_autoPilotMode = false" );
 		_interactiveMode 	= true;
 		_lastUserActionTime = _seconds;
 	}
