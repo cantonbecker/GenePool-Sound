@@ -79,8 +79,7 @@ function UtteranceRenderer()
 			let ageFraction = this.age / this.lifeSpan;
 			
 			canvas.globalAlpha = this.brightness * ( ONE - ageFraction );
-			canvas.globalAlpha = Math.pow( canvas.globalAlpha, 0.8 ); // lower the power to increase general brightness
-
+			canvas.globalAlpha = Math.pow( canvas.globalAlpha, 0.9 ); // lower the power to increase general brightness
 			//if ( canvas.globalAlpha > ONE  ) { canvas.globalAlpha = ONE; }		
 			//if ( canvas.globalAlpha < ZERO ) { canvas.globalAlpha = ZERO; }		
 				

@@ -1,10 +1,9 @@
-const SWIMBOT_VERSION			= '2025-09-28 B';
+const SWIMBOT_VERSION			= '2025-09-28 C';
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
 const USER_INACTION_TIME_OUT	= 60 * 5; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 const PRESET_COOLDOWN_MS = 750; 	// prevent visitors from mashing on preset loading buttons too fast which causes MIDI hangs
-
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
 
 
@@ -20,7 +19,7 @@ const INITIAL_NUM_SWIMBOTS 					= 150;
 const MAX_SWIMBOTS 								= 300;
 
 const MAX_MAXIMUM_AGE       					= 45000;		// 40000
-const INITIAL_NUM_FOODBITS   					= 400; 		// 400
+const INITIAL_NUM_FOODBITS   					= 450; 		// 450
 const MAX_FOODBITS           					= 450; 		// 500
 const DEFAULT_FOOD_REGENERATION_PERIOD  	= 20; 		// 30
 

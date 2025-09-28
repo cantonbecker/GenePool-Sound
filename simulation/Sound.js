@@ -132,9 +132,19 @@ const MIDI_NOTE_INTERVAL_SETS = [
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] },
-	 { name: "whole tone A", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] },
-	 { name: "whole tone B", 			intervals: [-9, -7, -5, -3, 0, +1, +3, +5, +7] }
+	 { name: "whole tones", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] }
 ];
+
+// look up a set from MIDI_NOTE_INTERVAL_SETS by name, as if we had requested  MIDI_NOTE_INTERVAL_SETS[index]	
+function getNoteIntervalSetFor(name) {
+  // case-insensitive match by name
+  const found = MIDI_NOTE_INTERVAL_SETS.find(
+    set => set.name.toLowerCase() === name.toLowerCase()
+  );
+  // if found, return it. otherwise default to first.
+  return found || MIDI_NOTE_INTERVAL_SETS[0];
+}
+
 
 /* Markov Chain Inter-onset Interval States:
 	When we randomly choose a short/medium/long note, it will randomly choose from these ranges/bands.
@@ -673,7 +683,7 @@ function Sound()
 
 function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDuration) {
 	// retrieves interval, shortest note, etc. based on current running simulation
-	const musicParameters = determineCurrentMusicParameters (); 
+	const musicParameters = determineCurrentMusicParameters ();
 	let myNoteIntervalSet = musicParameters.intervalSet; // e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]
 	let myIntervalSetName = musicParameters.intervalSetName;
 	let shortestNoteMs = musicParameters.shortestNoteMs;
@@ -1108,7 +1118,7 @@ function pruneOldMods() {
 
 function determineCurrentMusicParameters () {
 	// set / reestablish defaults
-	let mySet = MIDI_NOTE_INTERVAL_SETS[0]; // minor pentatonic default
+	let mySet = getNoteIntervalSetFor('minor pentatonic'); // default set
 	let minReverb = MIN_REVERB_DEFAULT;
 	let maxReverb = MAX_REVERB_DEFAULT;
 	let secBetweenUnivNoteShift = SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
@@ -1128,11 +1138,12 @@ function determineCurrentMusicParameters () {
 	/*** BLANK POOL ***/
 	if (_chosenPoolToLoad == 0) {
 		backgroundMIDInote = 1; 						// no background loop sound
+		mySet = getNoteIntervalSetFor('whole tones');
 		
 	/*** INVASION ***/
-	} else if (_chosenPoolToLoad == 1) { // INVASION
+	} else if (_chosenPoolToLoad == 1) {
 		minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
-		mySet = MIDI_NOTE_INTERVAL_SETS[3]; 		// octaves & 5ths
+		mySet = getNoteIntervalSetFor('minor pentatonic');
 		secBetweenUnivNoteShift = 10; 				// shorter shifts
 		shortestNoteMs = 90; 							// shortest notes will be 90ms
 		seqDurationStates[0].min = 100; 				// lengthen 'short' min to 100ms
@@ -1143,24 +1154,25 @@ function determineCurrentMusicParameters () {
 	/*** FLOCKS ***/
 	} else if (_chosenPoolToLoad == 2) {
 		backgroundMIDInote = 36; 						// bell drone
-		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// major pentatonic
+		mySet = getNoteIntervalSetFor('major pentatonic');
 		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
 
 	/*** RADIAL ***/
 	} else if (_chosenPoolToLoad == 3) {
 		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
-		mySet = MIDI_NOTE_INTERVAL_SETS[4]; 		// wholetone
+		mySet = getNoteIntervalSetFor('whole tones');
 		maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
 
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {
-		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// minor pentatonic
+		mySet = getNoteIntervalSetFor('5ths');
 		secBetweenUnivNoteShift = 60 * 2; 			// shorter shifts
 		
 	/*** AUTOPILOT ***/
 	} else if (_chosenPoolToLoad == 5) {
-		mySet = MIDI_NOTE_INTERVAL_SETS[1]; 		// minor pentatonic
+		mySet = getNoteIntervalSetFor('octaves');
 		backgroundMIDInote = 36; 						// bell drone
+		minReverb = Math.floor(MAX_REVERB_DEFAULT * .95); // loads of reverb
 	}
 	
 	// build up our musicParameters object and return it
@@ -1171,7 +1183,7 @@ function determineCurrentMusicParameters () {
 			backgroundMIDInote:			backgroundMIDInote,
 			backgroundRetriggerSec:		backgroundRetriggerSec,
 			secBetweenUnivNoteShift:	secBetweenUnivNoteShift,
-			intervalSet:					mySet.intervals.slice(),		// e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]. Slice makes a safe copy dereferenced from original object
+			intervalSet:					mySet.intervals.slice(),		// e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]. // slice to detach from original
 			intervalSetName: 				mySet.name,							// e.g. 'minor pentatonic'
 			noteProbabilityMatrix:		noteProbabilityMatrix,
 			seqDurationStates:			seqDurationStates

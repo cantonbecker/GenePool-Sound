@@ -451,7 +451,7 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.BIG_BANG )
         {        
-            _numSwimbots = 150;
+            _numSwimbots = Math.floor(MAX_SWIMBOTS * .85); // leave 15% of the pool available for spawning & births
 			//this.setFoodToBangConfiguration();
             _camera.setScale( BANG_VIEW_SCALE );
             _camera.doScaleShift( BANG_VIEW_SCALE * 2.5, 100 );
@@ -525,14 +525,14 @@ _camera.setScale( POOL_WIDTH );
         {
             _numSwimbots = 0;
             _camera.setScale( 7900 );
-            _camera.doScaleShift(500, 50);
-            // setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
+            setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
             
         }
         else if ( mode === SimulationStartMode.AUTOPILOT )
         {        
-        	_camera.setScale( 4000 );
+        	   _camera.setScale( 4000 );
             _camera.doScaleShift( 700, 700 );
+            _chosenPoolToLoad = SimulationStartMode.AUTOPILOT; // important so that Sound.js knows what sound parameters to apply to this simulation w/out a keypress
         }
         
         _flockGenotype.randomize(); 
@@ -2677,10 +2677,18 @@ if ( globalTweakers.numFoodTypes === 2 )
     // TK: when we invoke this, all the junk DNA is set to random values (instead of zeros) which
     // (for some reason) makes it unable to mate with other swimbots
     
-	this.makeNewRandomSwimbot = function( soundFeedback = true)
+	this.makeNewRandomSwimbot = function( soundFeedback = true, killIfNecessary = false)
 	{		
 	    let index = this.findLowestDeadSwimbotInArray();
-	    
+
+       // if killIfNecessary is true (like when we hit the big green button) we're allowed to murder a living swimbot to make room for a new swimbot
+	    if (index === NULL_INDEX && this.getNumSwimbots() >= MAX_SWIMBOTS && killIfNecessary) {
+            let victimID = Math.floor(Math.random() * MAX_SWIMBOTS); // pick a random victim. TO DO: pick a victim out of the camera range
+            genePool.killSwimbot(victimID); // euthanize
+            index = this.findLowestDeadSwimbotInArray();
+            console.log (`* Euthanized swimbot ID ${victimID} to makeNewRandomSwimbot() ${index} *`);
+       }
+       
 	    if ( index != NULL_INDEX )
 	    {
             let initialAge      = YOUNG_AGE_DURATION;          
@@ -2731,11 +2739,9 @@ if ( globalTweakers.numFoodTypes === 2 )
             //-----------------------------------------------------------------------
             // Spawn animation
             //-----------------------------------------------------------------------
-			_swimbots[ index ].doCreationEffect( _camera.getScale() );
-        }
-        else
-        {
-            console.log( "cannot make random swimbot" );
+			   _swimbots[ index ].doCreationEffect( _camera.getScale() );
+        } else {
+            console.log ('makeNewRandomSwimbot() did nothing because it could not find a spare index');
         }
     }
 

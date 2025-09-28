@@ -1324,7 +1324,8 @@ _canvasEl.onmousedown = function(e) {
         
         genePool.notifyUserInteraction();
         
-        genePool.makeNewRandomSwimbot(true);
+        // true,true means yes make a sound, yes murder a living swimbot to make room for a fresh one if necessary
+        genePool.makeNewRandomSwimbot(true, true);
     }
 
     notifyGeneTweakPanelMouseDown();
@@ -1339,12 +1340,30 @@ document.addEventListener('mousemove', function(e) {
         const x = e.pageX - _canvasEl.offsetLeft;
         const y = e.pageY - _canvasEl.offsetTop;
         genePool.touchMove(x, y);
-    } else if (_pointerLocked && _draggingWithLock) {
+    } else if (_pointerLocked && _draggingWithLock) { /*** TRACKBALL MODE! ***/
         // pointer-lock mode: invert axes, accumulate virtual cursor, no edges
-        const dx = -(e.movementX || 0) * LOCK_GAIN; // invert left/right
-        const dy = -(e.movementY || 0) * LOCK_GAIN; // invert up/down
-        _virtualX += dx;
-        _virtualY += dy;
+        const dx = -(e.movementX || 0) * LOCK_GAIN; // invert axes as you do now
+        const dy = -(e.movementY || 0) * LOCK_GAIN;
+      
+        // accumulate
+        let nextX = _virtualX + dx;
+        let nextY = _virtualY + dy;
+      
+        // keep the “virtual cursor” inside the drawable area
+        const EDGE_PAD = 2; // small padding avoids exact 0/width hits
+        const minX = EDGE_PAD, minY = EDGE_PAD;
+        const maxX = _canvasEl.width  - EDGE_PAD;
+        const maxY = _canvasEl.height - EDGE_PAD;
+      
+        // clamp (overflow is silently dropped so no “dead” reverse)
+        if (nextX < minX) nextX = minX;
+        else if (nextX > maxX) nextX = maxX;
+        if (nextY < minY) nextY = minY;
+        else if (nextY > maxY) nextY = maxY;
+      
+        _virtualX = nextX;
+        _virtualY = nextY;
+      
         genePool.touchMove(_virtualX, _virtualY);
     }
 });

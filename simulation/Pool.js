@@ -179,13 +179,7 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 			sx = Math.max(POOL_LEFT,  Math.min(sx, POOL_RIGHT  - sw));
 			sy = Math.max(POOL_TOP,   Math.min(sy, POOL_BOTTOM - sh));
 			
-			// optional: cheaper resampling for this draw
-			const prevQual = canvas.imageSmoothingQuality;
-			canvas.imageSmoothingQuality = 'low';
-			
 			canvas.drawImage(_backgroundImage, sx, sy, sw, sh, 0, 0, dw, dh);
-			
-			canvas.imageSmoothingQuality = prevQual;
 			canvas.restore();
         
 
