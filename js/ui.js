@@ -23,7 +23,6 @@ const DEFAULT_BASIC_BUTTON_COLOR        = "#dadad0";
 const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";   
 const ACTIVE_BORDER_COLOR               = '#ffffff';   
 
-const UI_UPDATE_PERIOD = 1000;
 var DEVELOPER_MODE = true; // reflects how we launch into developer mode with the panel showing
 
 let _lastPresetRequestTS = 0;

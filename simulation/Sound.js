@@ -17,6 +17,7 @@ const SOUND_UPDATE_PERIOD =  10; 	// every this many _clock iterations, update g
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
 var UTTERANCE_COMPOSING_COUNTER = 0;
+var LAST_VOLUME = 0;
 
 const SOUND_EVENT_TYPE_NULL	= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
@@ -38,12 +39,11 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
 const SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT = 15; // extra background loops default to this repeat time in seconds
-const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = (5 * 60); // enable this to have the background tone gradually drift around the default intervals
+const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = (3 * 60); // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
 // How many different spawn sounds do we have? (starting from C1)
 const SPAWN_SOUND_VARIATIONS 	=	9;
-
 
 // MIDI channels are 1-16 (not zero indexed!)
 const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
@@ -53,8 +53,8 @@ const MIDI_CHANNEL_DEATH 		= 3;
 const MIDI_CHANNEL_ONESHOTS	= 13; // no reverb, used for spawn and simulation launch sounds
 const MIDI_CHANNEL_BACKGROUND = 14; // looping backgrounds
 const DEFAULT_BACKGROUND_NOTE	= 48; // lake bacalar dusk insects loop
-const MIDI_CHANNEL_ATMOSPHERE = 15; // synthezed drone
-const MIDI_CHANNEL_SYSTEM 		= 16; // e.g. MIDI panic to GP
+const MIDI_CHANNEL_ATMOSPHERE = 15; // synthesized drone
+const MIDI_CHANNEL_SYSTEM 		= 16; // e.g. Overall volume & MIDI panic to GP
 
 var MIDI_CHANNELS_FOR_UTTERING = [
 	{	output: 'IAC Driver Bus 2', channel: 1,	lastUsed: 0 },
@@ -132,7 +132,7 @@ const MIDI_NOTE_INTERVAL_SETS = [
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] },
-	 { name: "whole tones", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] }
+	 { name: "whole tone", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] }
 ];
 
 // look up a set from MIDI_NOTE_INTERVAL_SETS by name, as if we had requested  MIDI_NOTE_INTERVAL_SETS[index]	
@@ -333,6 +333,15 @@ function Sound()
 		
 		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
 		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE && nondiegeticOutput) {
+			
+			// ADJUST GLOBAL VOLUME
+			var midiVolume = 90; // 90 = 0db full volume
+			if (AUTOPILOT_MODE) midiVolume = Math.round(midiVolume * AUTOPILOT_VOLUME_REDUCTION); // much quieter when on autopilot
+			if (midiVolume != LAST_VOLUME) { // so we don't send this unnecessarily
+				sendControlMIDI(28, midiVolume, MIDI_CHANNEL_SYSTEM, nondiegeticOutput); // overall Left & Right Volume
+				LAST_VOLUME = midiVolume;
+			}
+			
 			// GLOBAL REVERB
 			const reverbAmount = Math.floor(minReverb + (zoomPercentage * (maxReverb-minReverb)) );
 			sendControlMIDI(21, reverbAmount, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // dry/wet global reverb level
@@ -887,7 +896,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		if (rng() > .5) setting.lastDir = 'down'; // randomly override initial spin direction
 	}
 	
-	// VOCAL SYNTH IS TOO QUIET IF CC15 plus CC16 DON'T ADD UP TO AT LEAST 100, so reroll those values if necessary:
+	// VOCAL SYNTH IS TOO QUIET IF CC15 plus CC16 DON'T ADD UP TO AT LEAST 100, so re-roll those values if necessary:
 	let cc15, cc16;
 	do {
 		cc15 = Math.floor(rng() * (myControls[0].max - myControls[0].min + 1)) + myControls[0].min;
@@ -1166,8 +1175,8 @@ function determineCurrentMusicParameters () {
 	/*** RADIAL ***/
 	} else if (_chosenPoolToLoad == 3) {
 		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
-		mySet = getNoteIntervalSetFor('major pentatonic');
-		// maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
+		mySet = getNoteIntervalSetFor('whole tone');
+		maxReverb = MIN_REVERB_DEFAULT; 		// very little reverb
 
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {

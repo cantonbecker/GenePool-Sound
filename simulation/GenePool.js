@@ -204,11 +204,7 @@ function GenePool()
     let _showViewTrackingMode   = false;
     let _windowWidth            = 0;
     let _windowHeight           = 0;    
-    let hhh = 0;	
-	
-	// HACK - Ideally, this should be incorporated into viewTracking, but this will do for now.
-    let _autoPilotMode = false;
-    
+    let hhh = 0;	    
     let _flockGenotype = new Genotype();
 	
 	//-------------------------------------
@@ -360,7 +356,7 @@ function GenePool()
         //-------------------------
         _viewTracking.reset();
         
-        _autoPilotMode = false;
+        AUTOPILOT_MODE = false;
 
         //-------------------------
         // reset family tree
@@ -501,7 +497,7 @@ _camera.setScale( POOL_WIDTH );
         else if ( mode === SimulationStartMode.RADIAL )
         {        
             _numSwimbots = 200; // decreased from 600 by CB to prevent error         
-        	_camera.setScale( 400 );
+        	   _camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
 
             _camera.doScaleShift( 6500, 200 );
@@ -778,7 +774,11 @@ _camera.setScale( POOL_WIDTH );
                _parent0Genotype.setToPreset( radialPreset0 );
                _parent1Genotype.setToPreset( radialPreset1 );
                _parent2Genotype.setToPreset( radialPreset2 );
-               
+
+               // in the radial preset, instead of having totally random initial ages, we create a few "steps"
+               initialAge = 5000 + ((i % 8) * 40); // 6 steps
+
+
                // walk through each gene
             	for (let g=0; g<NUM_GENES; g++)
                 {
@@ -1408,7 +1408,7 @@ if ( mode === SimulationStartMode.SPECIES )
 				this.startSimulation( SimulationStartMode.AUTOPILOT );
 
 				// after the above...
-				_autoPilotMode = true;
+				AUTOPILOT_MODE = true;
 			}
 		}
 		
@@ -1491,7 +1491,7 @@ if ( mode === SimulationStartMode.SPECIES )
             //----------------------------------------------
             // update auto-pilot behavior
             //----------------------------------------------
- 			if ( _autoPilotMode )
+ 			if ( AUTOPILOT_MODE )
         	{        
         		if ( _clock % 640 === 0 )
         		{
@@ -2687,7 +2687,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 	 //-------------------------------------
     // TK: when we invoke this, all the junk DNA is set to random values (instead of zeros) which
     // (for some reason) makes it unable to mate with other swimbots
-    
+
 	this.makeNewRandomSwimbot = function( soundFeedback = true, killIfNecessary = false)
 	{		
 	    let index = this.findLowestDeadSwimbotInArray();
@@ -3523,7 +3523,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 		//console.log( "notifyUserInteraction" );
 	
 		_camera.stopShift();
-		_autoPilotMode 	 	= false;
+		AUTOPILOT_MODE 	 	= false;
 		_interactiveMode 	= true;
 		_lastUserActionTime = _seconds;
 	}
