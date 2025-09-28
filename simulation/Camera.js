@@ -118,7 +118,7 @@ function Camera()
         //--------------------------
 		if ( _scaleShift.active )
 		{
-			_scaleShift.clock ++;						
+			_scaleShift.clock ++;				
 			if ( _scaleShift.clock > _scaleShift.duration )
 			{
 				_scaleShift.active = false;
@@ -126,8 +126,9 @@ function Camera()
 			else
 			{
 				let fraction = ONE_HALF - ONE_HALF * Math.cos( _scaleShift.clock / _scaleShift.duration * Math.PI );
-				_scale = _scaleShift.startScale + ( _scaleShift.endScale - _scaleShift.startScale ) * fraction;
+				_scale = Math.round(_scaleShift.startScale + ( _scaleShift.endScale - _scaleShift.startScale ) * fraction);
 			}
+			// console.log(`Shift clock @ ${_scaleShift.clock} scale @ ${_scale}`);
 		}        
 
 		//-----------------------------------

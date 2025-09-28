@@ -26,7 +26,6 @@ const ACTIVE_BORDER_COLOR               = '#ffffff';
 const UI_UPDATE_PERIOD = 1000;
 var DEVELOPER_MODE = true; // reflects how we launch into developer mode with the panel showing
 
-const PRESET_COOLDOWN_MS = 2000; // keep visitors from mashing on preset loading buttons too fast
 let _lastPresetRequestTS = 0;
 
 let _currentInfoPage            = FIRST_INFO_PAGE;

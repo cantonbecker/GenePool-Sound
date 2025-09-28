@@ -160,10 +160,33 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
         // use this instead of the above to include an image as the background...
         //canvas.clearRect( POOL_LEFT, POOL_TOP, POOL_WIDTH, POOL_HEIGHT );
         
-        
-        // canvas.drawImage  (  _backgroundImage, POOL_LEFT, POOL_TOP, POOL_RIGHT, POOL_BOTTOM );                      
-        canvas.drawImage	(_backgroundImage, POOL_LEFT, POOL_TOP, POOL_WIDTH, POOL_HEIGHT); // more correct?
+			// --- OLD background drawing, hammered CPU and caused stutters when autozooming from out to in ---
+        // canvas.drawImage (_backgroundImage, POOL_LEFT, POOL_TOP, POOL_WIDTH, POOL_HEIGHT); // problematic when, for example, we are zooming from out to in
 
+			// --- NEW background drawing save/restore in screen space (no active transform) -- CB 9/28/2025 ---
+			canvas.save();
+			canvas.setTransform(1, 0, 0, 1, 0, 0);
+			
+			const dw = canvas.canvas.width;
+			const dh = canvas.canvas.height;
+			
+			const sw = viewport.getXDimension();
+			const sh = viewport.getYDimension();
+			let   sx = viewport.getPosition().x - sw * 0.5;
+			let   sy = viewport.getPosition().y - sh * 0.5;
+			
+			// clamp to pool bounds if you want
+			sx = Math.max(POOL_LEFT,  Math.min(sx, POOL_RIGHT  - sw));
+			sy = Math.max(POOL_TOP,   Math.min(sy, POOL_BOTTOM - sh));
+			
+			// optional: cheaper resampling for this draw
+			const prevQual = canvas.imageSmoothingQuality;
+			canvas.imageSmoothingQuality = 'low';
+			
+			canvas.drawImage(_backgroundImage, sx, sy, sw, sh, 0, 0, dw, dh);
+			
+			canvas.imageSmoothingQuality = prevQual;
+			canvas.restore();
         
 
 		//------------------------------------------------------------

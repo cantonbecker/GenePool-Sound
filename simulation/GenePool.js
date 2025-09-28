@@ -130,7 +130,7 @@ function GenePool()
     const CLONE_SEPARATION                  = 10.0;
     const FOOD_RACE_SIZE                    = 1000;
     const FOOD_BANG_SIZE                    = 1700;
-    const USER_INACTION_TIME_OUT			= 60.0; //how many seconds of user [ inaction ] before the default sim kicks in
+    // const USER_INACTION_TIME_OUT			= NULL; // *** MOVED TO Parameters.js so we have a one-stop shop for all kiosk simulation tweaks ***
     
 	function GlobalOutwardPush()
 	{
@@ -451,7 +451,7 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.BIG_BANG )
         {        
-            //_numSwimbots = 150;
+            _numSwimbots = 150;
 			//this.setFoodToBangConfiguration();
             _camera.setScale( BANG_VIEW_SCALE );
             _camera.doScaleShift( BANG_VIEW_SCALE * 2.5, 100 );
@@ -525,8 +525,9 @@ _camera.setScale( POOL_WIDTH );
         {
             _numSwimbots = 0;
             _camera.setScale( 7900 );
-            setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
-            this.randomizeNeighborhood(); // important
+            _camera.doScaleShift(500, 50);
+            // setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
+            
         }
         else if ( mode === SimulationStartMode.AUTOPILOT )
         {        
@@ -1387,7 +1388,8 @@ if ( mode === SimulationStartMode.SPECIES )
 	{	
 		if ( _interactiveMode )
 		{
-			if ( _seconds > _lastUserActionTime + USER_INACTION_TIME_OUT )
+         // If controls haven't been touched in a while (and we're not frozen) switch to autopilot
+			if ( USER_INACTION_TIME_OUT && _seconds > _lastUserActionTime + USER_INACTION_TIME_OUT && this.getSimulationRunning() )
 			{
 				_interactiveMode = false; 				
 
