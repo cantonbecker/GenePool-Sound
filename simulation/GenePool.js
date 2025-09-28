@@ -516,8 +516,10 @@ _camera.setScale( POOL_WIDTH );
         }
         else if ( mode === SimulationStartMode.EMPTY )
         {
-            _numSwimbots = 0;
-            //this.randomizeFood();
+         _numSwimbots = 0;
+        	_camera.setScale( 7900 );
+         setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
+         this.randomizeNeighborhood(); // important
         }
         else if ( mode === SimulationStartMode.AUTOPILOT )
         {        
