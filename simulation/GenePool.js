@@ -403,13 +403,22 @@ function GenePool()
         
         //console.log( "startSimulation: setOffspringEnergyRatio to default: " + DEFAULT_CHILD_ENERGY_RATIO );
 
-		// these will be used in radial mode below...
+		  // these will be used in radial mode below...
         let radialPreset0 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
         let radialPreset1 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
         let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
-        let radialUttteranceLow = Math.floor(Math.random() * 255);
-        let radialUttteranceHigh = Math.floor(Math.random() * 255);
-
+        let radialUtterPeriod = Math.floor(Math.random() * 80);
+        let radialUtterDuration = 200 + Math.floor(Math.random() * 55);
+        let radialUtterPreference = Math.floor(Math.random() * 255);
+        let radialUtterSpin = Math.floor(Math.random() * 255);
+        let radialUtterCharm = Math.floor(Math.random() * 255);
+        let radialUtterStrangeness = Math.floor(Math.random() * 255);
+        let radialUtterFlavor = Math.floor(Math.random() * 255);
+        let radialUtterGenesArray = [radialUtterPeriod, radialUtterDuration, radialUtterPreference, radialUtterSpin, radialUtterCharm, radialUtterStrangeness, radialUtterFlavor];
+        let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
+        // console.log (`radialUtterPeriod= ${radialUtterPeriod} and radialCohortDelay= ${radialCohortDelay}`);
+        let maximumCohortAge = 10000;
+        let numCohorts = 4;
         //---------------------------------------------------------------------
         // initialize various parameters according to simulation start mode
         //---------------------------------------------------------------------
@@ -775,18 +784,21 @@ _camera.setScale( POOL_WIDTH );
                _parent1Genotype.setToPreset( radialPreset1 );
                _parent2Genotype.setToPreset( radialPreset2 );
 
-               // in the radial preset, instead of having totally random initial ages, we create a few "steps"
-               initialAge = 5000 + ((i % 8) * 40); // 6 steps
-
+               // in the radial preset, instead of having totally random initial ages, we create a few "cohorts" with common ages (encourages polyrhythms)
+               let cohortSize = Math.floor(_numSwimbots/numCohorts);
+               let thisCohortIndex = Math.floor(i/cohortSize); // will be 0 to numCohorts
+               initialAge = maximumCohortAge - (radialCohortDelay * thisCohortIndex); // radialCohortDelay was determined earlier on, it's how much we stagger each cohort's utterances
+               initialAge = Math.ceil(Math.max(initialAge, 1)); // safety check: force to integer and never let initial age get below 1
+               //console.log(`Cohort ${thisCohortIndex} age ${initialAge} / radialCohortDelay= ${radialCohortDelay}`);
 
                // walk through each gene
             	for (let g=0; g<NUM_GENES; g++)
                 {
-                   // is this an utterance gene? if so, don't use the archetype genetic info, use our radialUttteranceLow/High to make a spread
-                  if (g >= UTTERANCE_GENES_SLICE_START && g <= UTTERANCE_GENES_SLICE_END) { // this is an utterance gene, do something special
-                     let fraction = (g - UTTERANCE_GENES_SLICE_START) / (UTTERANCE_GENES_SLICE_END - UTTERANCE_GENES_SLICE_START);
-                     let utteranceGeneValue = Math.floor( radialUttteranceLow + (radialUttteranceHigh - radialUttteranceLow) * fraction );
-                     _myGenotype.setGeneValue( g, utteranceGeneValue );
+                   // is this an utterance gene? if so, don't use the archetype's genetic info, use our preset radialUtterGenesArray created earlier
+                  if (g >= UTTERANCE_GENES_SLICE_START && g < UTTERANCE_GENES_SLICE_END) { // this is an utterance gene, do something special
+                     let utteranceGeneIndex = g - UTTERANCE_GENES_SLICE_START;
+                     let fixedGene = radialUtterGenesArray[utteranceGeneIndex];
+                     _myGenotype.setGeneValue( g, fixedGene );
                   } else { // this is a non-utterance gene, do the usual interpolation
                      let g0 = _parent0Genotype.getGeneValue(g);
                      let g1 = _parent1Genotype.getGeneValue(g);

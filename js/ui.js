@@ -1537,7 +1537,6 @@ function doToggleDeveloperMode (showHint) {
       genePool.deselectSwimbot();
       if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
       masterPanel.style.display = 'none';
-      console.log(genePool);
       DEVELOPER_MODE = false;
       enterPointerLock(); // <-- engage
     }
