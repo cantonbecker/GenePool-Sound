@@ -401,7 +401,7 @@ function Sound()
 			if (doingMidiOutput() && SOUND_OUTPUT_BIRTH) {
 				let midiChannel = MIDI_CHANNEL_BIRTH;
 				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
-				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
+				sendNoteMIDI(midiNote, 120, 250, midiChannel, nondiegeticOutput);
 				soundEventLog += " sent non-diagetic birth MIDI note " + midiNote;
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
@@ -432,9 +432,12 @@ function Sound()
 				for (let i = 0; i < picks.length; i++) {
 					const note = picks[i];
 					setTimeout(() => {
-						sendNoteMIDI(note, 127, noteDuration, midiChannel, nondiegeticOutput);
+						sendNoteMIDI(note, 60, noteDuration, midiChannel, nondiegeticOutput);
 					}, i * (noteDuration + 10) ); // schedule 10ms apart
 				}
+
+				// ALSO do a regular birth sound
+				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_BIRTH, false);
 
 				soundEventLog += " sent non-diagetic spawn MIDI sequence ";
 			}
