@@ -37,7 +37,7 @@ var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT = 20; // enable this to have the background tone gradually drift around the default intervals
+const SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT = 15; // extra background loops default to this repeat time in seconds
 const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = (5 * 60); // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
 
@@ -414,13 +414,18 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) { // sequence a Q*bert-style sound: sequence distinct notes from spawn-x.wav samples
 			if (doingMidiOutput() && SOUND_OUTPUT_SPAWN) {
+
+				// IMMEDIATELY do a regular birth sound
+				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_BIRTH, false);
+
+				// Add in our Qbert vocalization
 				let midiChannel = MIDI_CHANNEL_ONESHOTS;
 				const noteDuration = 150; // ms per note
 				const base = 36;
 				const max  = 36 + SPAWN_SOUND_VARIATIONS - 1;
 				const pool = [];
 				for (let n = base; n <= max; n++) pool.push(n); // build pool of MIDI notes
-				const count = Math.min(2, pool.length); // how many notes do we want to play?
+				const count = Math.min(1, pool.length); // how many notes do we want to play?
 				const picks = [];
 				for (let k = 0; k < count; k++) {
 					const idx = Math.floor(Math.random() * pool.length);
@@ -429,15 +434,13 @@ function Sound()
 				}
 				
 				// schedule sequential notes
+				let qbertDelay = 250;
 				for (let i = 0; i < picks.length; i++) {
 					const note = picks[i];
 					setTimeout(() => {
 						sendNoteMIDI(note, 60, noteDuration, midiChannel, nondiegeticOutput);
-					}, i * (noteDuration + 10) ); // schedule 10ms apart
+					}, qbertDelay + (i * (noteDuration + 10)) ); // schedule 10ms apart
 				}
-
-				// ALSO do a regular birth sound
-				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_BIRTH, false);
 
 				soundEventLog += " sent non-diagetic spawn MIDI sequence ";
 			}
@@ -1141,7 +1144,7 @@ function determineCurrentMusicParameters () {
 	/*** BLANK POOL ***/
 	if (_chosenPoolToLoad == 0) {
 		backgroundMIDInote = 1; 						// no background loop sound
-		mySet = getNoteIntervalSetFor('whole tones');
+		mySet = getNoteIntervalSetFor('minor pentatonic');
 		
 	/*** INVASION ***/
 	} else if (_chosenPoolToLoad == 1) {
@@ -1163,8 +1166,8 @@ function determineCurrentMusicParameters () {
 	/*** RADIAL ***/
 	} else if (_chosenPoolToLoad == 3) {
 		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
-		mySet = getNoteIntervalSetFor('whole tones');
-		maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
+		mySet = getNoteIntervalSetFor('major pentatonic');
+		// maxReverb = MIN_REVERB_DEFAULT * 1.1; 		// very little reverb
 
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {

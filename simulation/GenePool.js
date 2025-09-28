@@ -411,6 +411,8 @@ function GenePool()
         let radialPreset0 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
         let radialPreset1 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
         let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+        let radialUttteranceLow = Math.floor(Math.random() * 255);
+        let radialUttteranceHigh = Math.floor(Math.random() * 255);
 
         //---------------------------------------------------------------------
         // initialize various parameters according to simulation start mode
@@ -487,13 +489,13 @@ _camera.setScale( POOL_WIDTH );
             //console.log( "if ( mode === SimulationStartMode.BAD_PARENTS ): setOffspringEnergyRatio to 0.001" );
             
             _camera.setScale( 2500 );
-            setTimeout(() => _camera.doScaleShift(600, 20), 1500); // wait 1.5s before fast zooming in
+            setTimeout(() => _camera.doScaleShift(600, 20), 500); // wait 1.5s before fast zooming in
         }
         else if ( mode === SimulationStartMode.FLOCKS )
         {        
             _numSwimbots = 60;            
         	_camera.setScale( 300 );
-            setTimeout(() => _camera.doScaleShift(3900, 300), 2000); // wait 2s before slow zooming out
+            setTimeout(() => _camera.doScaleShift(3900, 200), 1000); // wait 2s before slow zooming out
 
         }
         else if ( mode === SimulationStartMode.RADIAL )
@@ -502,7 +504,7 @@ _camera.setScale( POOL_WIDTH );
         	_camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
 
-            _camera.doScaleShift( 6500, 400 );
+            _camera.doScaleShift( 6500, 200 );
         }
         
         else if ( mode === SimulationStartMode.BARRIER )
@@ -771,34 +773,43 @@ _camera.setScale( POOL_WIDTH );
 				// this version interpolates between preset archetypes
             	let _parent0Genotype = new Genotype();
             	let _parent1Genotype = new Genotype();
-               	let _parent2Genotype = new Genotype();
+               let _parent2Genotype = new Genotype();
                	        
-				_parent0Genotype.setToPreset( radialPreset0 );
-				_parent1Genotype.setToPreset( radialPreset1 );
-				_parent2Genotype.setToPreset( radialPreset2 );
-                
+               _parent0Genotype.setToPreset( radialPreset0 );
+               _parent1Genotype.setToPreset( radialPreset1 );
+               _parent2Genotype.setToPreset( radialPreset2 );
+               
+               // walk through each gene
             	for (let g=0; g<NUM_GENES; g++)
                 {
-                    let g0 = _parent0Genotype.getGeneValue(g);
-                    let g1 = _parent1Genotype.getGeneValue(g);
-					let g2 = _parent2Genotype.getGeneValue(g);
-					
-					let blend = g0;
-					
-					if ( fraction < ONE_HALF )
-					{
-						let ff = fraction / ONE_HALF;
-						blend = Math.floor( g0 + ( g1 - g0 ) * ff );
-					}
-					else
-					{
-						let ff = ( fraction - ONE_HALF ) / ONE_HALF;
-						blend = Math.floor( g1 + ( g2 - g1 ) * ff );
-					}
-
-                    _myGenotype.setGeneValue( g, blend );
-                }
-            }
+                   // is this an utterance gene? if so, don't use the archetype genetic info, use our radialUttteranceLow/High to make a spread
+                  if (g >= UTTERANCE_GENES_SLICE_START && g <= UTTERANCE_GENES_SLICE_END) { // this is an utterance gene, do something special
+                     let fraction = (g - UTTERANCE_GENES_SLICE_START) / (UTTERANCE_GENES_SLICE_END - UTTERANCE_GENES_SLICE_START);
+                     let utteranceGeneValue = Math.floor( radialUttteranceLow + (radialUttteranceHigh - radialUttteranceLow) * fraction );
+                     _myGenotype.setGeneValue( g, utteranceGeneValue );
+                  } else { // this is a non-utterance gene, do the usual interpolation
+                     let g0 = _parent0Genotype.getGeneValue(g);
+                     let g1 = _parent1Genotype.getGeneValue(g);
+                     let g2 = _parent2Genotype.getGeneValue(g);
+                     let blend = g0;
+                     
+                     if ( fraction < ONE_HALF )
+                     {
+                        let ff = fraction / ONE_HALF;
+                        blend = Math.floor( g0 + ( g1 - g0 ) * ff );
+                     }
+                     else
+                     {
+                        let ff = ( fraction - ONE_HALF ) / ONE_HALF;
+                        blend = Math.floor( g1 + ( g2 - g1 ) * ff );
+                     }
+                     _myGenotype.setGeneValue( g, blend );
+                  }
+                } // end for stepping through genes
+                
+            } // end RADIAL
+            
+            
             
             /*
             //-------------------------------------------------
