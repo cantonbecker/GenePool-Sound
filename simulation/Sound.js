@@ -464,7 +464,7 @@ function Sound()
 				sendNoteMIDI(84, 127, 10000, midiChannel, nondiegeticOutput);
 				let midiNote = 60 + eventIndex; // launch sounds begin at C3
 				// and send it just a few ms later
-				setTimeout(() => { sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput); }, 1250); 
+				setTimeout(() => { sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput); }, 20); 
 				soundEventLog += " sent non-diagetic launch MIDI note " + midiNote;
 			}
 		} // end if sound types
