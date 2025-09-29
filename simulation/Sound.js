@@ -456,8 +456,12 @@ function Sound()
 		} else if ( type === SOUND_EVENT_TYPE_LAUNCH ) {
 			if (doingMidiOutput() && SOUND_OUTPUT_LAUNCH) {
 				let midiChannel = MIDI_CHANNEL_ONESHOTS;
+				// key press sound
+				sendNoteMIDI(84, 127, 10000, midiChannel, nondiegeticOutput);
+				// now identify the launch sound specific to this sim
 				let midiNote = 60 + eventIndex; // launch sounds begin at C3
-				sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput);
+				// and send it just a few ms later
+				setTimeout(() => { sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput); }, 50); 
 				soundEventLog += " sent non-diagetic launch MIDI note " + midiNote;
 			}
 		} // end if sound types

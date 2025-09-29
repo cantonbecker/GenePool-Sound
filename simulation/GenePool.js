@@ -1629,7 +1629,7 @@ if ( mode === SimulationStartMode.SPECIES )
 					{
 						_markedForUtteringSound[s] = true;
 						// let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                  // we don't show sound waves or play utterances for swimbots that are outisde of our circular area
+                  // we don't show sound waves or play utterances for swimbots that are outside of our circular area
                   // the  .5 * their body size gives us a little bit of "bleed"/overprint past the circular area
 						let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() * .5 );
 					
