@@ -456,8 +456,8 @@ function Sound()
 		} else if ( type === SOUND_EVENT_TYPE_LAUNCH ) {
 			if (doingMidiOutput() && SOUND_OUTPUT_LAUNCH) {
 				let midiChannel = MIDI_CHANNEL_ONESHOTS;
-				let midiNote = 60 + eventIndex; // spawn sounds begin at C3
-				sendNoteMIDI(midiNote, 127, 3000, midiChannel, nondiegeticOutput);
+				let midiNote = 60 + eventIndex; // launch sounds begin at C3
+				sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput);
 				soundEventLog += " sent non-diagetic launch MIDI note " + midiNote;
 			}
 		} // end if sound types
