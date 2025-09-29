@@ -50,7 +50,8 @@ const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
 const MIDI_CHANNEL_EAT 			= 1;
 const MIDI_CHANNEL_BIRTH 		= 2;
 const MIDI_CHANNEL_DEATH 		= 3;
-const MIDI_CHANNEL_ONESHOTS	= 13; // no reverb, used for spawn and simulation launch sounds
+const MIDI_CHANNEL_ONESHOTS	= 12; // no reverb, used for button press and spawn sounds
+const MIDI_CHANNEL_LAUNCHES	= 13; // no reverb, used for  launch sounds
 const MIDI_CHANNEL_BACKGROUND = 14; // looping backgrounds
 const DEFAULT_BACKGROUND_NOTE	= 48; // lake bacalar dusk insects loop
 const MIDI_CHANNEL_ATMOSPHERE = 15; // synthesized drone
@@ -455,13 +456,15 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_LAUNCH ) {
 			if (doingMidiOutput() && SOUND_OUTPUT_LAUNCH) {
-				let midiChannel = MIDI_CHANNEL_ONESHOTS;
 				// key press sound
+				let midiChannel = MIDI_CHANNEL_ONESHOTS;
 				sendNoteMIDI(84, 127, 10000, midiChannel, nondiegeticOutput);
 				// now identify the launch sound specific to this sim
+				midiChannel = MIDI_CHANNEL_LAUNCHES;
+				sendNoteMIDI(84, 127, 10000, midiChannel, nondiegeticOutput);
 				let midiNote = 60 + eventIndex; // launch sounds begin at C3
 				// and send it just a few ms later
-				setTimeout(() => { sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput); }, 50); 
+				setTimeout(() => { sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput); }, 1250); 
 				soundEventLog += " sent non-diagetic launch MIDI note " + midiNote;
 			}
 		} // end if sound types
