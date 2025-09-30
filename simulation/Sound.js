@@ -92,20 +92,14 @@ var MIDI_CHANNELS_FOR_UTTERING = [
 	{	output: 'IAC Driver Bus 3', channel: 16, 	lastUsed: 0 }
 ];
 
-// when we are approaching our MAX_SWIMBOTS, should we limit our MIDI outputs to throttle CPU?
-// set this to 0 or false to disable throttling
-// set this to .25 for "throttle channels by 25% when we have reached MAX_SWIMBOTS
-const THROTTLE_MIDI_WHEN_LOADED = .5; // throttle by up to 50% when we're at MAX_SWIMBOTS
-
 // var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
 
 var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
-var RECENT_MODS_DB = [];  // Each item: { time: Date.now() }
+var RECENT_MODS_DB  = [];  // Each item: { time: Date.now() }
 
 var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
 // we more or less round-robin through these channels when uttering.
 // (each time we utter, we select the channel used longest ago)
-
 
 const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // cooldown: we don't ask any individual uttering channel to utter more often than this
 const MODULATION_SPEED_MS = 15; // how fast do we twiddle modulation knobs? smaller number = smoother vocal morphs, but more MIDI data.
@@ -636,7 +630,7 @@ function Sound()
 	function sendMIDIpanic() {
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
 		if (typeof nondiegeticOutput !== "undefined") {
-			console.log ("*** SENDING MIDI PANIC ***");
+			console.log ("> MIDI Panic sent to clean up any hung notes");
 			sendControlMIDI(64, 100, MIDI_CHANNEL_SYSTEM, nondiegeticOutput);	
 		}
 		return;

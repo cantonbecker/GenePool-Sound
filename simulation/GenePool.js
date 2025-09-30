@@ -321,10 +321,10 @@ function GenePool()
 	{	
         // clear any possibly stuck MIDI notes
         _sound.sendMIDIpanic();
-        // trigger the sound for this particular simulation, but wait 250ms for the panic to finish
+        // trigger the sound for this particular simulation, but wait 100ms for the panic to finish
         setTimeout(() => {
             _sound.doSwimbotSoundEvent(SOUND_EVENT_TYPE_LAUNCH, mode);
-        }, 250);        
+        }, 100);        
         
         
 //looks like numOffspring didn't get reset. fix this! (and any other related side effects
@@ -403,22 +403,35 @@ function GenePool()
         
         //console.log( "startSimulation: setOffspringEnergyRatio to default: " + DEFAULT_CHILD_ENERGY_RATIO );
 
-		  // these will be used in radial mode below...
-        let radialPreset0 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
-        let radialPreset1 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
-        let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
-        let radialUtterPeriod = Math.floor(Math.random() * 80);
-        let radialUtterDuration = 200 + Math.floor(Math.random() * 55);
-        let radialUtterPreference = Math.floor(Math.random() * 255);
-        let radialUtterSpin = Math.floor(Math.random() * 255);
-        let radialUtterCharm = Math.floor(Math.random() * 255);
-        let radialUtterStrangeness = Math.floor(Math.random() * 255);
-        let radialUtterFlavor = Math.floor(Math.random() * 255);
-        let radialUtterGenesArray = [radialUtterPeriod, radialUtterDuration, radialUtterPreference, radialUtterSpin, radialUtterCharm, radialUtterStrangeness, radialUtterFlavor];
-        let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
-        // console.log (`radialUtterPeriod= ${radialUtterPeriod} and radialCohortDelay= ${radialCohortDelay}`);
-        let maximumCohortAge = 10000;
-        let numCohorts = 4;
+
+        //---------------------------------------------------------------------
+        // RADIAL simulation special decisions. Yeah it's weird to do it here, 
+        // but if we set these in the "initialize various parameters..." block
+        // the variables aren't scoped properly...
+        //---------------------------------------------------------------------
+
+         // visual phenotype settings: pick three archetypes to morph from innie to outie
+         let radialPreset0 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+         let radialPreset1 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+         let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
+         
+         // audio phenotype settings: pick parameters for a single song ALL the swimbots will sing...
+         let radialUtterPeriod = 20 + Math.floor(Math.random() * 150); // short to medium periods
+         let radialUtterDuration = 100 + Math.floor(Math.random() * 100); // medium length durations
+         if (radialUtterPeriod < (radialUtterDuration + 20)) radialUtterPeriod += 30; // don't let the period be too similar to the duration
+         let radialUtterPreference = Math.floor(Math.random() * 255);
+         let radialUtterSpin = Math.floor(Math.random() * 255);
+         let radialUtterCharm = Math.floor(Math.random() * 255);
+         let radialUtterStrangeness = Math.floor(Math.random() * 255);
+         let radialUtterFlavor = Math.floor(Math.random() * 255);
+         let radialUtterGenesArray = [radialUtterPeriod, radialUtterDuration, radialUtterPreference, radialUtterSpin, radialUtterCharm, radialUtterStrangeness, radialUtterFlavor];
+   
+         // ... but divide the swimbots we spawn into 'cohorts' that will sing at offset times on account of their adjusted ages
+         let numCohorts = 6;
+         let maximumCohortAge = 10000;
+         let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
+
+
         //---------------------------------------------------------------------
         // initialize various parameters according to simulation start mode
         //---------------------------------------------------------------------
@@ -432,14 +445,16 @@ function GenePool()
             globalTweakers.numFoodTypes = 2;
             this.randomizeFood(); // Important: do this after setting numFoodTypes!
 
-//this.setGardenOfEdenRadius( 1500 ); /* again... */ this.randomizeFood();
-this.setFoodGrowthDelay( 15 );  
-//this.setMaximumSwimbotAge( 15000 );
-this.setMaximumSwimbotAge( 20000 );
-_numSwimbots = 1000;
-_numFoodBits = 2000;
-this.setFoodToSpeciesConfiguration();
-_camera.setScale( POOL_WIDTH );
+            //this.setGardenOfEdenRadius( 1500 ); /* again... */ this.randomizeFood();
+            this.setFoodGrowthDelay( 15 );  
+            //this.setMaximumSwimbotAge( 15000 );
+            this.setMaximumSwimbotAge( 20000 );
+            _numSwimbots = 1000;
+            _numFoodBits = 2000;
+            this.setFoodToSpeciesConfiguration();
+            _camera.setScale( POOL_WIDTH );
+
+
         }
         else if ( mode === SimulationStartMode.FROGGIES )
         {
@@ -504,12 +519,12 @@ _camera.setScale( POOL_WIDTH );
 
         }
         else if ( mode === SimulationStartMode.RADIAL )
-        {        
-            _numSwimbots = 200; // decreased from 600 by CB to prevent error         
+        {
+            console.log (`radialUtterPeriod= ${radialUtterPeriod} radialUtterDuration= ${radialUtterDuration} and radialCohortDelay= ${radialCohortDelay}`);
+            _numSwimbots = 160;         
         	   _camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
-
-            _camera.doScaleShift( 6500, 200 );
+            _camera.doScaleShift( 5000, 200 );
         }
         
         else if ( mode === SimulationStartMode.BARRIER )
@@ -752,7 +767,7 @@ _camera.setScale( POOL_WIDTH );
             //-------------------------------------------------
             else if ( mode === SimulationStartMode.RADIAL )
             {
-            	let r = 3000;
+            	let r = 2300;
             	let a = 100;
             	let fraction = Math.sqrt( i / _numSwimbots );
             	

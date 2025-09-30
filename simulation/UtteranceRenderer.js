@@ -12,10 +12,11 @@
 // -------------------------------------------------------------------------- 
 "use strict";
 
+// renamed MAX_UTTERANCES to MAX_UTTERANCES_TO_RENDER and moved to Parameters.js for easier performance tweaking
+// moved MAX_PARTICLES to Parameters.js for easier performance tweaking
+
 function UtteranceRenderer()
 {
-	const MAX_UTTERANCES 	= 100;
-	const MAX_PARTICLES		= 200;
 	const MIN_NOTE_RANGE	= 32;
 	const MAX_NOTE_RANGE	= 99;
 	const MIN_LIFESPAN		= 25;
@@ -122,7 +123,7 @@ function UtteranceRenderer()
 
     _particleImage.src = 'images/sound-particle-big-blur.png';   
 
-	for (let u=0; u<MAX_UTTERANCES; u++)
+	for (let u=0; u<MAX_UTTERANCES_TO_RENDER; u++)
 	{
 		_utterances[u] = new Utterance();
 	}
@@ -135,7 +136,7 @@ function UtteranceRenderer()
 	//----------------------------------
 	this.clearAllUtterances = function()
 	{
-		for (let u=0; u<MAX_UTTERANCES; u++)
+		for (let u=0; u<MAX_UTTERANCES_TO_RENDER; u++)
 		{
 			_utterances[u].position.clear();
 			_utterances[u].id	 	= -1;
@@ -165,7 +166,7 @@ function UtteranceRenderer()
 		
 		while ( searching )
 		{
-			if ( u >= MAX_UTTERANCES - 1 )
+			if ( u >= MAX_UTTERANCES_TO_RENDER - 1 )
 			{
 				searching = false;
 			}
@@ -195,7 +196,7 @@ function UtteranceRenderer()
 	//---------------------------
 	this.stop = function(id)
 	{
-		for (let u=0; u<MAX_UTTERANCES; u++)
+		for (let u=0; u<MAX_UTTERANCES_TO_RENDER; u++)
 		{
 			if ( _utterances[u].id === id )
 			{					
@@ -208,7 +209,7 @@ function UtteranceRenderer()
 	//----------------------------------------------
 	this.updatePosition = function( id, position )
 	{
-		for (let u=0; u<MAX_UTTERANCES; u++)
+		for (let u=0; u<MAX_UTTERANCES_TO_RENDER; u++)
 		{
 			if ( _utterances[u].id === id )
 			{
@@ -221,7 +222,7 @@ function UtteranceRenderer()
 	//---------------------------------
 	this.updateAndRender = function()
 	{
-		for (let u=0; u<MAX_UTTERANCES; u++)
+		for (let u=0; u<MAX_UTTERANCES_TO_RENDER; u++)
 		{
 			if ( _utterances[u].active )
 			{
