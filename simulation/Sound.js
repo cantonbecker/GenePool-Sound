@@ -321,8 +321,8 @@ function Sound()
 		UTTER_ATTENUATION = Math.round(zoomPercentage * MAX_UTTER_ATTENUATION);
 		
 		// RADIAL and BIG_BANG swimbots can be crazy loud, attenuate them as well
-		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = UTTER_ATTENUATION - LOUD_PRESET_ATTENUATION;
-				
+		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = UTTER_ATTENUATION + LOUD_PRESET_ATTENUATION;
+		
 		// --- get the correct MIDI output by name ---
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'
 
