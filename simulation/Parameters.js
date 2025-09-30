@@ -20,7 +20,7 @@ const USER_INACTION_TIME_OUT	= 60 * 15; 	// switch to AUTOPILOT preset when user
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
 const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast which causes MIDI hangs
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
-const AUTOPILOT_VOLUME_REDUCTION = .75; // percentage decrease in volume when we enter autopilot
+const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
 const UI_UPDATE_PERIOD = 5000; // decrease when using graphs to debug
 
 
