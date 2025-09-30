@@ -426,7 +426,7 @@ function GenePool()
    
          // ... but divide the swimbots we spawn into 'cohorts' that will sing at offset times on account of their adjusted ages
          let numCohorts = 6;
-         let initialCohortAge = MAX_MAXIMUM_AGE - 3000; // start our swimbots out quite old so they die and are replaced by their children
+         let initialCohortAge = MAX_MAXIMUM_AGE - 5000; // start our swimbots out quite old so they die and are replaced by their children
          let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
 
 
