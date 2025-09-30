@@ -113,8 +113,6 @@ var SOUND_OUTPUT_ATMOSPHERE 	= true;
 var SOUND_OUTPUT_SPAWN		 	= true;
 var SOUND_OUTPUT_LAUNCH			= true;
 
-
-const MAX_UTTER_ATTENUATION = 40; // when zooming out, we can quiet our swimbots by this much
 var UTTER_ATTENUATION = 0; // stores current attenuation level
 
 const MIN_REVERB_DEFAULT = 15; // 0-127
@@ -323,7 +321,7 @@ function Sound()
 		UTTER_ATTENUATION = Math.round(zoomPercentage * MAX_UTTER_ATTENUATION);
 		
 		// RADIAL and BIG_BANG swimbots can be crazy loud, attenuate them as well
-		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = 70;
+		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = UTTER_ATTENUATION - LOUD_PRESET_ATTENUATION;
 				
 		// --- get the correct MIDI output by name ---
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'

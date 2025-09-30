@@ -23,6 +23,8 @@ var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the ce
 const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
 const UI_UPDATE_PERIOD = 5000; // decrease when using graphs to debug
 
+const MAX_UTTER_ATTENUATION = 40; // when zooming out, we can quiet our swimbots by this much (0-128, it's MIDI volume modifier)
+const LOUD_PRESET_ATTENUATION = 50; // a couple of our presets are really loud so, set *additionally* reduce them by this much 
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
