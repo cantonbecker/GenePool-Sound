@@ -426,7 +426,7 @@ function GenePool()
    
          // ... but divide the swimbots we spawn into 'cohorts' that will sing at offset times on account of their adjusted ages
          let numCohorts = 6;
-         let maximumCohortAge = 10000;
+         let initialCohortAge = MAX_MAXIMUM_AGE - 3000; // start our swimbots out quite old so they die and are replaced by their children
          let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
 
 
@@ -802,7 +802,7 @@ function GenePool()
                // in the radial preset, instead of having totally random initial ages, we create a few "cohorts" with common ages (encourages polyrhythms)
                let cohortSize = Math.floor(_numSwimbots/numCohorts);
                let thisCohortIndex = Math.floor(i/cohortSize); // will be 0 to numCohorts
-               initialAge = maximumCohortAge - (radialCohortDelay * thisCohortIndex); // radialCohortDelay was determined earlier on, it's how much we stagger each cohort's utterances
+               initialAge = initialCohortAge - (radialCohortDelay * thisCohortIndex); // radialCohortDelay was determined earlier on, it's how much we stagger each cohort's utterances
                initialAge = Math.ceil(Math.max(initialAge, 1)); // safety check: force to integer and never let initial age get below 1
                //console.log(`Cohort ${thisCohortIndex} age ${initialAge} / radialCohortDelay= ${radialCohortDelay}`);
 
