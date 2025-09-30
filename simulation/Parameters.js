@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2025-09-30 FC1';
+const SWIMBOT_VERSION			= '2025-09-30 FC2';
 
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots

@@ -167,8 +167,8 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 			canvas.save();
 			canvas.setTransform(1, 0, 0, 1, 0, 0);
 			
-			const dw = canvas.canvas.width;
-			const dh = canvas.canvas.height;
+			const dw = canvas.canvas.width + 10; // +10 margin required to prevent zoom-out to max from creating little 'bounce edge'
+			const dh = canvas.canvas.height + 10;
 			
 			const sw = viewport.getXDimension();
 			const sh = viewport.getYDimension();
