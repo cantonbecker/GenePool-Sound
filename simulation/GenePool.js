@@ -414,9 +414,9 @@ function GenePool()
          let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
          
          // audio phenotype settings: pick parameters for a single song ALL the swimbots will sing...
-         let radialUtterPeriod = 20 + Math.floor(Math.random() * 150); // short to medium periods
+         let radialUtterPeriod = 20 + Math.floor(Math.random() * 130); // short to medium periods
          let radialUtterDuration = 100 + Math.floor(Math.random() * 100); // medium length durations
-         if (radialUtterPeriod < (radialUtterDuration + 20)) radialUtterPeriod += 30; // don't let the period be too similar to the duration
+         if (radialUtterPeriod < (radialUtterDuration + 20)) radialUtterPeriod = radialUtterDuration + 20; // don't let the period be too similar to the duration
          let radialUtterPreference = Math.floor(Math.random() * 255);
          let radialUtterSpin = Math.floor(Math.random() * 255);
          let radialUtterCharm = Math.floor(Math.random() * 255);

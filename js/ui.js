@@ -1523,7 +1523,8 @@ document.onkeydown = function(e)
           flashNotice("Demo mode OFF", 1200, 0);
       } else {
           DEMO_MODE = true;
-          let demoRotateTime = 1000 * 20; // ms
+          let demoRotateSeconds = 30;
+          let demoRotateMs = demoRotateSeconds * 1000; // ms
   
           // choose from any of our sets
           const ROT = ['EMPTY','QUARTET','FLOCKS','RADIAL','BIG_BANG','AUTOPILOT']
@@ -1532,8 +1533,8 @@ document.onkeydown = function(e)
   
           // immediate launch
           (() => {
-              const idx = Math.floor(Math.random() * ROT.length);
-              choosePoolToLoad(ROT[idx]);
+              flashNotice("Demo mode rotating every "+demoRotateSeconds+" seconds. Press Z to stop.", 5000, 0);
+              choosePoolToLoad(ROT[0]);
               requestToLoadPoolFromPreset();
           })();
   
@@ -1542,11 +1543,11 @@ document.onkeydown = function(e)
               const idx = Math.floor(Math.random() * ROT.length);
               choosePoolToLoad(ROT[idx]);
               requestToLoadPoolFromPreset();
-              flashNotice("Demo mode (" + idx + "). Press Z to stop.", 2000, 0);
+              flashNotice("Demo #" + idx + ". Z to stop.", 2000, 0);
 
-          }, demoRotateTime);
+          }, demoRotateMs);
       }
-    }
+    } // end Z DEMO MODE
 
                             
     //console.log( "onkeydown " + e.keyCode );

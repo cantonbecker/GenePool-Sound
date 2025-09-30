@@ -10,7 +10,7 @@ const THROTTLE_MIDI_WHEN_LOADED = .40;
 
 // Animation throttling to reduce simultaneous utterance *animations*
 const MAX_PARTICLES = 200; // global max ripples shared by ALL concurrent utterances
-const MAX_UTTERANCES_TO_RENDER_DEFAULT = 120; // hung MIDI notes? try reducing this!
+const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // hung MIDI notes? try reducing this!
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
