@@ -1476,7 +1476,7 @@ document.onkeydown = function(e)
         e.preventDefault();
         choosePoolToLoad(SimulationStartMode.EMPTY);
         requestToLoadPoolFromPreset();
-        // flashNotice("Press 🟢 button to create Swimbots.", 3000, 0);
+        flashNotice("Press 🟢 button to create Swimbots.", 3000, 0);
     }
     // W -> QUARTET
     if (e.keyCode === 87) { // W

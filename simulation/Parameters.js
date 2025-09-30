@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2025-09-30 FC3';
+const SWIMBOT_VERSION			= '2025-09-30 FC4';
 
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots
@@ -16,7 +16,7 @@ var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we w
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
-const USER_INACTION_TIME_OUT	= 60 * 15; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 60 * 5; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
 const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast which causes MIDI hangs
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)

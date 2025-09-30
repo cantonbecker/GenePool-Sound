@@ -319,8 +319,12 @@ function Sound()
 		// grab camera zoom and use it for some globals
 		const zoomPercentage = Math.min(1, Math.max(0, (_parameter_3 - 500) / (8000 - 500)));
 
+		// when you're zoomed out, swimbots are a little quieter
 		UTTER_ATTENUATION = Math.round(zoomPercentage * MAX_UTTER_ATTENUATION);
-
+		
+		// RADIAL and BIG_BANG swimbots can be crazy loud, attenuate them as well
+		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = 70;
+				
 		// --- get the correct MIDI output by name ---
 		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'
 
@@ -1177,7 +1181,6 @@ function determineCurrentMusicParameters () {
 	} else if (_chosenPoolToLoad == 3) {
 		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
 		mySet = getNoteIntervalSetFor('whole tone');
-		maxReverb = MIN_REVERB_DEFAULT; 		// very little reverb
 
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {
