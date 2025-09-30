@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2025-09-30 8am MT';
+const SWIMBOT_VERSION			= '2025-09-30 FC1';
 
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots
@@ -6,23 +6,22 @@ const MAX_SWIMBOTS = 300;
 
 // MIDI audio throttling for when we approach MAX_SWIMBOTS
 // e.g. 0 to disable throttling, or .25 to throttle channels up to 25% at MAX_SWIMBOTS
-const THROTTLE_MIDI_WHEN_LOADED = .50;
+const THROTTLE_MIDI_WHEN_LOADED = .40;
 
 // Animation throttling to reduce simultaneous utterance *animations*
 const MAX_PARTICLES = 200; // global max ripples shared by ALL concurrent utterances
 const MAX_UTTERANCES_TO_RENDER_DEFAULT = 120; // hung MIDI notes? try reducing this!
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
-
 const DEBUGGING_NOISY_CONSOLE_MODE = false; // show lots more messages
 const DEBUGGING_UTTERANCE_EVENT_HORIZON = false; // let's see how far we can be heard
 const USE_CIRCULAR_VIEW			= true;
 const USER_INACTION_TIME_OUT	= 60 * 5; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
-const PRESET_COOLDOWN_MS = 750; 	// prevent visitors from mashing on preset loading buttons too fast which causes MIDI hangs
-var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
-const AUTOPILOT_VOLUME_REDUCTION = .70; // percentage decrease in volume when we enter autopilot
-const UI_UPDATE_PERIOD = 2000;
+const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast which causes MIDI hangs
+var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
+const AUTOPILOT_VOLUME_REDUCTION = .75; // percentage decrease in volume when we enter autopilot
+const UI_UPDATE_PERIOD = 5000; // decrease when using graphs to debug
 
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)

@@ -24,7 +24,7 @@ const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";
 const ACTIVE_BORDER_COLOR               = '#ffffff';   
 
 var DEVELOPER_MODE = true; // reflects how we launch into developer mode with the panel showing
-
+var DEMO_MODE = false; // used for unattended testing
 let _lastPresetRequestTS = 0;
 
 let _currentInfoPage            = FIRST_INFO_PAGE;
@@ -1507,6 +1507,47 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         // flashNotice("Big Bang (" + INITIAL_NUM_SWIMBOTS + " Swimbots)", 3000, -10);
     }
+    
+        // Z -> DEMO / TEST MODE 
+    if (e.keyCode === 90) { // Z toggles DEMO_MODE on and off
+      e.preventDefault();
+  
+      // clear any prior interval (defensive)
+      if (document.onkeydown.__demoTimer) {
+          clearInterval(document.onkeydown.__demoTimer);
+          document.onkeydown.__demoTimer = null;
+      }
+  
+      if (DEMO_MODE) {
+          DEMO_MODE = false;
+          flashNotice("Demo mode OFF", 1200, 0);
+      } else {
+          DEMO_MODE = true;
+          let demoRotateTime = 1000 * 20; // ms
+  
+          // choose from any of our sets
+          const ROT = ['EMPTY','QUARTET','FLOCKS','RADIAL','BIG_BANG','AUTOPILOT']
+              .map(k => SimulationStartMode[k])
+              .filter(v => v !== undefined);
+  
+          // immediate launch
+          (() => {
+              const idx = Math.floor(Math.random() * ROT.length);
+              choosePoolToLoad(ROT[idx]);
+              requestToLoadPoolFromPreset();
+          })();
+  
+          // repeat every 30s
+          document.onkeydown.__demoTimer = setInterval(() => {
+              const idx = Math.floor(Math.random() * ROT.length);
+              choosePoolToLoad(ROT[idx]);
+              requestToLoadPoolFromPreset();
+              flashNotice("Demo mode (" + idx + "). Press Z to stop.", 2000, 0);
+
+          }, demoRotateTime);
+      }
+    }
+
                             
     //console.log( "onkeydown " + e.keyCode );
 }

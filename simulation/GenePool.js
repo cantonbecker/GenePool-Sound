@@ -319,12 +319,10 @@ function GenePool()
    //***********************
 	this.startSimulation = function( mode )
 	{	
-        // clear any possibly stuck MIDI notes
-        _sound.sendMIDIpanic();
-        // trigger the sound for this particular simulation, but wait 100ms for the panic to finish
+        // trigger the sound for this particular simulation, but wait a moment for the CPU to catch up
         setTimeout(() => {
             _sound.doSwimbotSoundEvent(SOUND_EVENT_TYPE_LAUNCH, mode);
-        }, 100);        
+        }, 250);        
         
         
 //looks like numOffspring didn't get reset. fix this! (and any other related side effects
@@ -545,6 +543,8 @@ function GenePool()
         }
         else if ( mode === SimulationStartMode.EMPTY )
         {
+            // clear any possibly stuck MIDI notes
+            _sound.sendMIDIpanic();
             _numSwimbots = 0;
             _camera.setScale( 7900 );
             setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
