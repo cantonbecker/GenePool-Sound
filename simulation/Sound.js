@@ -1172,7 +1172,7 @@ function determineCurrentMusicParameters () {
 	/*** FLOCKS ***/
 	} else if (_chosenPoolToLoad == 2) {
 		backgroundMIDInote = 36; 						// bell drone
-		mySet = getNoteIntervalSetFor('major pentatonic');
+		mySet = getNoteIntervalSetFor('pentatonic');
 		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
 
 	/*** RADIAL ***/
