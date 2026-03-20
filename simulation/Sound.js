@@ -17,92 +17,44 @@ const SOUND_UPDATE_PERIOD =  10; 	// every this many _clock iterations, update g
 var APPROX_MS_PER_CLOCK = 20; 	// used to scale utterDuration to absolute time. if the simulation speed changes, we might adjust this.
 var SOUND_UPDATE_COUNTER = 0;
 var UTTERANCE_COMPOSING_COUNTER = 0;
-var LAST_VOLUME = 0;
+var CURRENT_INTERVAL_SET_NAME = '';
+var _autopilotVolumeApplied = false;
+var _autopilotVolumeStored = 0;
 
-const SOUND_EVENT_TYPE_NULL	= -1
+const SOUND_EVENT_TYPE_NULL		= -1
 const SOUND_EVENT_TYPE_EAT  	=  1;
 const SOUND_EVENT_TYPE_BIRTH	=  2;
 const SOUND_EVENT_TYPE_DEATH	=  3;
 const SOUND_EVENT_TYPE_SPAWN	=  4;
 const SOUND_EVENT_TYPE_LAUNCH	=  5;
 
+// Maps SimulationStartMode index to preset launch sample name
+const LAUNCH_SAMPLES = ['start-q', 'start-w', 'start-e', 'start-r', 'start-t'];
+
 // in several places of the code we slice the genes by index just to pull out utterance-related genes
 const UTTERANCE_GENES_SLICE_START = 112;
 const UTTERANCE_GENES_SLICE_END = 119; // inclusive
 
 // INITIAL TONAL CENTER
-var MIDI_BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
+var BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 
 // Our tonal center is not fixed! Every so often, the entire universe shifts one step the the right along the circle of 5ths
 // the shorter this time, the more overlapping generations of tonal centers. (Too short and it will be utter cacophony)
 // Let's look for a middle ground where there are periods of slight discomfort (e.g. generations of three tonal centers
 // simultaneously occupying the pool) followed by periods of tranquility (e.g. only two tonal centers.)
 
-const SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT = 15; // extra background loops default to this repeat time in seconds
-const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = (3 * 60); // enable this to have the background tone gradually drift around the default intervals
-var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift
+const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = 0; // enable this to have the background tone gradually drift around the default intervals
+var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift, see constant SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT
 
-// How many different spawn sounds do we have? (starting from C1)
-const SPAWN_SOUND_VARIATIONS 	=	9;
+const DEFAULT_BACKGROUND_LOOP = 'loop-lake-bacalar';
 
-// MIDI channels are 1-16 (not zero indexed!)
-const MIDI_OUTPUT_NONDIAGETIC = 'IAC Driver Bus 1';
-const MIDI_CHANNEL_EAT 			= 1;
-const MIDI_CHANNEL_BIRTH 		= 2;
-const MIDI_CHANNEL_DEATH 		= 3;
-const MIDI_CHANNEL_ONESHOTS	= 12; // no reverb, used for button press and spawn sounds
-const MIDI_CHANNEL_LAUNCHES	= 13; // no reverb, used for  launch sounds
-const MIDI_CHANNEL_BACKGROUND = 14; // looping backgrounds
-const DEFAULT_BACKGROUND_NOTE	= 48; // lake bacalar dusk insects loop
-const MIDI_CHANNEL_ATMOSPHERE = 15; // synthesized drone
-const MIDI_CHANNEL_SYSTEM 		= 16; // e.g. Overall volume & MIDI panic to GP
+const MODULATION_SPEED_MS = 15; // how often CC modulation events are inserted into utterance sequences (ms)
 
-var MIDI_CHANNELS_FOR_UTTERING = [
-	{	output: 'IAC Driver Bus 2', channel: 1,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 2,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 3,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 4,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 5,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 6,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 7,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 8,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 9,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 10, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 11, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 12, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 13, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 14, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 15, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 2', channel: 16, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 1,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 2,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 3,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 4,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 5,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 6,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 7,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 8,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 9,	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 10, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 11, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 12, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 13, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 14, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 15, 	lastUsed: 0 },
-	{	output: 'IAC Driver Bus 3', channel: 16, 	lastUsed: 0 }
-];
-
-// var MIDI_CHANNELS_FOR_UTTERING = [ {	channel: 5,	lastUsed: 0 }]; // test a single channel
-
-var RECENT_NOTES_DB = []; // Each item: { note: MIDI number, time: Date.now() }
-var RECENT_MODS_DB  = [];  // Each item: { time: Date.now() }
-
-var WEB_AUDIO_VOLUME = .25; // volume for JS audio fallback 0-1
-// we more or less round-robin through these channels when uttering.
-// (each time we utter, we select the channel used longest ago)
-
-const MIN_WAIT_BETWEEN_MIDI_UTTERANCES = 1500; // cooldown: we don't ask any individual uttering channel to utter more often than this
-const MODULATION_SPEED_MS = 15; // how fast do we twiddle modulation knobs? smaller number = smoother vocal morphs, but more MIDI data.
+// Decaying histogram: 12 pitch-class bins + mod counter. Decayed periodically
+// so values reflect recent activity without unbounded array growth.
+var NOTE_HISTOGRAM = new Int32Array(12);
+var NOTE_COUNT = 0;
+var MOD_COUNT  = 0;
 
 // these are here in case we want to selectively disable some sounds during testing
 var SOUND_OUTPUT_UTTER 			= true;
@@ -115,27 +67,29 @@ var SOUND_OUTPUT_LAUNCH			= true;
 
 var UTTER_ATTENUATION = 0; // stores current attenuation level
 
-const MIN_REVERB_DEFAULT = 15; // 0-127
-const MAX_REVERB_DEFAULT = 75;
+const MIN_REVERB_DEFAULT = 10; // 0-127
+const MAX_REVERB_DEFAULT = 50;
 
 
 // different simulations use different interval sets
-const MIDI_NOTE_INTERVAL_SETS = [
+const NOTE_INTERVAL_SETS = [
     { name: "minor pentatonic", 		intervals: [-9, -7, -5, -2, 0, +3, +5, +7, +10] },
     { name: "pentatonic", 				intervals: [-10, -8, -5, -3, 0, +2, +4, +7, +9] },
 	 { name: "5ths", 						intervals: [-24, -17, -12, -5, 0, +7, +12, +19, +24] },
 	 { name: "octaves", 					intervals: [-24, -12, -24, -12, 0, +12, +24, +12, +24] },
-	 { name: "whole tone", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] }
+	 { name: "whole tone", 			intervals: [-8, -6, -4, -2, 0, +2, +4, +6, +8] },
+	 { name: "12tone", 			intervals: 	   [-4, -3, -2, -1, 0, +1, +4, +5, +7] }
 ];
 
-// look up a set from MIDI_NOTE_INTERVAL_SETS by name, as if we had requested  MIDI_NOTE_INTERVAL_SETS[index]	
+// look up a set from NOTE_INTERVAL_SETS by name
 function getNoteIntervalSetFor(name) {
   // case-insensitive match by name
-  const found = MIDI_NOTE_INTERVAL_SETS.find(
+  const found = NOTE_INTERVAL_SETS.find(
     set => set.name.toLowerCase() === name.toLowerCase()
   );
   // if found, return it. otherwise default to first.
-  return found || MIDI_NOTE_INTERVAL_SETS[0];
+  if (!found) console.log(`getNoteIntervalSet couldn't find '${name}', defaulting to first set`);
+  return found || NOTE_INTERVAL_SETS[0];
 }
 
 
@@ -163,7 +117,7 @@ const IOI_DURATION_PROBABILITY_MATRIX = [
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
 // each set of numbers needs to add up to 1 (100%). Default is bell-curve like around middle note
 
-const IOI_MIDI_NOTE_PROBABILITY_MATRICES = {
+const IOI_NOTE_PROBABILITY_MATRICES = {
 	// -4   -3    -2    -1     0    +1    +2    +3    +4
 	bell: [ // BELL CURVE (each row sums to 1.0)
 	[0.02, 0.04, 0.08, 0.16, 0.40, 0.16, 0.08, 0.04, 0.02], 					// from -4
@@ -215,98 +169,37 @@ function Sound()
 	let _parameter_2 = ZERO;
 	let _parameter_3 = ZERO;
 
-	let midiAccess = null;
-	let midiOutput = null;
-
-	let midiOutputsByName = {};
-
-	// WEB AUDIO API FALLBACK
-	let audioCtx = null;
-	let masterGain = null;
-	
 	//--------------------------------
 	this.initialize = function()
-	{		
-		console.log( "*** Sound.initialize() ***" );
-		let MIDIworking = false;
-		if (navigator.requestMIDIAccess) {
-		(async () => {
-			try {
-				const access = await navigator.requestMIDIAccess();
-				onMIDISuccess(access);
-	      	flashNotice ("😎 MIDI ready.", 1500);
-				MIDIworking = true;
-				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_SPAWN, false);
-			} catch (err) {
-				console.error("Error attempting to initialize MIDI.");
-			}
-		})();
-		} else {
-			console.warn("Web MIDI API not supported. Will attempt to use Web Audio API fallback.");
+	{
+		console.log("*** Sound.initialize() ***");
+
+		// Audio samples are fetched via fetch(), which requires http(s). A file:// origin
+		// (double-clicking index.html) will silently fail on every sample load.
+		// The splash screen already warns the user in this case, so just bail quietly.
+		if (window.location.protocol === 'file:') {
+			console.warn("Sound.initialize(): file:// protocol detected — audio disabled.");
+			return;
 		}
 
-		// *** WEB AUDIO API FALLBACK INITIALIZATION ***
-		try {
-			audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-			masterGain = audioCtx.createGain();
-			masterGain.gain.setValueAtTime(0.3, audioCtx.currentTime); // Set master volume to 30% to prevent clipping
-			masterGain.connect(audioCtx.destination);
-			console.log("Web Audio API ready.");
-		} catch (e) {
-			console.error("Web Audio API is not supported in this browser. No audio will be played.");
-      	if (!MIDIworking) flashNotice ("‼️ No MIDI or fallback Web Audio available ‼️", 5000);
-			audioCtx = null;
+		const ready = SwimbotSynth.initialize();
+		if (!ready) {
+			alert("Web Audio API is not available. This application requires a modern browser with Web Audio support. Safari and Chrome are good choices.");
 		}
-		// *** END NEW ***
-	}
-
-
-	function onMIDISuccess(access) {
-		midiAccess = access;
-		midiOutputsByName = {}; // clear/reset
-		console.log("MIDI ready. Available outputs:");
-	
-		let idx = 0;
-		for (let output of midiAccess.outputs.values()) {
-			console.log(`[${idx}] ${output.name}`);
-			// Collect any output whose name matches the pattern "IAC Driver Bus x"
-			if (/^IAC Driver Bus \d+$/.test(output.name)) {
-					midiOutputsByName[output.name] = output;
-			}
-			idx++;
-		}
-
-		// Test output availability for nondiagetic bus
-		if (midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]) {
-			midiOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
-			console.log(`nondiagetic MIDI output: ${midiOutput.name}`);
-		} else {
-			midiOutput = null;
-			console.error(`No MIDI output found for MIDI_OUTPUT_NONDIAGETIC: "${MIDI_OUTPUT_NONDIAGETIC}".`);
-		}
-		
-		// Check all unique outputs needed for uttering channels
-		const utteringOutputsNeeded = [...new Set(MIDI_CHANNELS_FOR_UTTERING.map(obj => obj.output))];
-		for (const outputName of utteringOutputsNeeded) {
-			if (!(outputName in midiOutputsByName)) {
-				console.error(`MIDI_CHANNELS_FOR_UTTERING refers to unavailable output: "${outputName}".`);
-			}
-		}	
-		     
 	}
 
 
 	
 	//----------------------------------------------------
-	this.setGlobalParameters = function( p0, p1, p2, p3 )
+	this.setGlobalParameters = function( p0, p1, p2, p3, rendering )
 	{
 		// retrieves interval, shortest note, etc. based on current running simulation
-		const musicParameters = determineCurrentMusicParameters (); 
-		let minReverb = 						musicParameters.minReverb;
-		let maxReverb = 						musicParameters.maxReverb;
+		const musicParameters = determineCurrentMusicParameters ();
+		let minReverb = 				musicParameters.minReverb;
+		let maxReverb = 				musicParameters.maxReverb;
 		let secBetweenUnivNoteShift = 	musicParameters.secBetweenUnivNoteShift;
-		let backgroundMIDInote = 			musicParameters.backgroundMIDInote;
-		let backgroundRetriggerSec = 		musicParameters.backgroundRetriggerSec;
+		let backgroundLoop = 				musicParameters.backgroundLoop;
+		CURRENT_INTERVAL_SET_NAME = 		musicParameters.intervalSetName;
 
 		SOUND_UPDATE_COUNTER +=1;
 		_parameter_0 = p0;
@@ -323,353 +216,138 @@ function Sound()
 		// RADIAL and BIG_BANG swimbots can be crazy loud, attenuate them as well
 		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = UTTER_ATTENUATION + LOUD_PRESET_ATTENUATION;
 		
-		// --- get the correct MIDI output by name ---
-		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC]; // Normally 'IAC Driver Bus 1'
-
 		let soundUpdatesPerSecond = Math.round(1000 / (SOUND_UPDATE_PERIOD * APPROX_MS_PER_CLOCK)); // how many counter clicks equals a second?
-		
-		// FREQUENT GLOBAL ATMOSPHERIC UPDATES
-		if (doingMidiOutput() && SOUND_OUTPUT_ATMOSPHERE && nondiegeticOutput) {
-			
-			// ADJUST GLOBAL VOLUME
-			var midiVolume = 90; // 90 = 0db full volume
-			if (AUTOPILOT_MODE) midiVolume = Math.round(midiVolume * AUTOPILOT_VOLUME_REDUCTION); // much quieter when on autopilot
-			if (midiVolume != LAST_VOLUME) { // so we don't send this unnecessarily
-				sendControlMIDI(28, midiVolume, MIDI_CHANNEL_SYSTEM, nondiegeticOutput); // overall Left & Right Volume
-				LAST_VOLUME = midiVolume;
-			}
-			
-			// GLOBAL REVERB
-			const reverbAmount = Math.floor(minReverb + (zoomPercentage * (maxReverb-minReverb)) );
-			sendControlMIDI(21, reverbAmount, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // dry/wet global reverb level
+		const reverbAmount = Math.floor(minReverb + (zoomPercentage * (maxReverb-minReverb)) );
 
-			// SYNTHESIZED DRONE
-			const controlAdjustment15 = Math.floor(90 - Math.floor(zoomPercentage * 60)); // inverted range of 30-90
-			sendControlMIDI(15, controlAdjustment15, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // cutoff section A of meta. function B
-			const controlAdjustment16 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT - 6 ;
-			sendControlMIDI(16, controlAdjustment16, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
-			const controlAdjustment17 = MIDI_BASE_NOTE + UNIVERSAL_NOTE_SHIFT + 6 ;
-			sendControlMIDI(17, controlAdjustment17, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
-			
-			// SAMPLER BACKGROUND -- retrigger every so often
-			if (SOUND_UPDATE_COUNTER % (soundUpdatesPerSecond * backgroundRetriggerSec) == 0) {
-				let midiChannel = MIDI_CHANNEL_BACKGROUND;
-				let midiNote = backgroundMIDInote;
-				sendNoteMIDI(midiNote, 127, 5000, midiChannel, nondiegeticOutput); // 5 second note
-				if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("Retriggered background sampler note @ " + SOUND_UPDATE_COUNTER);
-			}
+		// Reduce master volume during autopilot
+		if (AUTOPILOT_MODE && !_autopilotVolumeApplied) {
+			_autopilotVolumeStored = WEB_AUDIO_VOLUME;
+			WEB_AUDIO_VOLUME *= (1 - AUTOPILOT_VOLUME_REDUCTION); // e.g. if AUTOPILOT_VOLUME_REDUCTION is .85 then this will reduce volume by a dramatic 85%
+			_autopilotVolumeApplied = true;
+			const slider = document.getElementById('mixerMaster');
+			const valSpan = document.getElementById('mixerMasterVal');
+			const notice = document.getElementById('autopilotVolumeNotice');
+			if (slider) slider.value = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
+			if (valSpan) valSpan.textContent = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
+			if (notice) notice.style.display = 'inline-block';
+		} else if (!AUTOPILOT_MODE && _autopilotVolumeApplied) {
+			WEB_AUDIO_VOLUME = _autopilotVolumeStored;
+			_autopilotVolumeApplied = false;
+			const slider = document.getElementById('mixerMaster');
+			const valSpan = document.getElementById('mixerMasterVal');
+			const notice = document.getElementById('autopilotVolumeNotice');
+			if (slider) slider.value = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
+			if (valSpan) valSpan.textContent = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
+			if (notice) notice.style.display = 'none';
+		}
 
+		// Web Audio: reverb wet level and background loop management
+		if (SwimbotSynth.isReady()) {
+			SwimbotSynth.setReverbWet(reverbAmount / 127);
+			if (backgroundLoop && !_runningFast && rendering) {
+				SwimbotSynth.startLoop(backgroundLoop, { volume: 0.2 * WEB_VOLUME_LOOP, reverb: true });
+			} else {
+				SwimbotSynth.stopLoop();
+			}
 		}
-		
-		// every minute, tweak background sound just for variation
-		if (doingMidiOutput() && SOUND_UPDATE_COUNTER % (soundUpdatesPerSecond * 60) === 0 && nondiegeticOutput) {			
-			
-			let controlAdjustment18 = (Math.floor(Math.random() * (6)) * 16) + 32; // 32 to 96 in steps of 16
-			sendControlMIDI(18, controlAdjustment18, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 5th histogram section A of metaphysical function B (rhythmic background)
-			
-			let controlAdjustment19 = (Math.floor(Math.random() * (4)) * 25) + 25; // one of 25, 50, 75, or 100
-			sendControlMIDI(19, controlAdjustment19, MIDI_CHANNEL_ATMOSPHERE, nondiegeticOutput); // 4th histogram section A of metaphysical function B (twanginess?)
-		}
+
+		// TODO: Web Audio atmospheric drone synth (was MIDI CC-driven drone on channel 15)
 
 
 		// THE UNIVERSE BACKGROUND HUM moves around to generate interest
 		if (secBetweenUnivNoteShift && SOUND_UPDATE_COUNTER % (soundUpdatesPerSecond * secBetweenUnivNoteShift) === 0) {
-  	 		const defaultIntervals = MIDI_NOTE_INTERVAL_SETS[0].intervals; // pentatonic
+  	 		const defaultIntervals = NOTE_INTERVAL_SETS[0].intervals; // pentatonic
   			UNIVERSAL_NOTE_SHIFT = defaultIntervals[Math.floor(Math.random() * defaultIntervals.length)];
 			console.log ("*** UNIVERSAL BACKGROUND SHIFTED " + UNIVERSAL_NOTE_SHIFT + " ***");
 		}
 
 		if (SOUND_UPDATE_COUNTER % 10 === 0) {
-			const { histogram, totalNotes, totalMods, tableHTML } = getPitchHistogram();
-			document.getElementById('saveLoadPanel').innerHTML = tableHTML;
+			// Decay the histogram so it reflects recent activity, not all-time totals
+			for (let i = 0; i < 12; i++) NOTE_HISTOGRAM[i] = Math.floor(NOTE_HISTOGRAM[i] * 0.92);
+			NOTE_COUNT = Math.floor(NOTE_COUNT * 0.92);
+			MOD_COUNT  = Math.floor(MOD_COUNT * 0.92);
+
+			const tableHTML = getPitchHistogram();
+			const el = document.getElementById('pitchHistogramPanel');
+			if (el) el.innerHTML = tableHTML;
 		}
 	} /* end setGlobalParameters */
 
 	//------------------------------------------------------------------------------------------------------
-	// doSwimbotSoundEvent is used for non-diegetic sounds, e.g. eating, being born, dying
+	// doSwimbotSoundEvent — plays non-diegetic one-shot samples for biological events
 	this.doSwimbotSoundEvent = function( type, eventIndex = false )
 	{
-		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
-		let soundEventLog = "doSwimbotSoundEvent() type=";
-		
+		if (!SwimbotSynth.isReady()) return;
+
+		// UI sounds play regardless of fast/rendering mode
+		if ( type === SOUND_EVENT_TYPE_LAUNCH ) {
+			const sampleName = LAUNCH_SAMPLES[eventIndex];
+			if (sampleName) {
+				SwimbotSynth.playSample(sampleName, { volume: WEB_VOLUME_UI, reverb: true });
+			}
+			// 'pop' plays on top of every preset launch sound
+			SwimbotSynth.playSample('pop', { volume: WEB_VOLUME_UI, reverb: true });
+			return;
+		}
+
+		if (_runningFast) return;
+
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
-			soundEventLog += 'EAT';
-			if (doingMidiOutput() && SOUND_OUTPUT_EAT) {
-				let midiChannel = MIDI_CHANNEL_EAT;
-				let midiNote = Math.floor(Math.random() * (12)) + MIDI_BASE_NOTE; // note in a one octave range
-				let controlValue = Math.floor(Math.random() * (40)) + 50; // control of about 50-90
-				sendControlMIDI(14, controlValue, midiChannel, nondiegeticOutput);
-				sendNoteMIDI(midiNote, 127, 100, midiChannel, nondiegeticOutput);
-				soundEventLog += " sent non-diagetic eat MIDI note " + midiNote + " w/CC 14 " + controlValue;
+			if (SOUND_OUTPUT_EAT) {
+				const pick = WA_EAT_SAMPLES[Math.floor(Math.random() * WA_EAT_SAMPLES.length)];
+				SwimbotSynth.playSample(pick, { volume: 0.7 * WEB_VOLUME_EAT, reverb: true });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) {
-			soundEventLog += 'BIRTH';
-			if (doingMidiOutput() && SOUND_OUTPUT_BIRTH) {
-				let midiChannel = MIDI_CHANNEL_BIRTH;
-				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
-				sendNoteMIDI(midiNote, 120, 250, midiChannel, nondiegeticOutput);
-				soundEventLog += " sent non-diagetic birth MIDI note " + midiNote;
+			if (SOUND_OUTPUT_BIRTH) {
+				const pick = WA_BIRTH_SAMPLES[Math.floor(Math.random() * WA_BIRTH_SAMPLES.length)];
+				SwimbotSynth.playSample(pick, { volume: 0.8 * WEB_VOLUME_BIRTH, reverb: true });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
-			soundEventLog += 'DEATH';
-			if (doingMidiOutput() && SOUND_OUTPUT_DEATH) {
-				let midiChannel = MIDI_CHANNEL_DEATH;
-				let midiNote = MIDI_BASE_NOTE + (12*2) + (Math.floor(Math.random() * 3) * 12); // base note octaves 3-5
-				sendNoteMIDI(midiNote, 127, 1000, midiChannel, nondiegeticOutput);
-				soundEventLog += " sent non-diagetic death MIDI note " + midiNote;
+			if (SOUND_OUTPUT_DEATH) {
+				const pick = WA_DEATH_SAMPLES[Math.floor(Math.random() * WA_DEATH_SAMPLES.length)];
+				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_DEATH, reverb: true });
 			}
-		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) { // sequence a Q*bert-style sound: sequence distinct notes from spawn-x.wav samples
-			if (doingMidiOutput() && SOUND_OUTPUT_SPAWN) {
-
-				// IMMEDIATELY do a regular birth sound
+		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) {
+			if (SOUND_OUTPUT_SPAWN) {
 				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_BIRTH, false);
-
-				// Add in our Qbert vocalization
-				let midiChannel = MIDI_CHANNEL_ONESHOTS;
-				const noteDuration = 150; // ms per note
-				const base = 36;
-				const max  = 36 + SPAWN_SOUND_VARIATIONS - 1;
-				const pool = [];
-				for (let n = base; n <= max; n++) pool.push(n); // build pool of MIDI notes
-				const count = Math.min(1, pool.length); // how many notes do we want to play?
-				const picks = [];
-				for (let k = 0; k < count; k++) {
-					const idx = Math.floor(Math.random() * pool.length);
-					picks.push(pool[idx]);
-					pool.splice(idx, 1); // remove chosen note so we don't reuse it
-				}
-				
-				// schedule sequential notes
-				let qbertDelay = 250;
-				for (let i = 0; i < picks.length; i++) {
-					const note = picks[i];
-					setTimeout(() => {
-						sendNoteMIDI(note, 60, noteDuration, midiChannel, nondiegeticOutput);
-					}, qbertDelay + (i * (noteDuration + 10)) ); // schedule 10ms apart
-				}
-
-				soundEventLog += " sent non-diagetic spawn MIDI sequence ";
 			}
-		} else if ( type === SOUND_EVENT_TYPE_LAUNCH ) {
-			if (doingMidiOutput() && SOUND_OUTPUT_LAUNCH) {
-				// key press sound
-				let midiChannel = MIDI_CHANNEL_ONESHOTS;
-				sendNoteMIDI(84, 127, 10000, midiChannel, nondiegeticOutput);
-				// now identify the launch sound specific to this sim
-				midiChannel = MIDI_CHANNEL_LAUNCHES;
-				sendNoteMIDI(84, 127, 10000, midiChannel, nondiegeticOutput);
-				let midiNote = 60 + eventIndex; // launch sounds begin at C3
-				// and send it just a few ms later
-				setTimeout(() => { sendNoteMIDI(midiNote, 127, 10000, midiChannel, nondiegeticOutput); }, 20); 
-				soundEventLog += " sent non-diagetic launch MIDI note " + midiNote;
-			}
-		} // end if sound types
-		 
- 		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log( soundEventLog );
-		return false;
+		}
+
+		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("doSwimbotSoundEvent type=" + type);
     }
 
-	 // GenePool.js decides when a swimbot should utter, at which point
-	 // doUtterance() is called with an object describing its utterance phenotypes
-	 // e.g. utterVariablesObj.swimbotInView, utterVariablesObj.utterSequence... 
-
+	// GenePool.js decides when a swimbot should utter, at which point
+	// doUtterance() is called with an object describing its utterance phenotypes
 	this.doUtterance = function (utterVariablesObj, callerFunction) {
-		const rightNow = Date.now();
-		const useMidi = doingMidiOutput();
-		const useWebAudio = !useMidi && audioCtx !== null;
-		let playAudio = false;
-		let midiChannel;
-		let midiOutput; // <--- add this
-	
-		// Step 1: Decide if we can and should play audio for this utterance.
-		if (useMidi && !_runningFast) {
-			// MIDI Path: Check if utterance is enabled, in view, and channel is not throttled.
-			if (utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER) {
-				let maxUtteranceChannels = MIDI_CHANNELS_FOR_UTTERING.length; // maximum possible utterance channels
-				if (THROTTLE_MIDI_WHEN_LOADED) { // THROTTLE_MIDI_WHEN_LOADED is a percentage e.g. .25 
-					// as currentNumberSwimbots approaches MAX_SWIMBOTS, throttle maxUtteranceChannels down by as much as THROTTLE_MIDI_WHEN_LOADED
-					maxUtteranceChannels = throttleMaxChannels();
-				}
-				let oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[0];
-				for (let i = 1; i < maxUtteranceChannels; i++) {
-					if (MIDI_CHANNELS_FOR_UTTERING[i].lastUsed < oldestMIDIchannel.lastUsed) {
-						oldestMIDIchannel = MIDI_CHANNELS_FOR_UTTERING[i];
-					}
-				}
-				const min_wait_slop = Math.floor(Math.random() * 250);
-				if (Date.now() - oldestMIDIchannel.lastUsed > (MIN_WAIT_BETWEEN_MIDI_UTTERANCES + min_wait_slop)) {
-					playAudio = true;
-					oldestMIDIchannel.lastUsed = rightNow;
-					midiChannel = oldestMIDIchannel.channel; // Update its lastUsed timestamp
-					// *** Get the output by name ***
-					midiOutput = midiOutputsByName[oldestMIDIchannel.output];
-				}
-			}
-		} else if (useWebAudio && !_runningFast) {
-			// Web Audio Path: Simpler check, just needs to be in view. No channel throttling.
-			if (utterVariablesObj.swimbotInView) {
-					playAudio = true;
-			}
-		}
-	
-		// Step 2: Schedule all events from the sequence.
+		if (!SwimbotSynth.isReady() || _runningFast) return;
+
+		// Should we play this utterance?
+		const playAudio = utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER;
+
+		// Each utterance gets its own formant chain so simultaneous swimbots
+		// don't clobber each other's CC state.
+		const voice = playAudio ? SwimbotSynth.createVoice(utterVariablesObj.panValue, utterVariablesObj.swimbotID) : null;
+
 		for (const step of utterVariablesObj.utterSequence) {
 			setTimeout(() => {
-					// Earlier versions relied on this done to issue a callback, these days we ignore
-					if (step.type === 'done') {
-						return;
+				if (step.type === 'note') {
+					if (UTTER_ATTENUATION) {
+						step.velocity = Math.max(20, step.velocity - UTTER_ATTENUATION);
 					}
-	
-					if (!playAudio) return;
-	
-					if (step.type === 'note') {
-						if (UTTER_ATTENUATION) { // are we making our swimbot utterances quieter?
-							step.velocity = step.velocity - UTTER_ATTENUATION;
-							step.velocity = Math.max(20, step.velocity); // but no lower than 20
-						}
-						
-						if (useMidi && midiOutput) {
-							sendNoteMIDI(step.note, step.velocity, step.duration, midiChannel, midiOutput); // pass midiOutput!
-						} else if (useWebAudio) {
-							playNoteWebAudio(step.note, step.velocity, step.duration);
-						}
-						RECENT_NOTES_DB.push({ note: step.note % 12, time: Date.now() });
-					} else if (step.type === 'cc') {
-						if (useMidi && midiOutput) {
-							sendControlMIDI(step.cc, step.value, midiChannel, midiOutput); // pass midiOutput!
-						}
-    				  	RECENT_MODS_DB.push({ time: Date.now() }); // Add this line
-					}
+					if (voice) SwimbotSynth.playVoiceNote(voice, step.note, step.velocity, step.duration);
+					NOTE_HISTOGRAM[step.note % 12]++;
+					NOTE_COUNT++;
+				} else if (step.type === 'cc') {
+					if (voice) voice.handleCC(step.cc, step.value);
+					MOD_COUNT++;
+				} else if (step.type === 'done') {
+					if (voice) voice.dispose();
+				}
 			}, step.delay);
 		}
-		return false;
-	}
-
-	function doingMidiOutput() {
-		if (midiOutput && !_runningFast) {
-			return (true);
-		} else {
-			return (false);
-		}
 	}
 
 
-	/*** WEB AUDIO FALLBACK (Added July 29, 2025) ***/
-
-	function midiNoteToFrequency(midiNote) {
-		return 440 * Math.pow(2, (midiNote - 69) / 12);
-	}
-
-	/**
-	 * Plays a single note using the Web Audio API.
-	 * Creates a simple synth voice with an oscillator and a gain envelope.
-	 * @param {number} noteNumber The MIDI note number to play.
-	 * @param {number} velocity The note velocity (0-127), affects volume.
-	 * @param {number} durationMs The duration of the note in milliseconds.
-	 */
-	 
-	function playNoteWebAudio(noteNumber, velocity, durationMs) {
-		if (!audioCtx || !masterGain) return;
-	
-		if (audioCtx.state === 'suspended') {
-			audioCtx.resume();
-		}
-	
-		const osc = audioCtx.createOscillator();
-		const noteGain = audioCtx.createGain();
-	
-		const freq = midiNoteToFrequency(noteNumber);
-		const gainValue = (velocity / 127) * WEB_AUDIO_VOLUME; // Peak volume
-		const now = audioCtx.currentTime;
-		const durationSec = durationMs / 1000;
-	
-		osc.type = 'square'; // or sine, or square, or triangle
-		osc.frequency.setValueAtTime(freq, now);
-	
-		// --- Gated ADSR Envelope Parameters ---
-		const attackTime = 0.01;  // 10ms
-		const decayTime = 0.05;   // 50ms
-		const releaseTime = 0.01; // 10ms, for a crisp ending
-		const sustainLevel = gainValue * 0.8; // Sustain at 80% of peak
-	
-		const noteEndTime = now + durationSec;
-		const sustainStartTime = now + attackTime + decayTime;
-		const releaseStartTime = noteEndTime - releaseTime;
-	
-		// Use this envelope only if the note is long enough for attack, decay, and release
-		if (releaseStartTime > sustainStartTime) {
-			// 1. Attack: From 0 to peak volume
-			noteGain.gain.setValueAtTime(0, now);
-			noteGain.gain.linearRampToValueAtTime(gainValue, now + attackTime);
-	
-			// 2. Decay: From peak down to sustain level
-			noteGain.gain.linearRampToValueAtTime(sustainLevel, sustainStartTime);
-	
-			// 3. Sustain: Pin the gain to the sustain level. It will hold here
-			// until the release phase begins.
-			noteGain.gain.setValueAtTime(sustainLevel, releaseStartTime);
-			
-			// 4. Release: Ramp down to 0 at the very end.
-			noteGain.gain.linearRampToValueAtTime(0, noteEndTime);
-	
-		} else {
-			// If the note is too short, just do a simple sharp attack and decay.
-			noteGain.gain.setValueAtTime(0, now);
-			noteGain.gain.linearRampToValueAtTime(gainValue, now + attackTime);
-			noteGain.gain.linearRampToValueAtTime(0, noteEndTime);
-		}
-	
-		osc.connect(noteGain);
-		noteGain.connect(masterGain);
-	
-		osc.start(now);
-		// Stop the oscillator precisely when the note and its release envelope end.
-		osc.stop(noteEndTime);
-	}
-
-	// Send a MIDI Panic to clear out any stuck notes
-	// In Gig Performer, configure Options -> Global MIDI -> Panic for IAC Driver Bus 1, Control change, CC #64, CH 16
-	function sendMIDIpanic() {
-		let nondiegeticOutput = midiOutputsByName[MIDI_OUTPUT_NONDIAGETIC];
-		if (typeof nondiegeticOutput !== "undefined") {
-			console.log ("> MIDI Panic sent to clean up any hung notes");
-			sendControlMIDI(64, 100, MIDI_CHANNEL_SYSTEM, nondiegeticOutput);	
-		}
-		return;
-	}
-	
-	this.sendMIDIpanic = sendMIDIpanic; // wrapper so we can call it from outside, e.g. whenever we start a new simulation in GenePool.js startSimulation
-	
-	// Actually send a MIDI note on (and schedule a note off) to the IAC bus.
-	function sendNoteMIDI(noteNumber, velocity, durationMs, midiChannel, midiOutput) {
-		// clamp/filter note and warn
-		let originalNote = noteNumber; // copy for compare
-		noteNumber = Math.round(noteNumber);		
-		noteNumber = Math.max(0, noteNumber);
-		noteNumber = Math.min(127, noteNumber);
-		if (noteNumber != originalNote) console.warn(`*** Had to clamp MIDI note (ch ${midiChannel}) from ${originalNote} to ${noteNumber}`);
-		let zeroIndexMidiChannel = midiChannel - 1; 
-		const noteOn = 0x90 | zeroIndexMidiChannel;
-		const noteOff = 0x80 | zeroIndexMidiChannel;
-		midiOutput.send([noteOn, noteNumber, velocity]);
-		setTimeout(() => {
-			midiOutput.send([noteOff, noteNumber, 0]);
-		}, durationMs);
-	}
-	
-	// Actually send a MIDI control value
-	function sendControlMIDI(controllerNumber, controlValue, midiChannel, midiOutput) {
-		// clamp/filter controlValue and warn
-		let originalValue = controlValue; // copy for compare
-		controlValue = Math.round(controlValue);		
-		controlValue = Math.max(0, controlValue);
-		controlValue = Math.min(127, controlValue);
-		if (controlValue != originalValue) console.warn(`*** Had to clamp CC no. ${controllerNumber} (ch ${midiChannel}) from ${originalValue} to ${controlValue}`);
-		let zeroIndexMidiChannel = midiChannel - 1; 
-		const cc = 0xB0 | zeroIndexMidiChannel;
-		midiOutput.send([cc, controllerNumber, controlValue]);
-	}
-		
 } // *** end class/object Sound () ***
 
 
@@ -683,7 +361,7 @@ function Sound()
  * generateUtterancePhenotypes
  * ---------------------------
  * Given gene values, gene names, and utterance timing parameters,
- * generates a musically structured sequence of MIDI-like events (notes and CCs)
+ * generates a musically structured sequence of events (notes and CCs)
  * using Markov chains and gene-influenced random mutation.
  * Tracks features of the generated sequence (notes used, highest/lowest note, etc.).
  * Returns an object containing the sequence data and phenotype stats.
@@ -723,7 +401,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 
 
    const rng = aleaPRNG(genes.slice(UTTERANCE_GENES_SLICE_START, UTTERANCE_GENES_SLICE_END).toString()); // initialize genes with only uttering-related genes
-	
+   // const rng = aleaPRNG('foobar'); // force same seed for everyone
 	
 	/*** DEMO FUDGE TO CREATE TRIBES. SPLICE IN FIXED GENES FOR SWIMBOT INSTANCES 0-9, but with some variation for utter period  ***/
 	/*
@@ -747,8 +425,8 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	*/
 	
 	
-	// WHAT IS MY MIDI BASE NOTE?
-	let myMIDIBaseNote = MIDI_BASE_NOTE;
+	// WHAT IS MY BASE NOTE?
+	let myBaseNote = BASE_NOTE;
 
 	// console.log('Genes: ' + genes.toString());
 
@@ -768,10 +446,10 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	const chanceOfJumpingFifths = (utterStrangeness/255) ** 5; // heavily weighted towards "nope"
 	if (rng() < chanceOfJumpingFifths) {
 		if (rng() > .5) { // are we going to jump up or down?
-			myMIDIBaseNote = myMIDIBaseNote + 7;
+			myBaseNote = myBaseNote + 7;
 			if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to jump UP a fifth!");
 		} else {
-			myMIDIBaseNote = myMIDIBaseNote -5;
+			myBaseNote = myBaseNote -5;
 			if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Rolled to jump DOWN a fifth!");
 		}
 	}
@@ -830,9 +508,10 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// * 0 means "always start on the center"
 	// * 1 means "start at the center note, or up to one interval away"
 	// * 5 means "start as the center note, or any of the possible 5 intervals"
-	const numberOfIntervalRotations = Math.floor(rng() * 3);
+	var numberOfIntervalRotations = Math.floor(rng() * 3);
 
 
+numberOfIntervalRotations = 0;
 	
 	// IMPORTANT! To make sure everyone doesn't start on the same note, we randomly rotate the intervals
 	// for example, this:		[-10, -8, -5, -3, 0, +2, +4, +7, +9];
@@ -841,6 +520,8 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		myNoteIntervalSet.unshift(myNoteIntervalSet.pop());
 	}
 	
+mutationFactor = 1;
+
 	/*** Mutate our markov tables? if so how much? ***/
 	for (let i = 0; i < mutationFactor; i++) { // the more times we mutate it, the more we stray from the default bell-curve
 		myDurationProbabilities = createMutatedMatrix(myDurationProbabilities, rng, 0.2);
@@ -856,7 +537,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	
 	const sequenceData = [];
 	
-	// these vars will keep a record of the phenotypical attributes of our new MIDI sequence
+	// these vars will keep a record of the phenotypical attributes of our new note sequence
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 		
 	// how long are our notes?
@@ -955,7 +636,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		}
 		if (nextIntState === undefined) nextIntState = myNoteIntervalSet.length - 1;
 		const thisNoteShift = myNoteIntervalSet[nextIntState];
-		let thisNoteNumber = myMIDIBaseNote + myOctaveNoteShift + thisNoteShift;
+		let thisNoteNumber = myBaseNote + myOctaveNoteShift + thisNoteShift + UNIVERSAL_NOTE_SHIFT;
 		
 		// record some phenotypical info
 		if (thisNoteNumber > recordHighNote) recordHighNote = thisNoteNumber; // we hit our highest note yet
@@ -978,8 +659,10 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		lastInt = nextIntState;
 	} // end while sequenceTime < utterSequenceLength
 	
-	// insert final 'done' event
-	sequenceData.push({ delay: sequenceTime, type: 'done' });
+	// insert final 'done' event — must wait for the last note's envelope release to finish
+	const lastNote  = sequenceData.filter(e => e.type === 'note').pop();
+	const doneDelay = lastNote ? lastNote.delay + lastNote.duration + 300 : sequenceTime; // 300ms release padding
+	sequenceData.push({ delay: doneDelay, type: 'done' });
 
 
 	// Now walk through sequenceData and insert random modulation events.
@@ -1053,8 +736,10 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		
 	// return our object of phenotypes
 	let utterancePhenotypeObj = { sequenceData, recordNotesUsed, recordHighNote, recordLowNote, recordNoteCount, recordModCount};
-	// console.log ("UTTERANCE COMPOSED: myMIDIBaseNote=" + myMIDIBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength + " recordNoteCount=" + recordNoteCount + " recordModCount=" + recordModCount, sequenceData);
-	// console.log ("UTTERANCE COMPOSITION NOTES USED " + recordNotesUsed);
+	if (DEBUGGING_NOISY_CONSOLE_MODE) {
+		console.log ("UTTERANCE COMPOSED: myBaseNote=" + myBaseNote + " octave=" + (myOctaveNoteShift/12) + " mutationFactor=" + mutationFactor + " noteLengthStyle=" + noteLengthStyle + " chanceOfModulation=" + chanceOfModulation + " modulationStrength=" + modulationStrength + " recordNoteCount=" + recordNoteCount + " recordModCount=" + recordModCount, sequenceData);
+		console.log ("UTTERANCE COMPOSITION NOTES USED " + recordNotesUsed);
+	}
 	return (utterancePhenotypeObj);
 }
 
@@ -1107,31 +792,15 @@ function logProbabilityMatrix(label, matrix) {
     }
 }
 
-function pruneOldNotes() {
-    const now = Date.now();
-    const cutoff = now - 60000; // 60 seconds ago
-    // Remove old notes from the start (assuming notes arrive in order)
-    while (RECENT_NOTES_DB.length && RECENT_NOTES_DB[0].time < cutoff) {
-        RECENT_NOTES_DB.shift();
-    }
-}
-
-function pruneOldMods() {
-    const now = Date.now();
-    const cutoff = now - 60000; // 60 seconds ago
-    while (RECENT_MODS_DB.length && RECENT_MODS_DB[0].time < cutoff) {
-        RECENT_MODS_DB.shift();
-    }
-}
 
 
 
 /***************************************************************
 	determineCurrentMusicParameters()
-	specifies the MIDI note intervals and other parameters that
-	influence utterance generation and general sonic parameters
-	_chosenPoolToLoad is our current simulation, normally 0-4
-	MIDI_NOTE_INTERVAL_SETS has our stable of interval sets
+	Specifies note intervals and other parameters that influence
+	utterance generation and general sonic parameters.
+	_chosenPoolToLoad is our current simulation, normally 0-5.
+	NOTE_INTERVAL_SETS has our stable of interval sets.
 ****************************************************************/
 
 function determineCurrentMusicParameters () {
@@ -1141,10 +810,9 @@ function determineCurrentMusicParameters () {
 	let maxReverb = MAX_REVERB_DEFAULT;
 	let secBetweenUnivNoteShift = SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
 	let shortestNoteMs = SHORTEST_NOTE_MS_DEFAULT;
-	let noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['super']); // default to bell curve instead of 'sharp' or 'super'
+	let noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['super']); // default to bell curve instead of 'sharp' or 'super'
 	let seqDurationStates = structuredClone(DEFAULT_SEQUENCE_DURATION_STATES);
-	let backgroundMIDInote = DEFAULT_BACKGROUND_NOTE;
-	let backgroundRetriggerSec = SECONDS_BETWEEN_BACKGROUND_RETRIGGER_DEFAULT;
+	let backgroundLoop = DEFAULT_BACKGROUND_LOOP;
 	
 	seqDurationStates
 	/*
@@ -1155,53 +823,58 @@ function determineCurrentMusicParameters () {
 	
 	/*** BLANK POOL ***/
 	if (_chosenPoolToLoad == 0) {
-		backgroundMIDInote = 1; 						// no background loop sound
+		backgroundLoop = 'reaktor-drone'; 							// no background loop
 		mySet = getNoteIntervalSetFor('minor pentatonic');
-		
+		SwimbotSynth.setReverbIR('tunnel');
+		// minReverb = maxReverb = 120;
 	/*** INVASION ***/
 	} else if (_chosenPoolToLoad == 1) {
-		minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
+		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
 		mySet = getNoteIntervalSetFor('minor pentatonic');
 		secBetweenUnivNoteShift = 10; 				// shorter shifts
 		shortestNoteMs = 90; 							// shortest notes will be 90ms
 		seqDurationStates[0].min = 100; 				// lengthen 'short' min to 100ms
 		seqDurationStates[0].max = 140; 				// lengthen 'short' max to 140mx
-		backgroundMIDInote = 36; 						// bell drone
-		backgroundRetriggerSec = 12; 					// faster retrigger
+		backgroundLoop = 'loop-bell-drone';
+		SwimbotSynth.setReverbIR('bright4');
 
 	/*** FLOCKS ***/
 	} else if (_chosenPoolToLoad == 2) {
-		backgroundMIDInote = 36; 						// bell drone
+		backgroundLoop = 'loop-bell-drone';
 		mySet = getNoteIntervalSetFor('pentatonic');
-		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
+		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
+		SwimbotSynth.setReverbIR('echohall');
 
 	/*** RADIAL ***/
 	} else if (_chosenPoolToLoad == 3) {
-		noteProbabilityMatrix = structuredClone(IOI_MIDI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
-		mySet = getNoteIntervalSetFor('whole tone');
+		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['sharp']); // evener note distribution
+		mySet = getNoteIntervalSetFor('12tone');
+		SwimbotSynth.setReverbIR('tunnel');
 
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {
-		mySet = getNoteIntervalSetFor('5ths');
+		mySet = getNoteIntervalSetFor('pentatonic');
 		secBetweenUnivNoteShift = 60 * 2; 			// shorter shifts
+		SwimbotSynth.setReverbIR('bright4');
+		// maxReverb = Math.floor(MAX_REVERB_DEFAULT * .8); // less reverb
 		
 	/*** AUTOPILOT ***/
 	} else if (_chosenPoolToLoad == 5) {
 		mySet = getNoteIntervalSetFor('octaves');
-		backgroundMIDInote = 36; 						// bell drone
-		minReverb = Math.floor(MAX_REVERB_DEFAULT * .95); // loads of reverb
+		backgroundLoop = 'loop-bell-drone';
+		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .95); // loads of reverb
+		SwimbotSynth.setReverbIR('dark4');
 	}
 	
 	// build up our musicParameters object and return it
 	let musicParameters = {
 			shortestNoteMs:				shortestNoteMs,
-			minReverb:						minReverb,
-			maxReverb:						maxReverb,
-			backgroundMIDInote:			backgroundMIDInote,
-			backgroundRetriggerSec:		backgroundRetriggerSec,
+			minReverb:					minReverb,
+			maxReverb:					maxReverb,
+			backgroundLoop:				backgroundLoop,
 			secBetweenUnivNoteShift:	secBetweenUnivNoteShift,
-			intervalSet:					mySet.intervals.slice(),		// e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]. // slice to detach from original
-			intervalSetName: 				mySet.name,							// e.g. 'minor pentatonic'
+			intervalSet:				mySet.intervals.slice(),		// e.g. [-9, -7, -5, -2, 0, +3, +5, +7, +10]. // slice to detach from original
+			intervalSetName: 			mySet.name,							// e.g. 'minor pentatonic'
 			noteProbabilityMatrix:		noteProbabilityMatrix,
 			seqDurationStates:			seqDurationStates
 		};
@@ -1214,100 +887,42 @@ function determineCurrentMusicParameters () {
 
 
 
-/* throttleMaxChannels reduces how many synthesizers we are using when our JS is loaded up with swimbots
-	at 50% of max swimbots, we don't throttle at all
-	then we steeply throttle our channels by up to THROTTLE_MIDI_WHEN_LOADED (e.g. .25 = 25%) 
-*/
-function throttleMaxChannels() {
-	const maxChannels = MIDI_CHANNELS_FOR_UTTERING.length;
-	const current = genePool.getNumSwimbots();
-	const max = (typeof MAX_SWIMBOTS !== 'undefined' && MAX_SWIMBOTS > 0) ? MAX_SWIMBOTS : (current || 1);
-	const u = Math.min(1, Math.max(0, current / max)); // Utilization in [0,1]
-	
-	// No throttling until swimbots are at 50%; full effect by 100%
-	const START = 0.50, END = 1.00;
-	
-	// Map u∈[START,END] → t∈[0,1], clamp
-	const t = Math.min(1, Math.max(0, (u - START) / (END - START)));
-	
-	// Smoothstep knee s∈[0,1]
-	const k = .5; // higher = steeper near 100%
-	const s = Math.pow(t, k); // still 0 at 50%, 1 at 100%
-	
-	// Cap reduction to [0,1]
-	const maxReduction = Math.min(Math.max(THROTTLE_MIDI_WHEN_LOADED, 0), 1);
-	
-	// 1.0 → (1.0 - maxReduction) as load goes from 50%→100%
-	const factor = 1 - (maxReduction * s);
-	
-	let reducedChannelCount = Math.max(1, Math.floor(maxChannels * factor));
-	if (maxChannels != reducedChannelCount) {
-		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("Reduced MIDI utterance channels from " + maxChannels + " to " + reducedChannelCount + " because we are at " + current + "/" + max + " swimbots.");
-	}
-	return (reducedChannelCount);
-}
+
+const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 
 function getPitchHistogram() {
-	pruneOldNotes();
-   pruneOldMods();
-	let totalMods = RECENT_MODS_DB.length;
-	let totalNotes = 0;
-	const histogram = [
-		{ noteNumber: 0, noteName: 'C', noteCount: 0 },
-		{ noteNumber: 1, noteName: 'C#', noteCount: 0 },
-		{ noteNumber: 2, noteName: 'D', noteCount: 0 },
-		{ noteNumber: 3, noteName: 'D#', noteCount: 0 },
-		{ noteNumber: 4, noteName: 'E', noteCount: 0 },
-		{ noteNumber: 5, noteName: 'F', noteCount: 0 },
-		{ noteNumber: 6, noteName: 'F#', noteCount: 0 },
-		{ noteNumber: 7, noteName: 'G', noteCount: 0 },
-		{ noteNumber: 8, noteName: 'G#', noteCount: 0 },
-		{ noteNumber: 9, noteName: 'A', noteCount: 0 },
-		{ noteNumber: 10, noteName: 'A#', noteCount: 0 },
-		{ noteNumber: 11, noteName: 'B', noteCount: 0 }];
-	
-	for (const { note } of RECENT_NOTES_DB) {
-		totalNotes += 1;
-      histogram[note].noteCount += 1;
-	}
-		
-	const maxHeight = 14; // 14 colored bar rows, 1 label row
+	const maxHeight = 14;
 	let maxCount = 0;
-	
-	// Find the maximum count to scale the bars
-	for (const { noteCount } of histogram) {
-		if (noteCount > maxCount) maxCount = noteCount;
+
+	for (let i = 0; i < 12; i++) {
+		if (NOTE_HISTOGRAM[i] > maxCount) maxCount = NOTE_HISTOGRAM[i];
 	}
-	if (maxCount === 0) maxCount = 1; // Prevent division by zero
-	
-	// Build table rows, from top to bottom
-	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + totalNotes + '/' + totalMods + ' notes/mods per min.</th></tr>';
+	if (maxCount === 0) maxCount = 1;
+
+	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + NOTE_COUNT + '/' + MOD_COUNT + ' notes/mods</th></tr>';
 	for (let row = 0; row < maxHeight; row++) {
 		tableHTML += '<tr>';
-		for (const { noteCount } of histogram) {
-			const barHeight = Math.round((noteCount / maxCount) * maxHeight);
-			// Rows go from top (0) to bottom (maxHeight-1), so check if this cell should be colored
+		for (let i = 0; i < 12; i++) {
+			const barHeight = Math.round((NOTE_HISTOGRAM[i] / maxCount) * maxHeight);
 			if (maxHeight - row <= barHeight) {
-					tableHTML += '<td style="width:11px;height:11px;background:#4b8fff;"></td>';
+				tableHTML += '<td style="width:11px;height:11px;background:#4b8fff;"></td>';
 			} else {
-					tableHTML += '<td style="width:11px;height:11px;background:#eee;"></td>';
+				tableHTML += '<td style="width:11px;height:11px;background:#eee;"></td>';
 			}
 		}
 		tableHTML += '</tr>';
 	}
-	// Now add the labels row at the bottom, coloring if any notes are present
 	tableHTML += '<tr>';
-	for (const { noteName, noteCount } of histogram) {
-		if (noteCount > 0) {
-			tableHTML += `<td style="padding:0; background:#28b245; color:#fff; font-weight:bold;">${noteName}</td>`;
+	for (let i = 0; i < 12; i++) {
+		if (NOTE_HISTOGRAM[i] > 0) {
+			tableHTML += `<td style="padding:0; background:#28b245; color:#fff; font-weight:bold;">${NOTE_NAMES[i]}</td>`;
 		} else {
-			tableHTML += `<td style="padding:0; background:#fff; color:#444;">${noteName}</td>`;
+			tableHTML += `<td style="padding:0; background:#fff; color:#444;">${NOTE_NAMES[i]}</td>`;
 		}
 	}
-	tableHTML += '</tr>';	
-	tableHTML += '</tbody></table>';	
+	tableHTML += '</tr></tbody></table>';
 
-	return { histogram, totalNotes, totalMods, tableHTML }; // return as an object
+	return tableHTML;
 }
 
 
@@ -1315,33 +930,33 @@ function getPitchHistogram() {
 // --- startup sanity checks ---
 function sanityCheckMusicConfig() {
   // 1) Interval sets: shape + types (+ center 0)
-  if (!Array.isArray(MIDI_NOTE_INTERVAL_SETS) || MIDI_NOTE_INTERVAL_SETS.length === 0) {
-    throw new Error("MIDI_NOTE_INTERVAL_SETS must be a non-empty array.");
+  if (!Array.isArray(NOTE_INTERVAL_SETS) || NOTE_INTERVAL_SETS.length === 0) {
+    throw new Error("NOTE_INTERVAL_SETS must be a non-empty array.");
   }
 
-  MIDI_NOTE_INTERVAL_SETS.forEach((set, i) => {
+  NOTE_INTERVAL_SETS.forEach((set, i) => {
     if (!set || typeof set.name !== "string" || !Array.isArray(set.intervals)) {
-      throw new Error(`MIDI_NOTE_INTERVAL_SETS[${i}] must be { name: string, intervals: number[] }`);
+      throw new Error(`NOTE_INTERVAL_SETS[${i}] must be { name: string, intervals: number[] }`);
     }
     if (set.intervals.length !== 9) {
-      throw new Error(`MIDI_NOTE_INTERVAL_SETS: set "${set.name}" has ${set.intervals.length} intervals; expected 9.`);
+      throw new Error(`NOTE_INTERVAL_SETS: set "${set.name}" has ${set.intervals.length} intervals; expected 9.`);
     }
     // Require numeric (integers ok), and root at center index 4
     set.intervals.forEach((iv, j) => {
       if (typeof iv !== "number" || !Number.isFinite(iv)) {
-        throw new Error(`MIDI_NOTE_INTERVAL_SETS "${set.name}" intervals[${j}] is not a finite number.`);
+        throw new Error(`NOTE_INTERVAL_SETS "${set.name}" intervals[${j}] is not a finite number.`);
       }
     });
     if (set.intervals[4] !== 0) {
-      throw new Error(`MIDI_NOTE_INTERVAL_SETS "${set.name}" must have 0 at center (index 4).`);
+      throw new Error(`NOTE_INTERVAL_SETS "${set.name}" must have 0 at center (index 4).`);
     }
   });
 
   // 2) Probability matrices: 9x9, non-negative, each row sums to ~1
   const EPS = 1e-6;
-  const matrices = IOI_MIDI_NOTE_PROBABILITY_MATRICES;
+  const matrices = IOI_NOTE_PROBABILITY_MATRICES;
   if (typeof matrices !== "object" || matrices == null) {
-    throw new Error("IOI_MIDI_NOTE_PROBABILITY_MATRICES must be an object of named matrices.");
+    throw new Error("IOI_NOTE_PROBABILITY_MATRICES must be an object of named matrices.");
   }
 
   for (const [name, M] of Object.entries(matrices)) {
@@ -1369,8 +984,8 @@ function sanityCheckMusicConfig() {
   }
 
   // Optional: freeze to prevent accidental mutation at runtime
-  // Object.freeze(MIDI_NOTE_INTERVAL_SETS);
-  // Object.freeze(IOI_MIDI_NOTE_PROBABILITY_MATRICES);
+  // Object.freeze(NOTE_INTERVAL_SETS);
+  // Object.freeze(IOI_NOTE_PROBABILITY_MATRICES);
 
   console.log("Music config sanity OK");
 }

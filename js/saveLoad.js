@@ -771,7 +771,6 @@ function handleFiles()
 function printFamilyTree()
 {
 
-
 //------------------------------------------------------------
 // This is a quick test to generating a phylogenetic tree. 
 // I will remove this once I've got it working.  Aug.12.2021
@@ -808,7 +807,7 @@ genePool.generatePhyloTree();
 
 //YO - this is Luka's change to cull the data so it is not too big...
 
-let THROTTLE = 5;
+let THROTTLE = 1;
 
 
 for (let n=0; n<familyTree.getNumNodes(); n +=THROTTLE )

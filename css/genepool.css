@@ -1228,15 +1228,215 @@ overflow:auto; /* added for the family tree display
 /* -------------------------------------------- */
 #contactPanel
 {
-    color: #000000; 
+    color: #999; 
     font-family: "Arial";
     font-size: 12;
     position: absolute; 
-    left: 0; 
-    top: 460; 
-    height: 40; 
+    left: 10px;
+    bottom: 10px;
+    height: 20px;
 
     /* for debugging */
     /*background-color: #aaccaa;*/
+}
+
+
+/* ============================================================================
+   Utterance Statistics panel — Darwin's Chorus (Canton Becker)
+   ============================================================================ */
+
+#poolUtteranceStatsLink {
+    margin-top: 5px;
+    padding: 2px 0 0 4px;
+    font-size: 12px;
+}
+
+#poolUtteranceStatsLink a {
+    color: #5a7a5a;
+    text-decoration: none;
+    border: 1px solid #5a7a5a;
+    padding: 4px;
+}
+
+#poolUtteranceStatsLink a:hover {
+    color: #3a5a3a;
+    text-decoration: underline;
+}
+
+/* Full-screen overlay container */
+#utteranceStatsPanel {
+    position:         fixed;
+    top:              0;
+    left:             0;
+    width:            100vw;
+    height:           100vh;
+    z-index:          2000;
+    visibility:       hidden;
+    background:       rgba(10, 12, 8, 0.82);
+    display:          flex;
+    align-items:      flex-start;
+    justify-content:  center;
+    overflow-y:       auto;
+    padding:          24px 0 40px 0;
+    box-sizing:       border-box;
+}
+
+#ustInner {
+    width:            92%;
+    max-width:        1140px;
+    background:       #1e211a;
+    border:           1px solid #3a3e32;
+    border-radius:    6px;
+    color:            #ced1c6;
+    font-family:      Arial, sans-serif;
+    font-size:        12px;
+    overflow:         hidden;
+    box-shadow:       0 8px 40px rgba(0,0,0,0.6);
+    position:         relative;   /* makes #ustInner the offsetParent for chart canvases,
+                                     needed by utteranceLogger.js for getBoundingClientRect compositing */
+}
+
+#ustHeader {
+    display:          flex;
+    align-items:      center;
+    gap:              12px;
+    padding:          14px 18px 12px 18px;
+    background:       #161914;
+    border-bottom:    1px solid #3a3e32;
+    flex-wrap:        wrap;
+}
+
+#ustTitle {
+    font-size:        15px;
+    font-weight:      bold;
+    color:            #e0e4d8;
+    flex:             1;
+    min-width:        200px;
+}
+
+#ustCount {
+    font-size:        12px;
+    font-weight:      normal;
+    color:            #7a8070;
+}
+
+#ustTimestamp {
+    font-size:        11px;
+    color:            #5a6050;
+}
+
+.ust-log-btn-active {
+    background:       #4a1a1a !important;
+    color:            #ff8080 !important;
+    border-color:     #aa4444 !important;
+}
+
+.ust-log-btn-active:hover {
+    background:       #5a2020 !important;
+}
+
+.ust-refresh-select {
+    font-size:        11px;
+    font-family:      Arial, sans-serif;
+    background:       #2e3228;
+    color:            #8a9080;
+    border:           1px solid #4a4e42;
+    border-radius:    3px;
+    padding:          2px 4px;
+    cursor:           pointer;
+    vertical-align:   middle;
+}
+
+#ustBadges {
+    display:          flex;
+    gap:              8px;
+    flex-wrap:        wrap;
+}
+
+.ust-badge {
+    padding:          3px 8px;
+    border-radius:    3px;
+    border:           1px solid;
+    font-size:        11px;
+    font-weight:      bold;
+}
+
+#ustHeaderButtons {
+    display:          flex;
+    gap:              8px;
+}
+
+.ust-header-btn {
+    padding:          5px 12px;
+    background:       #2e3228;
+    color:            #b0b4a8;
+    border:           1px solid #4a4e42;
+    border-radius:    4px;
+    cursor:           pointer;
+    font-size:        11px;
+    font-family:      Arial, sans-serif;
+}
+
+.ust-header-btn:hover {
+    background:       #3a3e32;
+    color:            #e0e4d8;
+}
+
+#ustBody {
+    padding:          18px 18px 24px 18px;
+}
+
+.ust-section-title {
+    font-size:        12px;
+    font-weight:      bold;
+    color:            #7a9a7a;
+    text-transform:   uppercase;
+    letter-spacing:   0.08em;
+    margin:           20px 0 10px 0;
+    border-bottom:    1px solid #2e3228;
+    padding-bottom:   4px;
+}
+
+.ust-section-title:first-child {
+    margin-top:       0;
+}
+
+.ust-row {
+    display:          flex;
+    flex-wrap:        wrap;
+    gap:              14px;
+    margin-bottom:    6px;
+}
+
+.ust-chart-unit {
+    background:       #272b22;
+    border:           1px solid #363a2e;
+    border-radius:    4px;
+    padding:          8px 10px 6px 10px;
+    display:          flex;
+    flex-direction:   column;
+    gap:              4px;
+}
+
+.ust-chart-label {
+    font-size:        11px;
+    font-weight:      bold;
+    color:            #9a9e92;
+}
+
+.ust-chart-stats {
+    font-size:        10px;
+    color:            #6a6e62;
+    font-family:      'Courier New', monospace;
+    line-height:      1.5;
+}
+
+.ust-chart-stats span {
+    color:            #b0b4a8;
+}
+
+.ust-scatter-unit {
+    flex:             1;
+    min-width:        320px;
 }
 

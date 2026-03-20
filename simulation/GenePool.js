@@ -116,8 +116,8 @@ function GenePool()
     const DEFAULT_MILLISECONDS_PER_UPDATE = 20;
     const DO_HIGHLIGHT_SELECTED_SWIMBOT = false; // draw a ring around the selected swimbot?
 
-    //const LEVEL_OF_DETAIL_THRESHOLD         = 1000.0;
-    const LEVEL_OF_DETAIL_THRESHOLD         = 3000.0; // increase to preserve curves when zoomed out
+    // LEVEL_OF_DETAIL_THRESHOLD moved to Parameters.js — it's the #1 performance tuning knob.
+    // Also see LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING for the dynamic zoom-time override.
 
     const INITIAL_VIEW_SCALE                = POOL_WIDTH * 0.1;
     const RACE_VIEW_SCALE                   = POOL_WIDTH * 0.3;
@@ -201,6 +201,7 @@ function GenePool()
     let _zoomingIn              = false;
     let _zoomingOut             = false;
     let _renderingGoals         = false;
+
     let _showViewTrackingMode   = false;
     let _windowWidth            = 0;
     let _windowHeight           = 0;    
@@ -543,8 +544,8 @@ function GenePool()
         }
         else if ( mode === SimulationStartMode.EMPTY )
         {
-            // clear any possibly stuck MIDI notes
-            _sound.sendMIDIpanic();
+            // stop all audio (loops, voices) when switching simulations
+            SwimbotSynth.stopAll();
             _numSwimbots = 0;
             _camera.setScale( 7900 );
             setTimeout(() => _camera.doScaleShift(500, 50), 1000); // wait 1s before fast zooming in
@@ -803,6 +804,7 @@ function GenePool()
                let cohortSize = Math.floor(_numSwimbots/numCohorts);
                let thisCohortIndex = Math.floor(i/cohortSize); // will be 0 to numCohorts
                initialAge = initialCohortAge - (radialCohortDelay * thisCohortIndex); // radialCohortDelay was determined earlier on, it's how much we stagger each cohort's utterances
+               initialAge += Math.floor(Math.random() * 50);
                initialAge = Math.ceil(Math.max(initialAge, 1)); // safety check: force to integer and never let initial age get below 1
                //console.log(`Cohort ${thisCohortIndex} age ${initialAge} / radialCohortDelay= ${radialCohortDelay}`);
 
@@ -1491,11 +1493,28 @@ if ( mode === SimulationStartMode.SPECIES )
             }
             else
             {
-                if ( _camera.getScale() > LEVEL_OF_DETAIL_THRESHOLD ) 
+                //---------------------------------------------------------------
+                // Performance optimization: while the camera is actively
+                // zooming, use a much lower LOD threshold so that swimbots
+                // drop to cheap line-segment rendering (LOW LOD) sooner.
+                // HIGH LOD bezier spline rendering in SwimbotRenderer.js
+                // is the #1 CPU bottleneck — rendering 300 swimbots × ~8
+                // parts × ~7 canvas draw calls each causes frame drops
+                // and audio hangs during zoom. By using the zooming
+                // threshold (default 500 vs normal 2500), we keep HIGH
+                // LOD off unless the user is zoomed in very close. The
+                // moment zooming stops, the normal threshold is restored
+                // and full bezier detail comes back seamlessly.
+                //
+                // See LEVEL_OF_DETAIL_THRESHOLD and
+                // LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING in Parameters.js.
+                //---------------------------------------------------------------
+                let lodThreshold = _camera.isZooming() ? LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING : LEVEL_OF_DETAIL_THRESHOLD;
+                if ( _camera.getScale() > lodThreshold )
                 {
                     _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_LOW;
                 }
-                else 
+                else
                 {
                     _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_HIGH;
                 }
@@ -1526,7 +1545,7 @@ if ( mode === SimulationStartMode.SPECIES )
         			_camera.doScaleShift( scale, 500 );
         		}
 
-        		if ( _clock % 700 === 0 )
+        		if ( _clock % 700 === 0 && _numSwimbots > 0 )
         		{
 					let s = Math.floor( Math.random() * _numSwimbots );
 					_camera.doPositionShift( _swimbots[s].getPosition(), 600 );
@@ -1554,7 +1573,7 @@ if ( mode === SimulationStartMode.SPECIES )
             	let p2 = 0.0;
             	let p3 = _camera.getScale();
             	
-            	_sound.setGlobalParameters( p0, p1, p2, p3 );
+            	_sound.setGlobalParameters( p0, p1, p2, p3, _rendering );
 			}
 		}
 		
@@ -1591,9 +1610,27 @@ if ( mode === SimulationStartMode.SPECIES )
                 }
                 
                 //--------------------------------------------------------------------------------
-				// detection of uttering needs continual sensing, unlike the code above...
+                // Mate-detection scan: build this swimbot's list of nearby potential mates.
+                //
+                // In normal rendering mode: runs every tick at full fidelity.
+                //
+                // In no-render mode: runs every NORENDER_UTTER_STIMULI_SCAN_INTERVAL ticks
+                // as a speed optimization (this O(n²) scan is the sim's most expensive call).
+                // The stagger (s % interval === clock % interval) spreads work evenly across
+                // ticks so load never bursts — at interval=4, ~75 swimbots scan per tick
+                // rather than all 300 on the same tick every 4 ticks.
+                //
+                // The mate-search window counter is decremented in Swimbot.update() every
+                // tick regardless, so skipping scans here never stretches the mating window.
                 //--------------------------------------------------------------------------------
-				this.giveSwimbotNearbyUtteringStimuli(s);
+                if ( !_rendering && ( s % NORENDER_UTTER_STIMULI_SCAN_INTERVAL !== _clock % NORENDER_UTTER_STIMULI_SCAN_INTERVAL ) )
+                {
+                    // no-render throttle: skip this swimbot's scan this tick
+                }
+                else
+                {
+                    this.giveSwimbotNearbyUtteringStimuli(s);
+                }
 				
 				if ( _globalOutwardPush.active )
 				{
@@ -1629,7 +1666,7 @@ if ( mode === SimulationStartMode.SPECIES )
                     let eatenFoodBit = _swimbots[s].eatChosenFoodBit();
 
                     // if the swimbot is eating within view, let's hear it!
-                    if (_camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
+                    if (_rendering && _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
                         _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_EAT, s);
                     }                   
                 } // end eating
@@ -1643,10 +1680,10 @@ if ( mode === SimulationStartMode.SPECIES )
 					if ( ! _markedForUtteringSound[s] )
 					{
 						_markedForUtteringSound[s] = true;
-						// let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() );
-                  // we don't show sound waves or play utterances for swimbots that are outside of our circular area
+						// we don't show sound waves or play utterances for swimbots that are outside of our circular area
                   // the  .5 * their body size gives us a little bit of "bleed"/overprint past the circular area
-						let isInView = _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() * .5 );
+						// skip the camera check entirely when not rendering — isInView is only used for animation
+						let isInView = _rendering && _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() * .5 );
 					
 						let utterVariablesObj = {
 							swimbotID:          s,
@@ -1661,7 +1698,13 @@ if ( mode === SimulationStartMode.SPECIES )
 							utterSequence:      _swimbots[s].getUtterSequence(),
 						};
 				
-						// actually send out the MIDI for the utterance, or, at least, schedule when to stop uttering 
+						// Stereo pan: swimbot's horizontal position relative to current camera viewport.
+						// Normalised 0 (left edge) → 1 (right edge), mapped to -0.75…+0.75.
+						const _camLeft = _camera.getPosition().x - _camera.getXDimension() * ONE_HALF;
+						const _normX   = (utterVariablesObj.swimbotPosition.x - _camLeft) / _camera.getXDimension();
+						utterVariablesObj.panValue = Math.max(-0.75, Math.min(0.75, _normX * 2 - 1));
+
+						// play the utterance via Web Audio, or, at least, schedule when to stop uttering
 						_sound.doUtterance (utterVariablesObj, this);
 						
                     	if ( isInView ) // do the animation as well
@@ -1682,7 +1725,7 @@ if ( mode === SimulationStartMode.SPECIES )
 				else
 				{
 					_markedForUtteringSound[s] = false;
-					_utteranceRenderer.stop(s);
+					if ( _rendering ) { _utteranceRenderer.stop(s); }
 				}
 				
                 //-------------------------------------
@@ -1691,7 +1734,7 @@ if ( mode === SimulationStartMode.SPECIES )
                 if ( _swimbots[s].getMarkedForDeath() )
                 {
                     // if we're dying within view, let's hear it
-                    if( _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
+                    if (_rendering && _camera.getWithinView( _swimbots[s].getPosition(), _swimbots[s].getBoundingRadius() )) {
                         _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_DEATH, s);
                     }
                     
@@ -1728,8 +1771,42 @@ if ( mode === SimulationStartMode.SPECIES )
                             //------------------------------------------------------------------------------
                             // collect genes from me and my chosen mate and recombine them for the child
                             //------------------------------------------------------------------------------
-                            _myGenotype = _swimbots[s].getGenotype();
-                            _mateGenotype = _potentialMate.getGenotype();
+                            //------------------------------------------------------------------------------
+                            // BUG FIX (Canton, 2026-03-15): Prevent reference aliasing of _myGenotype.
+                            //
+                            // PROBLEM: The original code reassigned _myGenotype and _mateGenotype to be
+                            // direct references to individual swimbots' internal _genotype objects:
+                            //
+                            //   _myGenotype   = _swimbots[s].getGenotype();   // <-- ALIASING BUG
+                            //   _mateGenotype = _potentialMate.getGenotype();  // <-- same pattern
+                            //
+                            // Because getGenotype() returns the swimbot's internal _genotype by reference,
+                            // after these assignments _myGenotype IS _swimbots[s]._genotype -- the same
+                            // object in memory, not a copy.
+                            //
+                            // This caused the "dot swimbot" / all-zero-gene bug: when makeNewRandomSwimbot()
+                            // later tried to reuse the slot of whichever swimbot had last mated, it would:
+                            //   1. Assign fresh gene values into _myGenotype (which IS the slot's _genotype)
+                            //   2. Call _swimbots[slot].create(..., _myGenotype, ...)
+                            //   3. create() calls this.clear() -> _genotype.clear() -> zeroes _myGenotype!
+                            //   4. Then copyFromGenotype(genotype) copies zeros from itself -> zero genes
+                            //   5. Result: swimbot renders as a dot ("all genes are 0")
+                            //
+                            // The bug was intermittent because it only fired when findLowestDeadSwimbotInArray()
+                            // happened to return the same slot as the last swimbot to have mated.
+                            //
+                            // FIX: Use copyFromGenotype() to copy gene values into the dedicated GenePool-owned
+                            // _myGenotype / _mateGenotype objects, rather than replacing those references.
+                            // copyFromGenotype() already exists and is used in makeNewRandomSwimbot() METHOD 1.
+                            //------------------------------------------------------------------------------
+
+                            // OLD CODE (buggy -- left here for easy revert if needed):
+                            //_myGenotype   = _swimbots[s].getGenotype();
+                            //_mateGenotype = _potentialMate.getGenotype();
+
+                            // NEW CODE (fixed):
+                            _myGenotype.copyFromGenotype( _swimbots[s].getGenotype() );
+                            _mateGenotype.copyFromGenotype( _potentialMate.getGenotype() );
                                                          
                             //------------------------------------------------------------------------------
                             // if the junk dna of each swimbot are similar enough...
@@ -1794,7 +1871,7 @@ if ( mode === SimulationStartMode.SPECIES )
                                 
                                 	
                                 // If we're born within view, let's hear it
-                                if ( _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() )) {
+                                if (_rendering && _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() )) {
                                     _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_BIRTH, s);
                                 }
                             
@@ -1944,11 +2021,39 @@ if ( mode === SimulationStartMode.SPECIES )
             && ( _numNearbySwimbots < BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS ))
             {
                 let distanceSquared = _swimbots[s].getGenitalPosition().getDistanceSquaredTo( _swimbots[o].getGenitalPosition() );
-                
-                if ( distanceSquared < SWIMBOT_VIEW_RADIUS * SWIMBOT_VIEW_RADIUS )
-                {                
+
+                // TWO-FACTOR DETECTION MODEL (Darwin's Chorus — Canton Becker):
+                //
+                // Factor 1 — SPATIAL GATE: is S within O's broadcast range?
+                //   utterRange is set at birth in Embryology.js and scales with 1/√dutyCycle.
+                //   Quiet utterers (low duty cycle) get a large range; busy ones get a small range.
+                //
+                // Factor 2 — TEMPORAL GATE: is O *currently uttering* right now?
+                //   PREVIOUS BEHAVIOR: this check was absent. A swimbot was always "hearable" the
+                //   moment it was inside range, regardless of how rarely it actually uttered.
+                //   Result: large utterRange (= high utterPeriod) was an uncontested evolutionary
+                //   advantage with P(detected)=1.0, and the population converged to max-period
+                //   genetics with no diversity in utterance "business."
+                //
+                //   NEW BEHAVIOR: getIsUttering() is a deterministic, clock-based flag set true
+                //   only during O's active utterance window (utterDuration ticks every utterPeriod
+                //   ticks, based on each swimbot's individual age). No randomness is introduced —
+                //   the temporal availability is fully deterministic from genetics and birth time.
+                //
+                //   Combined with the 1/√dutyCycle range formula in Embryology.js, the expected
+                //   number of detections per unit time becomes:
+                //
+                //     expected ∝ dutyCycle × range²  =  dutyCycle × (1/dutyCycle)  =  constant
+                //
+                //   Neither busy nor quiet utterers are systematically favored. Ecological pressures
+                //   (local density, population spread) become the deciding factor, which should
+                //   sustain a diverse mix of utterance strategies over evolutionary time.
+                const oUtterRange = _swimbots[o].getUtterRange();
+
+                if ( distanceSquared < oUtterRange * oUtterRange && _swimbots[o].getIsUttering() )
+                {
                     if ( !_obstacle.getObstruction( _swimbots[s].getGenitalPosition(), _swimbots[o].getGenitalPosition() ) )
-                    { 
+                    {
                         _nearbySwimbotsArray[ _numNearbySwimbots ] = _swimbots[o];
                         _numNearbySwimbots ++;
                     }
@@ -3008,7 +3113,78 @@ if ( globalTweakers.numFoodTypes === 2 )
 					}				
 
                     _swimbots[s].render( _levelOfDetail );
-      
+
+                    // When the 'brainstates' overlay is on, also visualize each swimbot's
+                    // mating range as a color-coded circle (only while actively uttering).
+                    // Brightness encodes range: dim = short reach, bright = long reach.
+                    if ( _renderingGoals && _swimbots[s].getIsUttering() )
+                    {
+                        const utterRange = _swimbots[s].getUtterRange();
+                        // 0.0 = MIN_UTTER_RANGE (grey), 1.0 = MAX_UTTER_RANGE (white)
+                        const rangeFraction = ( utterRange - MIN_UTTER_RANGE ) / ( MAX_UTTER_RANGE - MIN_UTTER_RANGE );
+                        const brightness = Math.round( 100 + rangeFraction * 155 );  // 100 (grey) → 255 (white)
+                        canvas.lineWidth = 0.5 + 0.002 * _camera.getScale();
+                        canvas.strokeStyle = `rgba( ${brightness}, ${brightness}, ${brightness}, 0.55 )`;
+                        canvas.beginPath();
+                        canvas.arc( _swimbots[s].getPosition().x, _swimbots[s].getPosition().y, utterRange, 0, PI2, false );
+                        canvas.stroke();
+                        canvas.closePath();
+                    }
+
+                    if ( _renderingGoals )
+                    {
+                        const brainState = _swimbots[s].getBrainState();
+                        let label = null;
+                        let color = '#ffffff';
+                        if      ( brainState === BRAIN_STATE_LOOKING_FOR_MATE ) { label = s + ' 👀'; }
+                        else if ( brainState === BRAIN_STATE_PURSUING_FOOD    ) { label = s + ' 🍏'; }
+                        else if ( brainState === BRAIN_STATE_PURSUING_MATE    )
+                        {
+                            const mateIdx = _swimbots[s].getChosenMateIndex();
+                            label = s + ' ❤️ ' + mateIdx;
+
+                            // Give each pursuing pair a unique bright color so you can
+                            // visually spot reciprocal pursuits: if swimbot 5 chases 10
+                            // AND swimbot 10 chases 5, both labels share the same color.
+                            // If 5→10 but 10→15, they'll be different colors.
+                            //
+                            // How: sort the two IDs so the pair is order-independent,
+                            // hash them with two primes to scatter across the color wheel,
+                            // then use HSL at full saturation / 75% lightness for brightness.
+                            const lo = Math.min( s, mateIdx );
+                            const hi = Math.max( s, mateIdx );
+                            const pairHash = ( lo * 7919 + hi * 6271 ) & 0xFFFF;
+                            const hue = pairHash % 360;
+                            color = 'hsl(' + hue + ', 100%, 75%)';
+                        }
+                        if ( label !== null )
+                        {
+                            const pos      = _swimbots[s].getPosition();
+                            // Font size in world-space units that renders as ~13px on screen.
+                            // _camera.getScale() is viewport height in world units (min ~500),
+                            // NOT a pixel ratio — using it directly produced fontSize=0 which
+                            // Chrome/Firefox silently skip (Safari renders 0px text anyway).
+                            const worldPerPixel = _camera.getXDimension() / _canvasWidth;
+                            const fontSize      = Math.max( 1, Math.round( 13 * worldPerPixel ) );
+                            const offset        = 18 * worldPerPixel;
+                            canvas.font         = `bold ${fontSize}px Arial`;
+                            canvas.textAlign    = 'center';
+                            canvas.textBaseline = 'bottom';
+
+                            // Semi-transparent backdrop so labels stay readable over any swimbot color.
+                            const metrics  = canvas.measureText( label );
+                            const padX     = 3 * worldPerPixel;
+                            const padY     = 2 * worldPerPixel;
+                            const txtW     = metrics.width;
+                            const txtH     = fontSize;
+                            canvas.fillStyle = 'rgba(0, 0, 0, 0.45)';
+                            canvas.fillRect( pos.x - txtW / 2 - padX, pos.y - offset - txtH - padY, txtW + padX * 2, txtH + padY * 2 );
+
+                            canvas.fillStyle = color;
+                            canvas.fillText( label, pos.x, pos.y - offset );
+                        }
+                    }
+
                     if (( s === _mousedOverSwimbot )
                     ||  ( s === _selectedSwimbot   ))
                     {
@@ -3704,6 +3880,9 @@ if ( globalTweakers.numFoodTypes === 2 )
 	this.getRenderingGoals      = function() { return _renderingGoals;          }
 	this.getSimulationRunning   = function() { return _simulationRunning;       }
 	this.getRendering           = function() { return _rendering;               }
+	this.getCameraScale         = function() { return _camera.getScale();      }
+	this.getCameraIsZooming     = function() { return _camera.isZooming();     }
+	this.getLevelOfDetail        = function() { return _levelOfDetail;          }
 	this.getSelectedSwimbotID   = function() { return _selectedSwimbot;         }
 	this.getViewMode            = function() { return _viewTracking.getMode();  }
     this.getNumDeadSwimbots     = function() { return _numDeadSwimbots;         }   
@@ -3835,6 +4014,9 @@ if ( globalTweakers.numFoodTypes === 2 )
                     
 	    return num;	
 	}
+
+	//------------------------------
+	this.getClock = function() { return _clock; }
 
 	//------------------------------
 	this.getNumSwimbots = function()
@@ -4091,6 +4273,29 @@ for (let g=0; g<NUM_GENES; g++)
 	this.getSwimbotUtterPeriod              = function( ID ) {	return _swimbots[ ID ].getUtterPeriod               (); }
 	this.getSwimbotUtterDuration            = function( ID ) {	return _swimbots[ ID ].getUtterDuration             (); }
 	this.getSwimbotNickname                 = function( ID ) {	return _swimbots[ ID ].getNickname                  (); }
+
+    // Returns an array of utterance-related phenotype data for every currently-living swimbot.
+    // Used by the Utterance Statistics panel (js/utteranceStats.js) to snapshot the population.
+    this.getLivingSwimbotUtteranceData = function() {
+        const data = [];
+        for ( let s = 0; s < MAX_SWIMBOTS; s++ ) {
+            if ( _swimbots[ s ].getAlive() ) {
+                data.push({
+                    index:           s,                                  // slot index — used for deterministic scatter jitter
+                    utterPeriod:     _swimbots[ s ].getUtterPeriod(),
+                    utterDuration:   _swimbots[ s ].getUtterDuration(),
+                    utterRange:      _swimbots[ s ].getUtterRange(),
+                    utterDuty:       _swimbots[ s ].getUtterDuty(),
+                    utterNoteCount:  _swimbots[ s ].getUtterNoteCount(),
+                    utterModCount:   _swimbots[ s ].getUtterModCount(),
+                    utterHighNote:   _swimbots[ s ].getUtterHighNote(),
+                    utterLowNote:    _swimbots[ s ].getUtterLowNote(),
+                    utterPreference: _swimbots[ s ].getUtterPreference(),
+                });
+            }
+        }
+        return data;
+    };
 
     
     // this is now being initialized from the index.html...

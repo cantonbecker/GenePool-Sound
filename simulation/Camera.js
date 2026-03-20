@@ -52,6 +52,7 @@ function Camera()
 	let _scaleShift			= new ScaleShift();
 	let _scaleDelta 	    = ZERO;
 	let _scale      	    = ONE;
+	let _previousScale      = ONE;  // used by isZooming() to detect per-frame scale changes
     let _aspectRatio        = ONE;
 	let _left	    	    = ZERO;
 	let _right	    	    = ZERO;
@@ -62,7 +63,16 @@ function Camera()
 	
 	//--------------------------------
 	this.update = function( seconds )
-	{		
+	{
+        //-------------------------------------------
+        // Snapshot scale before any changes this frame. This is compared
+        // against _scale at the end of the frame by isZooming() to detect
+        // whether the camera zoomed during this update tick. We capture it
+        // here at the top so that all zoom sources are caught: user scroll,
+        // button/drag input, programmatic doScaleShift(), and view tracking.
+        //-------------------------------------------
+        _previousScale = _scale;
+
         //-------------------------------------------
         // friction
         //-------------------------------------------
@@ -364,8 +374,27 @@ function Camera()
 
 	//---------------------------
 	this.getScale = function()
-	{	
+	{
         return _scale;
+	}
+
+	//-----------------------------------------------------------------------
+	// isZooming: returns true if the camera scale changed meaningfully
+	// this frame. Used by GenePool to temporarily lower the LOD threshold
+	// during zoom, preventing expensive HIGH LOD bezier rendering from
+	// causing frame drops and audio hangs while the view is in motion.
+	//
+	// The "> 2.0" dead zone (out of a ~500–8000 scale range) is needed
+	// because Camera uses friction-based deceleration: after the user
+	// releases a zoom control, _scaleDelta decays gradually toward zero
+	// over several seconds, causing _scale to keep changing by tiny
+	// imperceptible sub-pixel amounts. Without this threshold, isZooming()
+	// would stay true for ~3 seconds after release, keeping the LOD
+	// artificially low long after the zoom motion is visually done.
+	//-----------------------------------------------------------------------
+	this.isZooming = function()
+	{
+        return Math.abs( _scale - _previousScale ) > 2.0;
 	}
 	
 	//---------------------------

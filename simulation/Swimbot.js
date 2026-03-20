@@ -760,6 +760,28 @@ _position.copyFrom( position );
         _brain.setEnergyLevel( _energy );
         _brain.update();
 
+        //------------------------------------------------------------------------------------
+        // tick down the mate-search window counter every clock tick.
+        //
+        // Previously this decrement lived inside setUtterStimuli(), which meant the counter
+        // only ticked when the O(n²) proximity scan ran. That tied the 160-tick mate-search
+        // window duration to scan frequency — reducing scan frequency would have silently
+        // stretched the window, slowing reproduction.
+        //
+        // By moving the decrement here (which runs every tick unconditionally), the window
+        // always takes exactly BRAIN_LOOKING_FOR_MATE_DURATION ticks regardless of how
+        // often UTTER_STIMULI_SCAN_INTERVAL causes the scan to be skipped.
+        //
+        // At UTTER_STIMULI_SCAN_INTERVAL=1 (scan every tick), behavior is bit-for-bit
+        // identical to the original — the counter decrements once per tick in both cases.
+        // See the equivalence notes in setUtterStimuli() for the settlement/forced-upgrade
+        // check adjustments that accompany this move.
+        //------------------------------------------------------------------------------------
+        if ( _brain.getState() === BRAIN_STATE_LOOKING_FOR_MATE )
+        {
+            _brain.setLookingForMateCounter( _brain.getLookingForMateCounter() - 1 );
+        }
+
         //-----------------------------------
         // uttering
         //-----------------------------------
@@ -1377,6 +1399,8 @@ let partAccelerationY = -strokeForceY;
     this.getDigestibleFoodType          = function() { return _phenotype.digestibleFoodType;                }
     this.getUtterPeriod                 = function() { return _phenotype.utterPeriod;                       }
     this.getUtterDuration               = function() { return _phenotype.utterDuration;                     }
+    this.getUtterRange                  = function() { return _phenotype.utterRange;                        } // how far this swimbot's voice reaches for mate detection (see MIN/MAX_UTTER_RANGE in SwimbotTypes.js)
+    this.getUtterDuty                   = function() { return _phenotype.utterDuration / _phenotype.utterPeriod; } // duty cycle: fraction of time spent uttering (utterDuration/utterPeriod). Busy=~0.94, Quiet=~0.06.
     this.getUtterPreference             = function() { return _phenotype.utterPreference;                     }
     this.getUtterNotes                  = function() { return _phenotype.utterNotes;                        }
     this.getUtterHighNote               = function() { return _phenotype.utterHighNote;                     }
@@ -1523,20 +1547,42 @@ let partAccelerationY = -strokeForceY;
         //------------------------------------------------------------------------------------------------	
         
         if ( _brain.getState() === BRAIN_STATE_LOOKING_FOR_MATE )
-        {			
-            // console.log( "horny" );
-            let myLookingForMateCounter = _brain.getLookingForMateCounter();
-            let myNickname = this.getNickname(); // will use nicknameFromStringHash
+        {
+            // DETECTION MODEL
+            //
+            // A candidate mate is visible only if it is currently uttering AND within its own
+            // utterRange (see giveSwimbotNearbyUtteringStimuli() in GenePool.js). This swimbot
+            // surveys all such candidates over a full BRAIN_LOOKING_FOR_MATE_DURATION window,
+            // then commits to the most attractive one found.
+            //
+            // Once committed, it transitions to BRAIN_STATE_PURSUING_MATE and will NOT
+            // reconsider other candidates — even if a closer or more attractive swimbot utters
+            // nearby. To find a different mate it must first lose the current target and
+            // re-enter this state. See the PURSUING_MATE branch below for pursuit logic.
+            //
+            // The counter is now decremented in update() every tick, not here.
+            // See the note there for why. We read it below for settlement/upgrade checks.
+            //
+            // Equivalence proof for UTTER_STIMULI_SCAN_INTERVAL = 1:
+            //   Original: counter was decremented HERE (pre-decrement value used in checks).
+            //             Settlement fired when pre-decrement value <= 1 (i.e. counter just hit 0).
+            //             Forced-upgrade fired when pre-decrement value < 0 (i.e. counter was already < 0).
+            //   New:      counter decremented in update() before this runs (post-decrement value here).
+            //             Settlement fires when post-decrement counter <= 0  — same tick. ✓
+            //             Forced-upgrade fires when post-decrement counter < -1 — same tick. ✓
+            //   At interval=1, setUtterStimuli is called every tick just as before, so the number
+            //   of mate evaluations per window is also identical. The simulation is bit-for-bit
+            //   equivalent to the original at interval=1.
 
-            _brain.setLookingForMateCounter(myLookingForMateCounter - 1);
-            // console.log("Swimbot " + myNickname + " myLookingForMateCounter="+myLookingForMateCounter);
-            
+            let counter = _brain.getLookingForMateCounter(); // already decremented this tick
+            let myNickname = this.getNickname();
+
             let mostAttractiveFound = new Swimbot;
             let atLeastOneBabeIsVisible = false;
             let highestBabeFactor = -100.0;
 
             for (let o=0; o<numNearbySwimbots; o++)
-            {	                
+            {
                 let babeFactor = nearbySwimbotArray[o].getAttractiveness( this, _phenotype, _index );
 
                 if (( babeFactor > highestBabeFactor )
@@ -1544,7 +1590,6 @@ let partAccelerationY = -strokeForceY;
                 &&  ( nearbySwimbotArray[o].getAge() > YOUNG_AGE_DURATION )
                 &&  ( nearbySwimbotArray[o].getEnergy() > STARVING ))
                 {
-                    //console.log( "ok" );
                     highestBabeFactor = babeFactor;
                     mostAttractiveFound = nearbySwimbotArray[o];
                     assert( mostAttractiveFound != null, "mostAttractiveFound != null" );
@@ -1554,26 +1599,23 @@ let partAccelerationY = -strokeForceY;
 
             if ( atLeastOneBabeIsVisible )
             {
-                // if we found a mate, only lock onto it if it's a better mate than our current _chosenMate
-                if ( _chosenMate === null || highestBabeFactor > _chosenMateAttraction || myLookingForMateCounter < 0) {
-                    let chosenMateNickname = mostAttractiveFound.getNickname();
-                    if (_chosenMate === null ) {
-                        // console.log("Swimbot " + myNickname + " @ counter " + myLookingForMateCounter + " first mate choice is " + chosenMateNickname + " w/ " + highestBabeFactor);
-                    } else {
-                        // console.log("Swimbot " + myNickname + " @ counter " + myLookingForMateCounter + " now prefers " + chosenMateNickname + " w/ " + highestBabeFactor);
-                    }
-                    _chosenMate = mostAttractiveFound;
+                // Accept this mate if: no mate yet, this one is more attractive, OR the window
+                // has already expired (counter < -1, post-decrement equivalent of original's < 0).
+                // The expired-window case forces acceptance of any visible mate so the swimbot
+                // doesn't get stuck indefinitely looking for a perfect match that never comes.
+                if ( _chosenMate === null || highestBabeFactor > _chosenMateAttraction || counter < -1 )
+                {
+                    _chosenMate           = mostAttractiveFound;
                     assert( _chosenMate != null, "_chosenMate != null" );
-    
-                    _chosenMateIndex = mostAttractiveFound.getIndex();
+                    _chosenMateIndex      = mostAttractiveFound.getIndex();
                     assert( _chosenMateIndex != NULL_INDEX, "_chosenMateIndex != NULL_INDEX" );
-
                     _chosenMateAttraction = highestBabeFactor;
-                }    
-                // we don't ever settle for a found swimbot until we've gone through our looking duration
-                if (myLookingForMateCounter <= 1) { 
-                    // console.log("Swimbot " + myNickname + " @ counter " + myLookingForMateCounter + " has settled on swimbot no. " + _chosenMateIndex);
-                    _brain.setLookingForMateCounter(BRAIN_LOOKING_FOR_MATE_DURATION); // set this back up for next time we need to count down
+                }
+                // Don't commit until the full window has elapsed (counter <= 0, post-decrement
+                // equivalent of original's <= 1). This gives the swimbot time to survey options.
+                if ( counter <= 0 )
+                {
+                    _brain.setLookingForMateCounter( BRAIN_LOOKING_FOR_MATE_DURATION ); // reset for next search
                     _brain.setFoundSwimbot( true );
                 }
             }
@@ -1584,25 +1626,41 @@ let partAccelerationY = -strokeForceY;
         }
         else if ( _brain.getState() == BRAIN_STATE_PURSUING_MATE )
         {
-            //console.log( "pursuing mate" );
-            
+            // PURSUIT MODEL
+            //
+            // Once locked onto a mate, this swimbot is fully committed — it will not
+            // evaluate any other candidates while in this state, even if a more attractive
+            // swimbot utters nearby. "Poaching" is not possible. The only path to a new
+            // mate is to lose this one first, re-enter LOOKING_FOR_MATE, and start a
+            // fresh search window.
+            //
+            // Pursuit continues as long as the target is alive and within range. The leash
+            // length is the TARGET's utterRange (not this swimbot's), consistent with the
+            // detection model: a loud singer is findable and trackable at greater distance
+            // than a quiet one. A quiet target with a short utterRange will be lost sooner
+            // if it swims away; a loud target with a long utterRange can be chased further.
+            //
+            // This check is distance-only — do NOT re-check nearbySwimbotArray here, since
+            // that array is filtered by getIsUttering(). The target must not vanish from
+            // pursuit simply because it stops singing mid-chase.
+            //
+            // Chase is abandoned if:
+            //   - the target has died
+            //   - the target's slot was reused (index mismatch — a different swimbot now
+            //     occupies that slot)
+            //   - the target has physically swum beyond its own utterRange
             let ICanStillSeeYou = false;
-
-            for (let o=0; o<numNearbySwimbots; o++)
-            {	
-                let index = nearbySwimbotArray[o].getIndex();
-                if ( index === _chosenMateIndex )
-                {
-                    ICanStillSeeYou = true;
-                    _chosenMate = nearbySwimbotArray[o];
-                }
+            if ( _chosenMate !== null && _chosenMate.getAlive() && _chosenMate.getIndex() === _chosenMateIndex )
+            {
+                const targetRange = _chosenMate.getUtterRange();
+                const dist2       = this.getGenitalPosition().getDistanceSquaredTo( _chosenMate.getGenitalPosition() );
+                ICanStillSeeYou   = dist2 < targetRange * targetRange;
             }
 
             if ( ! ICanStillSeeYou )
             {
-                //console.log( "can't see you anymore" );
                 _brain.setFoundSwimbot( false );
-                _chosenMate = null;
+                _chosenMate      = null;
                 _chosenMateIndex = NULL_INDEX;
             }
         }
@@ -1847,32 +1905,35 @@ let partAccelerationY = -strokeForceY;
 
     
 
-	//-----------------------------------------
+	//------------------------------------------------------------------------------------
 	// get closeness
-	//-----------------------------------------
+	//
+	// Returns a 0.0–1.0 score indicating how "close" the judge swimbot feels to this one,
+	// used as an attractiveness criterion when ATTRACTION_CLOSEST is the active strategy.
+	//
+	// Previously this normalized distance against the fixed constant SWIMBOT_VIEW_RADIUS.
+	// Now it normalizes against the judge's own utterRange — their personal broadcast radius.
+	//
+	// Why: a quiet swimbot (large utterRange) can reach distant mates; normalizing against
+	// their actual range means "distance 250 out of range 600" still scores as reasonably
+	// close (0.58), reflecting that this swimbot IS within earshot. Under the old system
+	// that same distance against a fixed 300 would score as nearly at the edge (0.17),
+	// which would have unfairly penalized wide-range quiet swimbots.
+	//------------------------------------------------------------------------------------
 	this.getCloseness = function( judge )
 	{
-	    //console.log( "getCloseness" );
-	    
-        let closest = SWIMBOT_VIEW_RADIUS; //maximum
-        
-        let distance = _position.getDistanceTo( judge.getPosition() );
-            
-        /*    
-        if ( distance > SWIMBOT_VIEW_RADIUS )
-        {
-            console.log( distance + ", " + SWIMBOT_VIEW_RADIUS );
-        }
-        
-        //assert( distance <= SWIMBOT_VIEW_RADIUS, "swimbot.js: getCloseness: distance <= SWIMBOT_VIEW_RADIUS" );
-        */
-        
+        const judgeRange = judge.getUtterRange(); // the broadcaster's effective hearing/broadcast radius
+        let closest = judgeRange;                 // maximum possible distance within range
+
+        const distance = _position.getDistanceTo( judge.getPosition() );
+
         if ( distance < closest )
         {
             closest = distance;
         }
-        
-        return ONE - ( closest / SWIMBOT_VIEW_RADIUS );
+
+        // Returns 1.0 if right on top of each other, 0.0 if at the edge of range
+        return ONE - ( closest / judgeRange );
     }
     
     

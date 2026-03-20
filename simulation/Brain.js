@@ -27,11 +27,6 @@ const BRAIN_STATE_PURSUING_PREY       =  6;
 const BRAIN_STATE_FLEEING_PREDATOR    =  7;
 const NUM_BRAIN_STATES                =  8;
 
-//--------------------------------------------
-// perceiving
-//--------------------------------------------
-const BRAIN_SENSORY_UPDATE_PERIOD           = 50;
-const BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS   = 20;
 
 // when I am in the mood for love, I will look for the fittest partner for
 // this many clock cycles, during which time my _chosenMate may get upgraded for a better one

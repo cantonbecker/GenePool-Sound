@@ -62,12 +62,6 @@ const MAX_SEQUENCE_COUNT    =   5;
 const GREATEST_POSSIBLE_SWIMBOT_MASS = MAX_PARTS * MAX_LENGTH * MAX_WIDTH
 const GREATEST_POSSIBLE_SWIMBOT_LENGTH	= MAX_PARTS * MAX_LENGTH;
 
-// Utter constants, all in clock time. To think of these in ms, multiply by APPROX_MS_PER_CLOCK (declared in Sound.js)
-
-const MIN_UTTER_PERIOD 	 = 160;    // min time between utterances
-const MAX_UTTER_PERIOD 	 = MIN_UTTER_PERIOD * 4;   // max time between utterances
-const MIN_UTTER_DURATION = 40;  	 // min utter length ( watch out if this is less than BRAIN_SENSORY_UPDATE_PERIOD!!! )
-const MAX_UTTER_DURATION = 150;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
 
 /* VALS FOR VIDEO DEMO */
 // const MIN_UTTER_PERIOD 	 = 200;    // min time between utterances
@@ -293,7 +287,50 @@ let testNoEel = true;
         _geneNames[g] = "utter duration";        
 		  phenotype.utterDuration = MIN_UTTER_DURATION + Math.floor( _normalizedGenes[g] * ( MAX_UTTER_DURATION - MIN_UTTER_DURATION ) );     
 
-        g++;  
+        // Compute utterRange: the effective mating detection radius for this swimbot's voice.
+        //
+        // PREVIOUS FORMULA (period-first, duration as secondary trim):
+        //   range = MIN + (utterPeriod/maxPeriod) × span  − durationFraction × span × 0.25
+        //   Problem: utterPeriod was the dominant driver, and long-period swimbots gained a large
+        //   spatial range with P(detected)=1.0. Over long evolutionary runs this was an uncontested
+        //   advantage — the entire population converged to max-period genetics with little diversity.
+        //
+        // NEW FORMULA (1/√dutyCycle — balanced with the getIsUttering() detection gate in GenePool.js):
+        //
+        //   dutyCycle = utterDuration / utterPeriod  (fraction of time spent actually uttering)
+        //
+        //   range ∝ 1 / √dutyCycle
+        //
+        //   This pairs with the GenePool.js detection gate which only detects a candidate when it is
+        //   *currently uttering* (getIsUttering()). The expected number of detections per unit time
+        //   becomes:
+        //
+        //     expected ∝ dutyCycle × range²
+        //               = dutyCycle × (1/dutyCycle)       [because range² ∝ 1/dutyCycle]
+        //               = constant  ✓
+        //
+        //   Neither busy nor quiet utterers are evolutionarily favored by this formula alone.
+        //   The pressure selecting between the two strategies comes from ECOLOGY, not the formula:
+        //   busy utterers attract mates that happen to be nearby; quiet utterers cast a wide net
+        //   but rarely call. A diverse mix of strategies should persist.
+        //
+        // Examples of utterRange with new formula (MIN=150, MAX=600):
+        //   period=640, duration= 40  →  dutyCycle=0.0625  →  range ≈ 600  (quietest possible)
+        //   period=640, duration=150  →  dutyCycle=0.234   →  range ≈ 307
+        //   period=160, duration= 40  →  dutyCycle=0.250   →  range ≈ 297
+        //   period=400, duration= 95  →  dutyCycle=0.238   →  range ≈ 305
+        //   period=160, duration=150  →  dutyCycle=0.9375  →  range ≈ 150  (busiest possible)
+        //
+        const minDutyCycle    = MIN_UTTER_DURATION / MAX_UTTER_PERIOD;  // ~0.0625 (quietest)
+        const maxDutyCycle    = MAX_UTTER_DURATION / MIN_UTTER_PERIOD;  // ~0.9375 (busiest)
+        const dutyCycle       = phenotype.utterDuration / phenotype.utterPeriod;
+        // inverseSqrtDuty: 1.0 at maxDutyCycle (busy → small range), ~3.873 at minDutyCycle (quiet → large range)
+        const inverseSqrtDuty    = Math.sqrt( maxDutyCycle / dutyCycle );
+        const inverseSqrtMaximum = Math.sqrt( maxDutyCycle / minDutyCycle );  // ~3.873
+        const rangeFraction   = ( inverseSqrtDuty - 1 ) / ( inverseSqrtMaximum - 1 );
+        phenotype.utterRange  = MIN_UTTER_RANGE + rangeFraction * ( MAX_UTTER_RANGE - MIN_UTTER_RANGE );
+
+        g++;
         _geneNames[g] = "utter preference";
         phenotype.utterPreference = _normalizedGenes[g];
         
@@ -313,7 +350,7 @@ let testNoEel = true;
         
         //------------------------------------------------------------------------------------------------
         // *** generate the markov-chained utterance sequence ***
-        // when a swimbot is born, its unique and individual life-long MIDI "song" is composed
+        // when a swimbot is born, its unique and individual life-long "song" is composed
         // and its utterance-related phenotypes (utterHighNote, utterNoteCount, etc.) are determined ...
         //------------------------------------------------------------------------------------------------
         
@@ -326,7 +363,7 @@ let testNoEel = true;
             );   
              
         // this gives us back everything we need to store utterance and sequence-related phenotype data:
-        phenotype.utterSequence     = utterancePhenotypeObj.sequenceData;       // the MIDI sequence and done signal
+        phenotype.utterSequence     = utterancePhenotypeObj.sequenceData;       // the note/CC sequence and done signal
         phenotype.utterNotes        = utterancePhenotypeObj.recordNotesUsed;    // array of unique note pitches we used
         phenotype.utterHighNote     = utterancePhenotypeObj.recordHighNote;     // highest pitch performed
         phenotype.utterLowNote      = utterancePhenotypeObj.recordLowNote;      // lowest pitch performed

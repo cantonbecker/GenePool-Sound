@@ -15,9 +15,6 @@
 
 
 //--------------------------
-const FIRST_INFO_PAGE = 1;
-const LAST_INFO_PAGE  = 28;
-
 const DEFAULT_BASIC_PANEL_COLOR         = "#caccc2";
 const DEFAULT_BASIC_BUTTON_COLOR        = "#dadad0";   
 const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";   
@@ -27,8 +24,7 @@ var DEVELOPER_MODE = true; // reflects how we launch into developer mode with th
 var DEMO_MODE = false; // used for unattended testing
 let _lastPresetRequestTS = 0;
 
-let _currentInfoPage            = FIRST_INFO_PAGE;
-let _graph                      = new Graph(); 
+let _graph                      = new Graph();
 let _tweakGenesCategory         = 0;
 let _runningFast                = false;
 let _rate_lastStep = 0;
@@ -335,15 +331,14 @@ function updateEcosystemUI()
 //----------------------------
 function closeAllPanels()
 {
-    document.getElementById('poolPanel'    ).style.visibility = 'hidden';		        
-    document.getElementById('swimbotPanel' ).style.visibility = 'hidden';		        
-    document.getElementById('graphPanel'   ).style.visibility = 'hidden';		        
-    document.getElementById('tweakPanel'   ).style.visibility = 'hidden';		        
-    document.getElementById('infoPanel'    ).style.visibility = 'hidden';		        
-    document.getElementById('infoText'     ).style.visibility = 'hidden';
-    
-    document.getElementById('prevInfoButton' ).style.visibility = 'hidden';	
-    document.getElementById('nextInfoButton' ).style.visibility = 'hidden';	
+    document.getElementById('poolPanel'    ).style.visibility = 'hidden';
+    document.getElementById('swimbotPanel' ).style.visibility = 'hidden';
+    document.getElementById('graphPanel'   ).style.visibility = 'hidden';
+    document.getElementById('tweakPanel'   ).style.visibility = 'hidden';
+    document.getElementById('infoPanel'    ).style.visibility = 'hidden';
+    document.getElementById('audioMixer'   ).style.visibility = 'hidden';
+    clearInterval(_audioStatusTimer);
+    clearInterval(_poolStatusTimer);
     
     document.getElementById('noSelectedSwimbotPanel' ).style.visibility = 'hidden';	
     document.getElementById('selectedSwimbotPanel'   ).style.visibility = 'hidden';	
@@ -392,10 +387,38 @@ function openPanel( buttonID )
 }
 
 
+var _poolStatusTimer = null;
+
 //--------------------------
 function openPoolPanel()
 {
-    document.getElementById( 'poolPanel' ).style.visibility = 'visible'; 
+    document.getElementById( 'poolPanel' ).style.visibility = 'visible';
+    updatePoolStatus();
+    clearInterval(_poolStatusTimer);
+    _poolStatusTimer = setInterval(updatePoolStatus, 250);
+}
+
+//--------------------------
+function updatePoolStatus() {
+    const el = document.getElementById('poolStatusPanel');
+    if (!el) return;
+    // genePool may not be initialized yet (this can be called at startup
+    // before the simulation has started and the camera exists)
+    if (typeof genePool === 'undefined' || !genePool.getRendering()) return;
+
+    const scale = Math.round(genePool.getCameraScale());
+    const lod = genePool.getLevelOfDetail();
+    const zooming = genePool.getCameraIsZooming();
+
+    const lodNames = ['dot', 'low', 'high'];
+    const lodName = lodNames[lod] || '?';
+    const lodThreshold = zooming ? LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING : LEVEL_OF_DETAIL_THRESHOLD;
+
+    el.innerHTML =
+        `<b>Zoom:</b> ${scale}` +
+        ` &nbsp; <b>LOD:</b> ${lodName}` +
+        (zooming ? ' <span style="color:#c80;">(zooming)</span>' : '') +
+        ` &nbsp; <b>Threshold:</b> ${lodThreshold}`;
 }
 
 //--------------------------
@@ -647,15 +670,16 @@ function toggleFastRendering()
     {
         _runningFast = false;
         genePool.setMillisecondsPerUpdateToDefault();
-        document.getElementById( "fastButton" ).style = "border-color: " + DEFAULT_BASIC_BUTTON_BORDER_COLOR;       
+        document.getElementById( "fastButton" ).style = "border-color: " + DEFAULT_BASIC_BUTTON_BORDER_COLOR;
     }
     else
     {
         _runningFast = true;
         genePool.setMillisecondsPerUpdate(0);
-        document.getElementById( "fastButton" ).style.borderColor = ACTIVE_BORDER_COLOR;             
-        document.getElementById( "fastButton" ).style.borderWidth =  "3px";   
+        document.getElementById( "fastButton" ).style.borderColor = ACTIVE_BORDER_COLOR;
+        document.getElementById( "fastButton" ).style.borderWidth =  "3px";
     }
+    updateAudioDisabledState();
 }
 
 
@@ -709,9 +733,10 @@ function setRendering(r)
         /*
         _runningFast = true;
         genePool.setMillisecondsPerUpdate(0);
-        document.getElementById( "fastButton" ).style = "border-color: " + ACTIVE_BORDER_COLOR + ";"                
+        document.getElementById( "fastButton" ).style = "border-color: " + ACTIVE_BORDER_COLOR + ";"
         */
     }
+    updateAudioDisabledState();
 }
 
 
@@ -958,61 +983,53 @@ function tweakGene(swimbotIndex, sliderIndex) {
 
 
 //----------------------------
+var _audioStatusTimer = null;
+
+function updateAudioDisabledState() {
+    const disabled = _runningFast || !genePool.getRendering();
+    const notice = document.getElementById('audioDisabledNotice');
+    const slider = document.getElementById('mixerMaster');
+    if (notice) notice.style.display = disabled ? 'block' : 'none';
+    if (slider) slider.disabled = disabled;
+}
+
 function openInfoPanel()
-{		    
-    document.getElementById( 'infoPanel' ).style.visibility = 'visible'; 
-    document.getElementById( 'infoText'  ).style.visibility = 'visible';
-    
-    //let the current page load up
-    setInfoPage( _currentInfoPage );
-}
-
-
-//---------------------------------------
-function advanceInfoPage( increment )
-{		    
-    _currentInfoPage += increment;    
-    
-    if ( _currentInfoPage < FIRST_INFO_PAGE )
-    {
-        _currentInfoPage = FIRST_INFO_PAGE;
-    }
-
-    if ( _currentInfoPage > LAST_INFO_PAGE )
-    {
-        _currentInfoPage = LAST_INFO_PAGE;
-    }
-
-    setInfoPage( _currentInfoPage );
-}
-
-
-
-
-//---------------------------------------------
-function setInfoPage( pageNumber )
 {
-    document.getElementById( 'pageNumberLabel'  ).innerHTML = "page " + _currentInfoPage + " of 28";
-    document.getElementById( "infoText"         ).innerHTML = getInfoText( _currentInfoPage );    
-
-    if ( _currentInfoPage === FIRST_INFO_PAGE )
-    {
-        document.getElementById( 'prevInfoButton' ).style.visibility = 'hidden'
-    }
-    else
-    {
-        document.getElementById( 'prevInfoButton' ).style.visibility = 'visible'
-    }
-
-    if ( _currentInfoPage === LAST_INFO_PAGE )
-    {
-        document.getElementById( 'nextInfoButton' ).style.visibility = 'hidden'
-    }
-    else
-    {
-        document.getElementById( 'nextInfoButton' ).style.visibility = 'visible'
-    }
+    document.getElementById( 'infoPanel' ).style.visibility = 'visible';
+    document.getElementById( 'audioMixer' ).style.visibility = 'visible';
+    updateAudioStatus();
+    // Refresh status every 500ms while the audio tab is open
+    clearInterval(_audioStatusTimer);
+    _audioStatusTimer = setInterval(updateAudioStatus, 500);
 }
+
+function updateAudioStatus() {
+    const el = document.getElementById('audioStatusPanel');
+    if (!el) return;
+    if (typeof SwimbotSynth === 'undefined' || !SwimbotSynth.isReady()) {
+        el.innerHTML = '<span style="color:#c00;">Audio engine not initialized</span>';
+        return;
+    }
+    const s = SwimbotSynth.getLoadingStatus();
+    const irReady = (s.irLoaded === s.irTotal);
+    const samplesReady = (s.samplesLoaded === s.samplesTotal);
+    const wetPct = Math.round(s.reverbWet * 100);
+    const noteNames = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const midiToName = function(n) { return noteNames[n % 12] + Math.floor(n / 12 - 1); };
+    const shiftedNote = BASE_NOTE + UNIVERSAL_NOTE_SHIFT;
+    el.innerHTML =
+        `<b>Voices:</b> <span id="audioVoiceCount">${SwimbotSynth.getActiveVoices()} / ${WEB_MAXIMUM_VOICES}</span><br>` +
+        `<b>Reverb:</b> ${s.currentIR || 'none'} (wet ${wetPct}%)<br>` +
+        `<b>Loop:</b> ${s.currentLoop ? s.currentLoop.replace('loop-','') : 'none'}<br>` +
+        `<b>Interval:</b> ${CURRENT_INTERVAL_SET_NAME || 'none'}<br>` +
+        `<b>Base Note:</b> ${midiToName(BASE_NOTE)} (MIDI ${BASE_NOTE})` +
+        ` &nbsp; <b>Shift:</b> ${UNIVERSAL_NOTE_SHIFT >= 0 ? '+' : ''}${UNIVERSAL_NOTE_SHIFT} → ${midiToName(shiftedNote)}<br>` +
+        `<b>IRs:</b> ${irReady ? '<span style="color:#090;">' + s.irTotal + ' loaded</span>' : `<span style="color:#c80;">${s.irLoaded}/${s.irTotal}</span>`}` +
+        ` &nbsp; <b>Samples:</b> ${samplesReady ? '<span style="color:#090;">' + s.samplesTotal + ' loaded</span>' : `<span style="color:#c80;">${s.samplesLoaded}/${s.samplesTotal}</span>`}<br>` +
+        `<b>Autopilot:</b> ${AUTOPILOT_MODE ? '<span style="color:#c00;">active</span>' : `at ${Math.round(USER_INACTION_TIME_OUT / 60)}m inactivity`} with ${Math.round(AUTOPILOT_VOLUME_REDUCTION * 100)}% vol. decrease`;
+}
+
+
 
 
 
@@ -1385,6 +1402,18 @@ _canvasEl.onmouseout = function(e) {
         genePool.touchOut(x, y);
     }
 };
+
+// allow mouse wheel to control scroll while in fullscreen mode
+let _wheelZoomTimer = null;
+_canvasEl.addEventListener('wheel', function(e) {
+    if (typeof genePool === "undefined") return;
+    if (DEVELOPER_MODE) return; // only active in fullscreen/pointerlock mode
+    e.preventDefault();
+    const action = e.deltaY < 0 ? CameraNavigationAction.IN : CameraNavigationAction.OUT;
+    genePool.startCameraNavigation(action);
+    clearTimeout(_wheelZoomTimer);
+    _wheelZoomTimer = setTimeout(() => genePool.stopCameraNavigation(), 150);
+}, { passive: false });
 
 /* Set the panel title to include the version number and the current simulation (ID) */
 function updateUItitle() {

@@ -69,8 +69,9 @@ const SWIMBOT_MOUTH_LENGTH      = 10.0;
 const SWIMBOT_GENITAL_LENGTH    = 10.0;
 const SWIMBOT_MOUTH_WIDTH       = 1.0;
 const SWIMBOT_GENITAL_WIDTH     = 1.0;
-const SWIMBOT_VIEW_RADIUS	    = 300.0;
-const SWIMBOT_EGG_RADIUS	    = 6.0;
+
+
+// const SWIMBOT_EGG_RADIUS	    = 6.0; // never used
 
 //const SELECT_RADIUS_SCALAR      = 7.0;
 
@@ -120,15 +121,23 @@ const WALL_BOUNCE = 0.1;
 //  energy 
 //---------------------------------------------------
 const ENERGY_USED_UP_SWIMMING				= 0.01;
-const STARVING									= 4.0;
+const STARVING								= 4.0;
 
-// longer utterers die faster because they burn more energy
-// when tweaking utterance drainage, consider BRAIN_LOOKING_FOR_MATE_DURATION
-// because if swimbots are given more time to make up their mind when looking for mates,
-// there's less of an advantage to being a longer utterer.
-// 
+// Energy drain is now equalized between uttering and non-uttering states.
+//
+// Previously, UTTERANCE_ENERGY_DRAIN was 5× higher (0.0005) than CONTINUAL_ENERGY_DRAIN,
+// intended as a counterbalance: "if you make a lot of noise, you die sooner."
+// In practice this was not enough — being loud was still far more reproductively
+// valuable than living slightly longer, so evolution reliably converged on maximum
+// noisiness and utterance diversity collapsed.
+//
+// The counterbalance is now provided entirely by MATING RANGE (see MIN_UTTER_RANGE /
+// MAX_UTTER_RANGE above): busy swimbots can only attract nearby mates, while quiet
+// swimbots can reach distant ones. Two redundant pressures pushing the same direction
+// would over-penalize the busy strategy; equalizing energy drain lets the range
+// mechanism work cleanly as the sole trade-off.
 const CONTINUAL_ENERGY_DRAIN				= 0.0001;
-const UTTERANCE_ENERGY_DRAIN				= 0.0005; // this is INSTEAD of continual, not ON TOP OF continual 
+const UTTERANCE_ENERGY_DRAIN				= 0.0001; // equalized — mating range now provides the utterance trade-off (see MIN/MAX_UTTER_RANGE)
 
 
 // ranges from 0 to 1 with 0 being not picky at all and 1 being totally 'nothing else'
@@ -198,12 +207,16 @@ function Phenotype()
 	this.utterPreference		= 0;	// influences what types of utterances swimbot is attracted to
 	this.utterPeriod			= 0;	// space between utterances (in clocks)
 	this.utterDuration		= 0;	// length of utterance (in clocks)
+	this.utterRange         = 300.0; // how far this swimbot's utterances can be "heard" for mate-finding purposes.
+	                                 // computed at birth in Embryology.js from utterPeriod + utterDuration (genes 112-113).
+	                                 // quiet/infrequent utterers get a large range; busy/frequent utterers get a small range.
+	                                 // default 300.0 = old fixed SWIMBOT_VIEW_RADIUS, a safe fallback if phenotype isn't generated.
 	this.utterHighNote		= 0;	// highest note pitch performed
 	this.utterLowNote		   = 0;	// lowest note pitch performed
 	this.utterNoteCount		= 0;	// how many individual notes?
 	this.utterModCount		= 0;	// how many control events (e.g. modwheel spinnings)?
 	this.utterNotes			= []; // array of the unique notes pitches used in the performance
-	this.utterSequence		= []; // this will store our swimbot's MIDI sequence when it is generated at birth
+	this.utterSequence		= []; // stores the swimbot's note/CC sequence, generated at birth
 	
 	for (let p=0; p<MAX_PARTS; p++)
 	{

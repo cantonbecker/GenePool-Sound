@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Swimbot Vocal Synth — Web Audio PoC</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #141414;
+  color: #bbb;
+  font-family: monospace;
+  font-size: 13px;
+  padding: 1.5em 2em;
+  max-width: 680px;
+}
+h2 { color: #ddd; font-size: 1.1em; margin-bottom: 0.2em; }
+.subtitle { color: #555; margin-bottom: 1.4em; }
+
+#controls { display: flex; gap: 0.8em; align-items: center; margin-bottom: 1em; }
+button {
+  background: #1e321e;
+  color: #8d8;
+  border: 1px solid #3a5a3a;
+  padding: 0.45em 1.4em;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: monospace;
+  border-radius: 3px;
+  letter-spacing: 0.03em;
+}
+button:hover { background: #253f25; }
+button:disabled { opacity: 0.35; cursor: default; }
+#status { color: #5af; }
+
+#params {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4em;
+  margin-bottom: 1em;
+}
+.param {
+  background: #1c1c1c;
+  border: 1px solid #2a2a2a;
+  padding: 0.4em 0.6em;
+}
+.pname { color: #555; font-size: 0.85em; }
+.pval  { color: #fc5; }
+
+
+.section-label {
+  color: #556;
+  font-size: 0.73em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid #1e1e2a;
+  padding-bottom: 0.25em;
+  margin-bottom: 0.45em;
+}
+#reverb { margin-bottom: 1em; }
+#reverb-params {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.4em;
+  margin-bottom: 0.5em;
+}
+.rev-param {
+  background: #181820;
+  border: 1px solid #26263a;
+  padding: 0.4em 0.6em;
+}
+.rev-param label {
+  display: flex;
+  justify-content: space-between;
+  color: #556;
+  font-size: 0.78em;
+  margin-bottom: 0.25em;
+}
+.rev-param label span { color: #aaf; }
+.rev-param input[type=range] { width: 100%; cursor: pointer; accent-color: #88b; }
+#reverb-footer { display: flex; align-items: center; gap: 1em; margin-top: 0.1em; }
+#reverbStatus { color: #445; font-size: 0.78em; font-style: italic; }
+
+#log {
+  border-top: 1px solid #222;
+  padding-top: 0.6em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.ev-cc   { color: #666; }
+.ev-note { color: #7af; }
+.ev-done { color: #8d8; }
+</style>
+</head>
+<body>
+
+<h2>Swimbot Vocal Synth</h2>
+<div class="subtitle">Web Audio reconstruction of Reaktor formant patch · proof of concept</div>
+
+<div id="controls">
+  <button id="playBtn">▶ Play Sequence</button>
+  <button id="noteBtn">♩ Play Note</button>
+  <span id="status">Click play — AudioContext requires user gesture.</span>
+</div>
+
+
+<div id="params">
+  <div class="param"><div class="pname">Mouth  CC15</div><div class="pval" id="p15">—</div></div>
+  <div class="param"><div class="pname">Size   CC16</div><div class="pval" id="p16">—</div></div>
+  <div class="param"><div class="pname">Tone   CC17</div><div class="pval" id="p17">—</div></div>
+  <div class="param"><div class="pname">Lvl2Q  CC19</div><div class="pval" id="p19">—</div></div>
+  <div class="param"><div class="pname">Level3 CC20</div><div class="pval" id="p20">—</div></div>
+  <div class="param"><div class="pname">F1 Hz</div><div class="pval" id="pF1">—</div></div>
+</div>
+
+<div id="reverb">
+  <div class="section-label">Space Reverb</div>
+  <div id="reverb-params">
+    <div class="rev-param">
+      <label>Predelay <span id="rv-predelay-val">0ms</span></label>
+      <input type="range" id="rv-predelay" min="0" max="150" step="1" value="0">
+    </div>
+    <div class="rev-param">
+      <label>Early Size <span id="rv-earlySize-val">80ms</span></label>
+      <input type="range" id="rv-earlySize" min="5" max="120" step="1" value="80">
+    </div>
+    <div class="rev-param">
+      <label>Late T60 <span id="rv-lateT60-val">3.0s</span></label>
+      <input type="range" id="rv-lateT60" min="0.2" max="8" step="0.1" value="3.0">
+    </div>
+    <div class="rev-param">
+      <label>Early Diff <span id="rv-earlyDiff-val">0.10</span></label>
+      <input type="range" id="rv-earlyDiff" min="0" max="1" step="0.01" value="0.10">
+    </div>
+    <div class="rev-param">
+      <label>Late Diff <span id="rv-lateDiff-val">0.10</span></label>
+      <input type="range" id="rv-lateDiff" min="0" max="1" step="0.01" value="0.10">
+    </div>
+    <div class="rev-param">
+      <label>Revib Time <span id="rv-revibTime-val">48ms</span></label>
+      <input type="range" id="rv-revibTime" min="0" max="300" step="1" value="48">
+    </div>
+    <div class="rev-param">
+      <label>HF Damp <span id="rv-hfDamp-val">15.4kHz</span></label>
+      <input type="range" id="rv-hfDamp" min="500" max="16000" step="100" value="15400">
+    </div>
+    <div class="rev-param">
+      <label>Early/Late <span id="rv-earlyLate-val">0.14</span></label>
+      <input type="range" id="rv-earlyLate" min="0" max="1" step="0.01" value="0.14">
+    </div>
+    <div class="rev-param">
+      <label>Dry/Wet <span id="rv-wet-val">0.13</span></label>
+      <input type="range" id="rv-wet" min="0" max="1" step="0.01" value="0.13">
+    </div>
+  </div>
+  <div id="reverb-footer">
+    <button id="regenBtn">↺ Regen IR</button>
+    <span id="reverbStatus">—</span>
+  </div>
+</div>
+
+<div id="log"></div>
+
+<script>
+'use strict';
+
+// ─── Formant Curve Breakpoints ────────────────────────────────────────────────
+// From Reaktor Ctrl.Shp 2 modules in the Vowel-Morph stage.
+// Values interpreted as MIDI pitch (69 = A4 = 440 Hz).
+// Breakpoints at Mouth positions: 0% / 33% / 66% / 100%
+const FORMANT_CURVES = [
+  [52.5, 77.5, 75.8, 52.5],   // F1
+  [96.9, 92.9, 85.8, 79.8],   // F2
+  [103.4, 98.4, 97.6, 95.6],  // F3
+];
+const CURVE_POS = [0, 0.33, 0.66, 1.0];
+
+// Base filter resonance (from Res values in Reaktor screenshot)
+// Mapped to Web Audio BiquadFilter Q (bandpass)
+const FORMANT_BASE_RES = [0.93, 0.96, 0.98];
+
+// Relative mix gains — F1 dominant, F2/F3 attenuated
+const FORMANT_BASE_GAIN = [1.0, 0.55, 0.3];
+
+// ─── Sequence Data ────────────────────────────────────────────────────────────
+const SEQUENCE = [
+    {
+        "delay": 10,
+        "type": "cc",
+        "cc": 14,
+        "value": 94
+    },
+    {
+        "delay": 20,
+        "type": "cc",
+        "cc": 15,
+        "value": 98
+    },
+    {
+        "delay": 30,
+        "type": "cc",
+        "cc": 16,
+        "value": 89
+    },
+    {
+        "delay": 40,
+        "type": "cc",
+        "cc": 17,
+        "value": 77
+    },
+    {
+        "delay": 50,
+        "type": "cc",
+        "cc": 19,
+        "value": 65
+    },
+    {
+        "delay": 60,
+        "type": "cc",
+        "cc": 20,
+        "value": 53
+    },
+    {
+        "delay": 70,
+        "type": "note",
+        "note": 89,
+        "velocity": 73,
+        "duration": 35
+    },
+    {
+        "delay": 149,
+        "type": "note",
+        "note": 89,
+        "velocity": 43,
+        "duration": 35
+    },
+    {
+        "delay": 224,
+        "type": "note",
+        "note": 89,
+        "velocity": 59,
+        "duration": 35
+    },
+    {
+        "delay": 304,
+        "type": "note",
+        "note": 87,
+        "velocity": 45,
+        "duration": 35
+    },
+    {
+        "delay": 370,
+        "type": "cc",
+        "cc": 15,
+        "value": 83
+    },
+    {
+        "delay": 374,
+        "type": "note",
+        "note": 89,
+        "velocity": 70,
+        "duration": 35
+    },
+    {
+        "delay": 415,
+        "type": "cc",
+        "cc": 16,
+        "value": 74
+    },
+    {
+        "delay": 453,
+        "type": "note",
+        "note": 89,
+        "velocity": 68,
+        "duration": 35
+    },
+    {
+        "delay": 519,
+        "type": "note",
+        "note": 89,
+        "velocity": 68,
+        "duration": 35
+    },
+    {
+        "delay": 595,
+        "type": "cc",
+        "cc": 15,
+        "value": 68
+    },
+    {
+        "delay": 597,
+        "type": "note",
+        "note": 89,
+        "velocity": 38,
+        "duration": 35
+    },
+    {
+        "delay": 610,
+        "type": "cc",
+        "cc": 16,
+        "value": 59
+    },
+    {
+        "delay": 669,
+        "type": "note",
+        "note": 89,
+        "velocity": 59,
+        "duration": 35
+    },
+    {
+        "delay": 670,
+        "type": "cc",
+        "cc": 15,
+        "value": 53
+    },
+    {
+        "delay": 715,
+        "type": "cc",
+        "cc": 16,
+        "value": 44
+    },
+    {
+        "delay": 730,
+        "type": "cc",
+        "cc": 16,
+        "value": 41
+    },
+    {
+        "delay": 731,
+        "type": "note",
+        "note": 89,
+        "velocity": 52,
+        "duration": 35
+    },
+    {
+        "delay": 745,
+        "type": "cc",
+        "cc": 16,
+        "value": 56
+    },
+    {
+        "delay": 804,
+        "type": "note",
+        "note": 89,
+        "velocity": 62,
+        "duration": 35
+    },
+    {
+        "delay": 805,
+        "type": "cc",
+        "cc": 16,
+        "value": 71
+    },
+    {
+        "delay": 873,
+        "type": "note",
+        "note": 89,
+        "velocity": 74,
+        "duration": 35
+    },
+    {
+        "delay": 935,
+        "type": "note",
+        "note": 89,
+        "velocity": 47,
+        "duration": 35
+    },
+    {
+        "delay": 955,
+        "type": "cc",
+        "cc": 15,
+        "value": 38
+    },
+    {
+        "delay": 1010,
+        "type": "note",
+        "note": 89,
+        "velocity": 58,
+        "duration": 35
+    },
+    {
+        "delay": 1045,
+        "type": "cc",
+        "cc": 15,
+        "value": 34
+    },
+    {
+        "delay": 1078,
+        "type": "note",
+        "note": 89,
+        "velocity": 35,
+        "duration": 35
+    },
+    {
+        "delay": 1180,
+        "type": "cc",
+        "cc": 15,
+        "value": 49
+    },
+    {
+        "delay": 1210,
+        "type": "cc",
+        "cc": 15,
+        "value": 64
+    },
+    {
+        "delay": 1255,
+        "type": "cc",
+        "cc": 16,
+        "value": 86
+    },
+    {
+        "delay": 1330,
+        "type": "cc",
+        "cc": 16,
+        "value": 101
+    },
+    {
+        "delay": 1375,
+        "type": "note",
+        "note": 89,
+        "velocity": 53,
+        "duration": 35
+    },
+    {
+        "delay": 1555,
+        "type": "cc",
+        "cc": 15,
+        "value": 79
+    },
+    {
+        "delay": 1560,
+        "type": "note",
+        "note": 89,
+        "velocity": 68,
+        "duration": 35
+    },
+    {
+        "delay": 1636,
+        "type": "note",
+        "note": 89,
+        "velocity": 37,
+        "duration": 35
+    },
+    {
+        "delay": 1703,
+        "type": "note",
+        "note": 89,
+        "velocity": 59,
+        "duration": 35
+    },
+    {
+        "delay": 1765,
+        "type": "cc",
+        "cc": 15,
+        "value": 94
+    },
+    {
+        "delay": 1768,
+        "type": "note",
+        "note": 89,
+        "velocity": 64,
+        "duration": 35
+    },
+    {
+        "delay": 1832,
+        "type": "note",
+        "note": 89,
+        "velocity": 45,
+        "duration": 35
+    },
+    {
+        "delay": 1909,
+        "type": "note",
+        "note": 89,
+        "velocity": 77,
+        "duration": 35
+    },
+    {
+        "delay": 1984,
+        "type": "note",
+        "note": 89,
+        "velocity": 64,
+        "duration": 35
+    },
+    {
+        "delay": 1990,
+        "type": "cc",
+        "cc": 15,
+        "value": 109
+    },
+    {
+        "delay": 2058,
+        "type": "note",
+        "note": 89,
+        "velocity": 83,
+        "duration": 35
+    },
+    {
+        "delay": 2065,
+        "type": "cc",
+        "cc": 15,
+        "value": 124
+    },
+    {
+        "delay": 2135,
+        "type": "note",
+        "note": 92,
+        "velocity": 80,
+        "duration": 35
+    },
+    {
+        "delay": 2210,
+        "type": "note",
+        "note": 92,
+        "velocity": 69,
+        "duration": 35
+    },
+    {
+        "delay": 2215,
+        "type": "cc",
+        "cc": 16,
+        "value": 116
+    },
+    {
+        "delay": 2245,
+        "type": "cc",
+        "cc": 15,
+        "value": 127
+    },
+    {
+        "delay": 2286,
+        "type": "done"
+    }
+];
+
+// ─── Audio Engine ─────────────────────────────────────────────────────────────
+let ctx         = null;
+let masterGain  = null;
+let trebleFilter= null;
+let preEmphasis = null;
+let formantFilters = [];
+let formantGains   = [];
+let formantMixer   = null;
+
+function midiToHz(note) {
+  return 440 * Math.pow(2, (note - 69) / 12);
+}
+
+// Map 0–1 resonance to Q for bandpass formant filters
+function resToQ(r) {
+  return 2 + r * 23;  // 0 → Q=2 (wide), 1 → Q=25 (narrow)
+}
+
+// Piecewise linear interpolation matching Reaktor's Ctrl.Shp 2 module
+function ctrlShp2(breakpoints, t) {
+  for (let i = 0; i < CURVE_POS.length - 1; i++) {
+    if (t <= CURVE_POS[i + 1]) {
+      const seg = (t - CURVE_POS[i]) / (CURVE_POS[i + 1] - CURVE_POS[i]);
+      return breakpoints[i] + seg * (breakpoints[i + 1] - breakpoints[i]);
+    }
+  }
+  return breakpoints[breakpoints.length - 1];
+}
+
+function initAudio() {
+  if (ctx) return;
+  ctx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master output
+  masterGain = ctx.createGain();
+  masterGain.gain.value = 0.25;
+  masterGain.connect(ctx.destination);
+
+  // Treble boost (Trbl+ in Reaktor, activated by Size/CC16)
+  trebleFilter = ctx.createBiquadFilter();
+  trebleFilter.type = 'highshelf';
+  trebleFilter.frequency.value = 3200;
+  trebleFilter.gain.value = 0;
+  trebleFilter.connect(masterGain);
+
+  // Formant mixer
+  formantMixer = ctx.createGain();
+  formantMixer.gain.value = 1.0;
+  formantMixer.connect(trebleFilter);
+
+  // Pre-emphasis: gentle highpass approximating Reaktor's Differentiator
+  preEmphasis = ctx.createBiquadFilter();
+  preEmphasis.type = 'highpass';
+  preEmphasis.frequency.value = 60;
+  preEmphasis.Q.value = 0.4;
+
+  // Three formant bandpass filters (using BP outputs of Reaktor's 2-pole filter)
+  formantFilters = [];
+  formantGains   = [];
+  for (let i = 0; i < 3; i++) {
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = resToQ(FORMANT_BASE_RES[i]);
+
+    const g = ctx.createGain();
+    g.gain.value = FORMANT_BASE_GAIN[i];
+
+    f.connect(g);
+    g.connect(formantMixer);
+
+    // Pre-emphasis fans out to all three filters permanently
+    preEmphasis.connect(f);
+
+    formantFilters.push(f);
+    formantGains.push(g);
+  }
+
+  updateFormantFreqs(0);
+  initReverb();
+}
+
+// CC15: update all three formant frequencies via Ctrl.Shp 2 curves
+function updateFormantFreqs(mouthCC) {
+  if (!ctx) return;
+  const t  = Math.max(0, Math.min(127, mouthCC)) / 127;
+  const tc = 0.015; // 15ms smoothing (matches typical MIDI CC update rate)
+  FORMANT_CURVES.forEach((curve, i) => {
+    const pitch = ctrlShp2(curve, t);
+    const hz    = midiToHz(pitch);
+    formantFilters[i].frequency.setTargetAtTime(hz, ctx.currentTime, tc);
+  });
+  // Update F1 display
+  const f1pitch = ctrlShp2(FORMANT_CURVES[0], t);
+  document.getElementById('pF1').textContent = midiToHz(f1pitch).toFixed(0) + ' Hz';
+}
+
+// CC16: treble boost via Size comparator
+function updateSize(sizeCC) {
+  if (!ctx) return;
+  const norm    = (Math.max(32, sizeCC) - 32) / (127 - 32); // 0–1 within range 32–127
+  const boostDb = norm > 0.5 ? (norm - 0.5) * 2 * 10 : 0;  // 0–10 dB
+  trebleFilter.gain.setTargetAtTime(boostDb, ctx.currentTime, 0.02);
+}
+
+// CC19: F2 filter resonance (Q)
+function updateF2Resonance(cc19) {
+  if (!ctx) return;
+  const norm = Math.min(cc19, 70) / 70;
+  formantFilters[1].Q.setTargetAtTime(resToQ(norm), ctx.currentTime, 0.02);
+}
+
+// CC20: F3 gain
+function updateF3Level(cc20) {
+  if (!ctx) return;
+  const norm = cc20 / 127;
+  formantGains[2].gain.setTargetAtTime(norm * FORMANT_BASE_GAIN[2] * 2, ctx.currentTime, 0.02);
+}
+
+function playNote(note, velocity, durationMs) {
+  if (!ctx) return;
+  const now    = ctx.currentTime;
+  const freq   = midiToHz(note - 12);
+  const amp    = (velocity / 127) * 1.4; // boosted to compensate for narrow BP filter attenuation
+  const durSec = durationMs / 1000;
+
+  // AHDSR from panel: fast attack, ~65ms hold, S=0, short release
+  const envA = 0.003;
+  const envR = 0.04;
+
+  const env = ctx.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(amp, now + envA);
+  env.gain.setValueAtTime(amp, now + durSec);
+  env.gain.linearRampToValueAtTime(0.0001, now + durSec + envR);
+
+  const osc = ctx.createOscillator();
+  osc.type = 'sawtooth';
+  osc.frequency.value = freq;
+  osc.connect(env);
+  env.connect(preEmphasis);
+
+  const endTime = now + durSec + envR + 0.05;
+  osc.start(now);
+  osc.stop(endTime);
+  osc.onended = () => {
+    try { env.disconnect(preEmphasis); } catch (e) {}
+  };
+}
+
+// ─── CC Handler ───────────────────────────────────────────────────────────────
+function handleCC(cc, value) {
+  const el = document.getElementById('p' + cc);
+  if (el) el.textContent = value;
+
+  switch (cc) {
+    case 15: updateFormantFreqs(value); break;
+    case 16: updateSize(value);         break;
+    case 19: updateF2Resonance(value);  break;
+    case 20: updateF3Level(value);      break;
+  }
+}
+
+// ─── Reverb ──────────────────────────────────────────────────────────────────
+// ConvolverNode-based reverb with synthetically generated impulse response.
+// Parameters match Space Master 2 layout from screenshot.
+
+const REVERB = {
+  predelay:       0,     // ms: silence before reverb signal appears
+  earlySize:      80,    // ms: total time span of early reflections
+  earlyDiffusion: 0.10,  // 0–1: 0=clustered sparse taps, 1=evenly log-spaced
+  lateT60:        3.0,   // s: time for late tail to decay –60 dB
+  lateDiffusion:  0.10,  // 0–1: controls grain density of late tail
+  revibTime:      48,    // ms: gap between predelay end and late tail onset
+  hfDampHz:       15400, // Hz: one-pole LP cutoff applied to late tail (air absorption)
+  earlyLateBal:   0.14,  // 0=all early reflections, 1=all late tail
+  wetLevel:       0.13,  // 0–1: reverb send level (dry always passes through)
+};
+
+let reverbConvolver = null;
+let reverbWetGain   = null;
+let _regenTimer     = null;
+
+function initReverb() {
+  reverbConvolver = ctx.createConvolver();
+  reverbConvolver.normalize = false;  // we handle normalization ourselves
+
+  reverbWetGain = ctx.createGain();
+  reverbWetGain.gain.value = REVERB.wetLevel;
+
+  // Signal path: masterGain → convolver → wetGain → destination
+  // Dry signal: masterGain → destination (already connected, untouched)
+  masterGain.connect(reverbConvolver);
+  reverbConvolver.connect(reverbWetGain);
+  reverbWetGain.connect(ctx.destination);
+
+  generateIR();
+}
+
+function generateIR() {
+  if (!ctx || !reverbConvolver) return;
+  const statusEl = document.getElementById('reverbStatus');
+  if (statusEl) statusEl.textContent = 'Building IR…';
+
+  const sr  = ctx.sampleRate;
+  const P   = REVERB;
+
+  // Total IR duration: predelay + revibTime + late tail + small tail pad
+  const totalDur = P.predelay / 1000 + P.revibTime / 1000 + P.lateT60 * 1.1 + 0.05;
+  const len      = Math.ceil(sr * totalDur);
+  const L        = new Float32Array(len);
+  const R        = new Float32Array(len);
+
+  const predelayS  = Math.floor(P.predelay  / 1000 * sr);
+  const revibS     = Math.floor(P.revibTime / 1000 * sr);
+  const earlySpan  = P.earlySize / 1000; // seconds
+
+  // ── Early reflections ──────────────────────────────────────────────────────
+  // Sparse taps with exponential amplitude decay and diffusion-controlled spacing.
+  const NUM_EARLY  = 20;
+  const earlyAmp   = (1 - P.earlyLateBal) * 0.65;
+
+  for (let i = 0; i < NUM_EARLY; i++) {
+    const frac = (i + 1) / NUM_EARLY;
+    // Power-law spacing: diffusion=1 → sqrt (denser early), diffusion=0 → squared (denser late)
+    const baseT  = earlySpan * Math.pow(frac, 2 - P.earlyDiffusion * 1.5);
+    const jitter = (1 - P.earlyDiffusion) * (Math.random() - 0.5) * earlySpan / NUM_EARLY;
+    const t      = Math.max(0, baseT + jitter);
+
+    const amp  = earlyAmp * Math.exp(-5.0 * t / earlySpan);
+    const sL   = predelayS + Math.floor(t * sr);
+    const sR   = predelayS + Math.floor(t * sr);
+    // Random polarity per tap, independently for L and R → natural decorrelation
+    const signL = Math.random() > 0.5 ? 1 : -1;
+    const signR = Math.random() > 0.5 ? 1 : -1;
+
+    if (sL >= 0 && sL < len) L[sL] += amp * signL * (0.85 + Math.random() * 0.15);
+    if (sR >= 0 && sR < len) R[sR] += amp * signR * (0.85 + Math.random() * 0.15);
+  }
+
+  // ── Late reverb tail ───────────────────────────────────────────────────────
+  // Exponentially decaying noise with one-pole LP filter for HF air absorption.
+  // lateDiffusion controls grain density (1=smooth noise, 0=coarser grain).
+  const lateStart  = predelayS + revibS;
+  const lateAmp    = P.earlyLateBal;
+  const logDecay   = 6.908 / P.lateT60; // ln(1000) → -60 dB at T60
+
+  // One-pole LP: y[n] = a*x[n] + (1-a)*y[n-1]  (larger a = brighter / less damped)
+  const hfA = 1 - Math.exp(-2 * Math.PI * (P.hfDampHz / sr));
+
+  // Grain size for lateDiffusion: 1=sample-by-sample, 0=~10ms grains
+  const grainSize = Math.max(1, Math.floor((1 - P.lateDiffusion) * sr * 0.01));
+  let lpL = 0, lpR = 0;
+  let grainL = 0, grainR = 0, grainCount = 0;
+
+  for (let i = lateStart; i < len; i++) {
+    const t     = (i - lateStart) / sr;
+    const decay = lateAmp * Math.exp(-logDecay * t);
+
+    // Refresh noise grain on schedule (diffusion-controlled grain size)
+    if (grainCount <= 0) {
+      grainL = (Math.random() * 2 - 1) * decay;
+      grainR = (Math.random() * 2 - 1) * decay;
+      grainCount = grainSize;
+    } else {
+      grainCount--;
+    }
+
+    // Apply one-pole LP for HF damping
+    lpL = hfA * grainL + (1 - hfA) * lpL;
+    lpR = hfA * grainR + (1 - hfA) * lpR;
+
+    L[i] += lpL;
+    R[i] += lpR;
+  }
+
+  // ── Normalize to peak ±0.5 ────────────────────────────────────────────────
+  let peak = 0;
+  for (let i = 0; i < len; i++) {
+    if (Math.abs(L[i]) > peak) peak = Math.abs(L[i]);
+    if (Math.abs(R[i]) > peak) peak = Math.abs(R[i]);
+  }
+  if (peak > 0) {
+    const scale = 0.5 / peak;
+    for (let i = 0; i < len; i++) { L[i] *= scale; R[i] *= scale; }
+  }
+
+  // ── Assign to ConvolverNode ───────────────────────────────────────────────
+  const irBuf = ctx.createBuffer(2, len, sr);
+  irBuf.copyToChannel(L, 0);
+  irBuf.copyToChannel(R, 1);
+  reverbConvolver.buffer = irBuf;
+
+  if (statusEl) {
+    statusEl.textContent = `IR: ${totalDur.toFixed(2)}s  T60=${P.lateT60.toFixed(1)}s  HF=${
+      P.hfDampHz >= 1000 ? (P.hfDampHz / 1000).toFixed(1) + 'k' : P.hfDampHz}Hz`;
+  }
+}
+
+function scheduleRegenIR() {
+  clearTimeout(_regenTimer);
+  _regenTimer = setTimeout(generateIR, 350); // debounce: wait for slider to settle
+}
+
+function initReverbUI() {
+  // Map slider id → { REVERB key, display formatter }
+  const controls = {
+    'rv-predelay':  { key: 'predelay',       fmt: v => Math.round(v) + 'ms',                   regen: true  },
+    'rv-earlySize': { key: 'earlySize',       fmt: v => Math.round(v) + 'ms',                   regen: true  },
+    'rv-lateT60':   { key: 'lateT60',         fmt: v => parseFloat(v).toFixed(1) + 's',          regen: true  },
+    'rv-earlyDiff': { key: 'earlyDiffusion',  fmt: v => parseFloat(v).toFixed(2),                regen: true  },
+    'rv-lateDiff':  { key: 'lateDiffusion',   fmt: v => parseFloat(v).toFixed(2),                regen: true  },
+    'rv-revibTime': { key: 'revibTime',        fmt: v => Math.round(v) + 'ms',                   regen: true  },
+    'rv-hfDamp':    { key: 'hfDampHz',         fmt: v => v >= 1000 ? (v/1000).toFixed(1)+'kHz' : v+'Hz', regen: true },
+    'rv-earlyLate': { key: 'earlyLateBal',     fmt: v => parseFloat(v).toFixed(2),               regen: true  },
+    'rv-wet':       { key: 'wetLevel',         fmt: v => parseFloat(v).toFixed(2),               regen: false },
+  };
+
+  Object.entries(controls).forEach(([id, cfg]) => {
+    const slider  = document.getElementById(id);
+    const display = document.getElementById(id + '-val');
+    if (!slider) return;
+
+    slider.addEventListener('input', () => {
+      const v = parseFloat(slider.value);
+      REVERB[cfg.key] = v;
+      if (display) display.textContent = cfg.fmt(v);
+
+      if (!cfg.regen) {
+        // Wet level: update gain node directly, no IR rebuild needed
+        if (reverbWetGain) reverbWetGain.gain.setTargetAtTime(v, ctx.currentTime, 0.05);
+      } else {
+        scheduleRegenIR();
+      }
+    });
+  });
+
+  document.getElementById('regenBtn').addEventListener('click', () => {
+    if (!ctx) return;
+    generateIR();
+  });
+}
+
+// ─── Sequencer ────────────────────────────────────────────────────────────────
+let _timers = [];
+
+function stopSequence() {
+  _timers.forEach(t => clearTimeout(t));
+  _timers = [];
+}
+
+function playSequence() {
+  initAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+  stopSequence();
+
+  const btn    = document.getElementById('playBtn');
+  const status = document.getElementById('status');
+  const logEl  = document.getElementById('log');
+
+  btn.disabled  = true;
+  logEl.innerHTML = '';
+  status.textContent = 'Playing…';
+
+  SEQUENCE.forEach(ev => {
+    const t = setTimeout(() => {
+      if (ev.type === 'cc') {
+        handleCC(ev.cc, ev.value);
+        logEl.innerHTML += `<div class="ev-cc">+${ev.delay}ms  CC${ev.cc} = ${ev.value}</div>`;
+      } else if (ev.type === 'note') {
+        playNote(ev.note, ev.velocity, ev.duration);
+        logEl.innerHTML += `<div class="ev-note">+${ev.delay}ms  Note ${ev.note}  vel=${ev.velocity}  dur=${ev.duration}ms</div>`;
+      } else if (ev.type === 'done') {
+        status.textContent = 'Done. Click to play again.';
+        btn.disabled = false;
+      }
+      logEl.scrollTop = logEl.scrollHeight;
+    }, ev.delay);
+    _timers.push(t);
+  });
+}
+
+document.getElementById('playBtn').addEventListener('click', playSequence);
+document.getElementById('noteBtn').addEventListener('click', () => {
+  initAudio();
+  if (ctx.state === 'suspended') ctx.resume();
+  playNote(77, 100, 400); // A5 -1 octave = A4, medium velocity, 400ms
+});
+initReverbUI();
+</script>
+</body>
+</html>

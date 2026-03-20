@@ -299,18 +299,6 @@ function UtteranceRenderer()
 					}
 				}				
 				
-				//-----------------------------------------------------------------
-				// view horizon debug
-				//-----------------------------------------------------------------
-				if ( DEBUGGING_UTTERANCE_EVENT_HORIZON ) // set in Sound.js
-				{
-					canvas.lineWidth = 1;
-					canvas.strokeStyle = "rgba( 200, 255, 200, 0.5 )";	
-					canvas.beginPath();
-					canvas.arc( _utterances[u].position.x, _utterances[u].position.y, SWIMBOT_VIEW_RADIUS, 0, PI2, false );
-					canvas.stroke();
-					canvas.closePath();
-				}	
 			}			
 		}
 		

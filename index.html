@@ -23,13 +23,13 @@
         <meta property = "og:description"   content = "Gene Pool is an artificial life simulation invented by Jeffrey Ventrella">
         <meta property = "og:url"           content = "http://www.swimbots.com/genepool/"/>
 	</head>
-	<body 
-		onload = 
-		    "genePool = new GenePool(); 
-		     genePool.initialize(); 
-		     genePool.setCanvas( canvas ); 
+	<body
+		onload =
+		    "genePool = new GenePool();
+		     genePool.setCanvas( canvas );
 		     genePool.setCanvasDimensions( canvasID.width, canvasID.height );
-		     genePool.setShowingViewTrackingMode( true );"  
+		     SwimbotSynth.initialize();
+		     splashPollLoading();"
 		     
 		onresize = "resize();"		
 	>
@@ -61,19 +61,90 @@
 		<!-- ------------------------------------------------------------------ -->
         <canvas id = "Canvas"></canvas>
 
-		<!-- ------------------------------------------------------------------ -->
-		<!-- create the html canvas and some other global variables             -->
-		<!-- ------------------------------------------------------------------ -->
+        <!-- ------------------------------------------------------------------ -->
+        <!-- splash screen — gates startup behind a user gesture for Web Audio  -->
+        <!-- ------------------------------------------------------------------ -->
+        <div id="splashOverlay" style="
+            position:fixed; inset:0; z-index:10000;
+            background:rgba(0,0,0,0.88);
+            display:flex; align-items:center; justify-content:center;
+            font-family: arial, sans-serif; color:#ddd;
+        ">
+            <div style="text-align:center; max-width:420px; padding:32px;">
+                <div style="font-size:28px; font-weight:bold; color:#fff; margin-bottom:6px;">Darwin's Chorus</div>
+                <div style="font-size:13px; color:#aaa; margin-bottom:20px;">An artificial life simulation that evolves generative music</div>
+                <table id="splashParamsTable" style="margin:0 auto 20px; font-size:12px; color:#999; border-collapse:collapse; text-align:left;">
+                    <!-- populated after Parameters.js loads (see populateSplashParams below) -->
+                </table>
+                <div id="splashLoadingStatus" style="font-size:11px; color:#888; margin-bottom:16px;">Loading audio assets...</div>
+                <div id="splashFileWarning" style="display:none; margin-bottom:16px; padding:10px 14px; background:rgba(180,40,40,0.15); border:1px solid #a33; border-radius:5px; font-size:12px; color:#f88; line-height:1.5;">
+                    Reverb and non-diagetic audio (spawn/birth/death/eat...) requires requesting index.html from a real web server. Instead of double-clicking, 
+                    please access this page via <b>localhost</b> or over the network.
+                </div>
+                <button id="splashLaunchBtn" disabled onclick="launchSimulation();" style="
+                    font-size:16px; font-weight:bold; padding:12px 36px;
+                    background:#3A3; color:#fff; border:none; border-radius:6px;
+                    cursor:pointer; opacity:0.4; transition: opacity 0.3s;
+                ">LAUNCH</button>
+            </div>
+        </div>
+
+        <!-- ------------------------------------------------------------------ -->
+        <!-- create the html canvas and some other global variables             -->
+        <!-- splash screen — gates startup behind a user gesture for Web Audio  -->
+        <!-- ------------------------------------------------------------------ -->
 		<script>
             var canvasID = document.getElementById( 'Canvas' );
             var canvas = canvasID.getContext( '2d' );
+
+            // Splash screen: poll loading status and enable launch button
+            var _splashTimer = null;
+            function splashPollLoading() {
+                // file:// protocol — fetch() can't load samples, so warn and offer continue anyway
+                if (window.location.protocol === 'file:') {
+                    var el = document.getElementById('splashLoadingStatus');
+                    if (el) el.style.display = 'none';
+                    document.getElementById('splashFileWarning').style.display = 'block';
+                    var btn = document.getElementById('splashLaunchBtn');
+                    btn.textContent = 'CONTINUE WITHOUT FULL AUDIO';
+                    btn.style.background = '#a33';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    return;
+                }
+
+                _splashTimer = setInterval(function() {
+                    var s = SwimbotSynth.getLoadingStatus();
+                    var loaded = s.irLoaded + s.samplesLoaded;
+                    var total  = s.irTotal  + s.samplesTotal;
+                    var el = document.getElementById('splashLoadingStatus');
+                    if (el) el.textContent = 'Loading audio assets... ' + loaded + '/' + total;
+                    if (loaded >= total) {
+                        clearInterval(_splashTimer);
+                        if (el) el.textContent = 'Ready!';
+                        var btn = document.getElementById('splashLaunchBtn');
+                        if (btn) { btn.disabled = false; btn.style.opacity = '1'; }
+                    }
+                }, 200);
+            }
+
+            // Phase B: user gesture → resume AudioContext → start simulation
+            function launchSimulation() {
+                var ctx = SwimbotSynth.getAudioContext();
+                if (ctx && ctx.state === 'suspended') ctx.resume();
+                document.getElementById('splashOverlay').style.display = 'none';
+                setTimeout(function() {
+                    genePool.initialize();
+                    genePool.setShowingViewTrackingMode(true);
+                }, 500);
+            }
 		</script>        
 
 		<!-- ------------------------------------------------------------------------- -->
 		<!-- The Gene Pool simulation is loaded here...                                -->
 		<!-- ------------------------------------------------------------------------- -->
-		<script type = "text/javascript" src = "simulation/MathConstants.js"    ></script>
-		<script type = "text/javascript" src = "simulation/Parameters.js"       ></script>
+        <script type = "text/javascript" src = "simulation/MathConstants.js"    ></script>
+        <script type = "text/javascript" src = "simulation/Parameters.js"       ></script>
 		<script type = "text/javascript" src = "simulation/Utility.js"          ></script>
 		<script type = "text/javascript" src = "simulation/Vector2D.js" 	    ></script>
 		<script type = "text/javascript" src = "simulation/Pool.js"             ></script>
@@ -91,17 +162,48 @@
 		<script type = "text/javascript" src = "simulation/FamilyTree.js"       ></script>		
 		<script type = "text/javascript" src = "simulation/PhyloTree.js"        ></script>		
 		<script type = "text/javascript" src = "simulation/Obstacle.js"         ></script>		
-		<script type = "text/javascript" src = "simulation/Sound.js"         	></script>		
+		<script type = "text/javascript" src = "synth/Synth.js"            ></script>
+		<script type = "text/javascript" src = "simulation/Sound.js"         	></script>
 		<script type = "text/javascript" src = "simulation/GenePool.js"         ></script> 
 		
 		<!-- ------------------------------------------------------------------------- -->
 		<!-- all the javascript files (other than the simulation) are loaded here...   -->
 		<!-- ------------------------------------------------------------------------- -->		
-		<script type = "text/javascript" src = "js/saveLoad.js" ></script>
-		<script type = "text/javascript" src = "js/graph.js"    ></script>
-		<script type = "text/javascript" src = "js/info.js"     ></script>
-		<script type = "text/javascript" src = "js/ui.js"       ></script>
+		<script type = "text/javascript" src = "js/saveLoad.js"         ></script>
+		<script type = "text/javascript" src = "js/graph.js"            ></script>
+		<script type = "text/javascript" src = "js/info.js"             ></script>
+		<script type = "text/javascript" src = "js/ui.js"               ></script>
+		<script type = "text/javascript" src = "js/utteranceLogger.js"  ></script>
+		<script type = "text/javascript" src = "js/utteranceStats.js"   ></script>
         
+
+        <script>
+            // Populate splash screen params table now that Parameters.js constants are available.
+            // This was previously done inline via document.write() but that ran before Parameters.js loaded.
+            (function() {
+                var table = document.getElementById('splashParamsTable');
+                if (!table) return;
+                var params = [
+                    ['Max Swimbots',    MAX_SWIMBOTS],
+                    ['Initial Swimbots',INITIAL_NUM_SWIMBOTS],
+                    ['Genes per Bot',   NUM_GENES],
+                    ['Max Food',        MAX_FOODBITS],
+                    ['Max Utter Voices',WEB_MAXIMUM_VOICES],
+                    ['Autopilot After', USER_INACTION_TIME_OUT === 0 ? 'disabled' : USER_INACTION_TIME_OUT + 's'],
+                    ['Autopilot Vol. Reduction', Math.round(AUTOPILOT_VOLUME_REDUCTION * 100) + '%'],
+                ];
+                for (var i = 0; i < params.length; i++) {
+                    var row = table.insertRow();
+                    var cell1 = row.insertCell(0);
+                    var cell2 = row.insertCell(1);
+                    cell1.style.cssText = 'padding:2px 12px 2px 0; color:#888;';
+                    cell2.style.cssText = 'padding:2px 0; color:#ccc;';
+                    cell1.textContent = params[i][0];
+                    cell2.textContent = params[i][1];
+                }
+            })();
+        </script>
+
 		<!-- ------------------------------------------------------------------ -->
 		<!-- floating control panel for devs                                    -->
 		<!-- ------------------------------------------------------------------ -->
@@ -179,7 +281,7 @@
                     <button id="viewGluttonButton"      class = "basicButton" onmousedown = "setViewMode( id, ViewTrackingMode.HUNGRY     );"  >glutton           </button>   
                 </div>                    
                 <div id="viewOptionsPanel" >
-                    <button id = "viewGoalButton" class = "basicButton" onClick = "toggleGoalOverlay();"        >mouth/genital  </button>   
+                    <button id = "viewGoalButton" class = "basicButton" onClick = "toggleGoalOverlay();"        >brainstates    </button>
                     <button id = "freezeButton"   class = "basicButton" onClick = "toggleSimulationRunning();"  >freeze         </button>         
                     <button id = "noRenderButton" class = "basicButton" onClick = "toggleRendering();"          >rendering OFF  </button>         
                     <button id = "fastButton"     class = "basicButton" onClick = "toggleFastRendering();"      >fastest        </button>         
@@ -193,7 +295,7 @@
                 <button id = "menuSwimbotButton"  class = "basicButton" onmousedown = "openPanel( 'menuSwimbotButton' );" >swimbot   </button>
                 <button id = "menuTweakButton"    class = "basicButton" onmousedown = "openPanel( 'menuTweakButton'   );" >tweak     </button>
                 <button id = "menuGraphButton"    class = "basicButton" onmousedown = "openPanel( 'menuGraphButton'   );" >graph     </button>
-                <button id = "menuInfoButton"     class = "basicButton" onmousedown = "openPanel( 'menuInfoButton'    );" >info      </button>
+                <button id = "menuInfoButton"     class = "basicButton" onmousedown = "openPanel( 'menuInfoButton'    );" >audio     </button>
             </div>       
             <div id = "mainPanel" class = "basicPanel" >
         
@@ -533,25 +635,17 @@
                         pool
                     </div>
                     -->                    
-                    <div id = "poolWebVolume" >           
-                        <label for="poolWebVolume" style="font-weight:bold;">&nbsp; 🎶 VOL</label> 
-
-                        <input 
-                            type            = "range" 
-                            id              = "volumeSlider"         
-                            step            = 1
-                            autocomplete    = "off"
-                            value           = 0
-                            oninput="WEB_AUDIO_VOLUME = (this.value / 100) * .75;"
-                        >
-                        <script>document.getElementById("volumeSlider").value = WEB_AUDIO_VOLUME * 100;</script><!-- init -->
-                    </div>
                     <div id = "poolPresets">
                         <!-- these will be auto-filled by ui.js -->
                     </div>
+
+                    <div id="poolStatusPanel" style="margin-top: 0 !important; padding:6px; background:#f0f0f0; border-radius:4px; font-size:11px; color:#666; line-height:1.6; margin-top:8px;">
+                        <!-- populated by updatePoolStatus() -->
+                    </div>
+
+
                     <div id = "saveLoadPanel" >
-                        SORRY! At the moment, you cannot save or load pool files: the save/load feature of 
-                        Gene Pool is under construction. I will try to get that done soon. I am 
+                        The save/load feature of Gene Pool is under construction. I am 
                         switching over to a local file system, using the html file api.
                         <br>
                         <br>
@@ -571,16 +665,9 @@
                         <button id = "loadButton" class = "basicButton" onClick = "choosePoolToLoad( SimulationStartMode.FILE ); requestToLoadPoolFromFile();" >load pool</button>    
                         -->
                         <br>
-                        <br>
-                        After starting a pool from the **Speciation** preset and running it for tens of thousands of time steps, 
-                        select the button below to get data collected during the simulation. You can load it into 
-                        <a href = 'https://lnegoita.shinyapps.io/gene-pool-laboratory/' target = "_blank" style = 'text-decoration:none'>GenePool Lab</a>                        
-                        <br>
-                        ( <a href = 'https://lnegoita.shinyapps.io/gene-pool-laboratory/' target = "_blank" style = 'text-decoration:none'>https://lnegoita.shinyapps.io/gene-pool-laboratory/</a> )
-                        <br>
-                        (Contact jeffrey@ventrella.com for details).
                     </div>                    
-                    <button id = "familyTreeButton" class = "basicButton" onClick = "printFamilyTree( false );" >print swimbot data</button> 
+                    <button id = "familyTreeButton" class = "basicButton" onClick = "printFamilyTree( false );" >get raw swimbot data</button>
+
                 </div>  <!-- poolPanel -->
                 
                 <!-- ------------------------------------------------------------ -->
@@ -660,25 +747,162 @@
  		                                 
                  
                 <!-- ------------------------------------------------------------ -->
-                <!-- info panel                                                   -->
+                <!-- audio mixer panel                                                -->
                 <!-- ------------------------------------------------------------ -->
-                <div id="infoPanel"  class = "menuPanel" >
-                    <div id="infoText"></div> 	
-                    <!-- ------------------------------------------------------------ -->
-                    <!-- buttons on bottom of the info page                           -->
-                    <!-- ------------------------------------------------------------ -->     			
-                    <font size = 3 color = '#335500' face='arial'>
-                        <button id = "prevInfoButton" class = "basicButton"onClick = "advanceInfoPage(-1);" >previous</button>  
-                        <div    id = "pageNumberLabel">page 1 of 28</div>                        
-                        <button id = "nextInfoButton" class = "basicButton" onClick = "advanceInfoPage( 1);" >next    </button>  
-                    </font>     	
-                    	
-                </div> 	<!-- info Panel -->            
-                <div id = "contactPanel" >
-                    &copy; 2025 Jeffrey Ventrella  <a href = 'http://www.ventrella.com' target = "_blank" style = 'color: #004444'>Ventrella.com</a>
-                </div> <!-- contact Panel -->    
+                <div id="infoPanel" class="menuPanel">
+                    <style>
+                        #audioMixer .mix-row { display:flex; align-items:center; margin-bottom:6px; }
+                        #audioMixer .mix-row label { display:inline-block; width:110px; flex-shrink:0; font-size:12px; }
+                        #audioMixer .mix-row input[type=range] { flex:1; }
+
+                        #mixerMaster {
+                            -webkit-appearance: none;
+                            appearance: none;
+                            height: 28px;
+                            background: transparent;
+                            cursor: pointer;
+                        }
+                        #mixerMaster::-webkit-slider-runnable-track {
+                            height: 10px;
+                            background: linear-gradient(to right, #9C9, #3A3);
+                            border-radius: 5px;
+                        }
+                        #mixerMaster::-webkit-slider-thumb {
+                            -webkit-appearance: none;
+                            width: 20px;
+                            height: 20px;
+                            background: #fff;
+                            border: 2px solid #3A3;
+                            border-radius: 50%;
+                            margin-top: -5px;
+                        }
+                        #mixerMaster::-moz-range-track {
+                            height: 10px;
+                            background: linear-gradient(to right, #9C9, #3A3);
+                            border-radius: 5px;
+                            border: none;
+                        }
+                        #mixerMaster::-moz-range-thumb {
+                            width: 20px;
+                            height: 20px;
+                            background: #fff;
+                            border: 2px solid #3A3;
+                            border-radius: 50%;
+                        }
+                        #mixerMaster:disabled::-webkit-slider-runnable-track {
+                            background: linear-gradient(to right, #aaa, #ccc);
+                        }
+                        #mixerMaster:disabled::-webkit-slider-thumb {
+                            border-color: #aaa;
+                        }
+                        #mixerMaster:disabled::-moz-range-track {
+                            background: linear-gradient(to right, #aaa, #ccc);
+                        }
+                        #mixerMaster:disabled::-moz-range-thumb {
+                            border-color: #aaa;
+                        }
+                    </style>
+                    <div id="audioMixer" style="padding:8px; font-family:arial,sans-serif; color:#333;">
+
+                        <div id="audioDisabledNotice" style="display:none; padding:6px 8px; margin-bottom:10px; background:#fff3cd; border:1px solid #e0c36e; border-radius:4px; font-size:12px; color:#856404; text-align:center;">
+                            Audio disabled (fast/non-rendering mode)
+                        </div>
+
+                        <div class="mix-row" style="margin-bottom:12px;">
+                            <label style="font-weight:bold; font-size:13px;">Output Volume</label>
+                            <input style="height: 30px;" type="range" id="mixerMaster" min="0" max="100" step="1"
+                                oninput="WEB_AUDIO_VOLUME = (this.value / 100) * .75; document.getElementById('mixerMasterVal').textContent = this.value;">
+                            <span id="mixerMasterVal" style="margin-left:6px; font-size:12px; width:24px; flex-shrink:0; font-weight: bold;"></span>
+                            <div id="autopilotVolumeNotice" style="display:none; font-size:10px; color:#900;"></div>
+                        </div>
+                        
+                        <script>document.getElementById('autopilotVolumeNotice').textContent = '- ' + Math.round(AUTOPILOT_VOLUME_REDUCTION * 100) + '%';</script>
+
+                        <div class="mix-row">
+                            <label style="text-align: right;">Utterances &nbsp;</label>
+                            <input type="range" id="mixerUtterance" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_UTTERANCE = this.value / 100; document.getElementById('mixerUtteranceVal').textContent = this.value;">
+                            <span id="mixerUtteranceVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+                        <div class="mix-row">
+                            <label style="text-align: right;">Birth / Spawn &nbsp;</label>
+                            <input type="range" id="mixerBirth" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_BIRTH = this.value / 100; document.getElementById('mixerBirthVal').textContent = this.value;">
+                            <span id="mixerBirthVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+                        <div class="mix-row">
+                            <label style="text-align: right;">Death &nbsp;</label>
+                            <input type="range" id="mixerDeath" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_DEATH = this.value / 100; document.getElementById('mixerDeathVal').textContent = this.value;">
+                            <span id="mixerDeathVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+                        <div class="mix-row">
+                            <label style="text-align: right;">Eating &nbsp;</label>
+                            <input type="range" id="mixerEat" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_EAT = this.value / 100; document.getElementById('mixerEatVal').textContent = this.value;">
+                            <span id="mixerEatVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+                        <div class="mix-row" style="margin-bottom:12px;">
+                            <label style="text-align: right;">Background Loops &nbsp;</label>
+                            <input type="range" id="mixerLoop" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_LOOP = this.value / 100; document.getElementById('mixerLoopVal').textContent = this.value;">
+                            <span id="mixerLoopVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+                        <div class="mix-row" style="margin-bottom:12px;">
+                            <label style="text-align: right;">UI Sounds &nbsp;</label>
+                            <input type="range" id="mixerUI" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_UI = this.value / 100; document.getElementById('mixerUIVal').textContent = this.value;">
+                            <span id="mixerUIVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+
+                        <div style="border-top: 1px solid #999; height: 1px; margin-bottom: 10px;"></div>
+
+                        <div class="mix-row" style="margin-bottom:12px;">
+                            <label>Max Utter Voices</label>
+                            <input type="range" id="mixerMaxVoices" min="1" max="64" step="1"
+                                oninput="WEB_MAXIMUM_VOICES = parseInt(this.value); document.getElementById('mixerMaxVoicesVal').textContent = this.value;">
+                            <span id="mixerMaxVoicesVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+
+                        <!-- Initialize all sliders from Parameters.js defaults -->
+                        <script>
+                            document.getElementById('mixerMaster').value    = Math.round(WEB_AUDIO_VOLUME * 100);
+                            document.getElementById('mixerMasterVal').textContent    = Math.round(WEB_AUDIO_VOLUME * 100);
+                            document.getElementById('mixerUtterance').value = Math.round(WEB_VOLUME_UTTERANCE * 100);
+                            document.getElementById('mixerUtteranceVal').textContent = Math.round(WEB_VOLUME_UTTERANCE * 100);
+                            document.getElementById('mixerBirth').value     = Math.round(WEB_VOLUME_BIRTH * 100);
+                            document.getElementById('mixerBirthVal').textContent     = Math.round(WEB_VOLUME_BIRTH * 100);
+                            document.getElementById('mixerDeath').value     = Math.round(WEB_VOLUME_DEATH * 100);
+                            document.getElementById('mixerDeathVal').textContent     = Math.round(WEB_VOLUME_DEATH * 100);
+                            document.getElementById('mixerEat').value       = Math.round(WEB_VOLUME_EAT * 100);
+                            document.getElementById('mixerEatVal').textContent       = Math.round(WEB_VOLUME_EAT * 100);
+                            document.getElementById('mixerLoop').value      = Math.round(WEB_VOLUME_LOOP * 100);
+                            document.getElementById('mixerLoopVal').textContent      = Math.round(WEB_VOLUME_LOOP * 100);
+                            document.getElementById('mixerUI').value        = Math.round(WEB_VOLUME_UI * 100);
+                            document.getElementById('mixerUIVal').textContent        = Math.round(WEB_VOLUME_UI * 100);
+                            document.getElementById('mixerMaxVoices').value = WEB_MAXIMUM_VOICES;
+                            document.getElementById('mixerMaxVoicesVal').textContent = WEB_MAXIMUM_VOICES;
+                        </script>
+
+                        <div id="audioStatusPanel" style="padding:6px; background:#f0f0f0; border-radius:4px; font-size:11px; color:#666; line-height:1.6;">
+                            <!-- populated by updateAudioStatus() -->
+                        </div>
+
+                        <div id="pitchHistogramPanel" style="width: 200px; padding:6px; text-align:center; background:#FFF; border-radius:4px; margin-top:60px; margin-left: 50px; border: 1px solid #9A9;">
+                            <!-- populated by getPitchHistogram() -->
+                        </div>
+
+                        <div id="poolUtteranceStatsLink" onclick="UtteranceStats.open()" style="cursor:pointer; margin-top:10px; padding:4px 8px; background:#fff; border-radius:4px; font-size:12px; text-align:center; border: 1px solid #9A9; ">
+                            UTTERANCE STATS &amp; LOGGER ...
+                        </div>
+
+                    </div>
+                </div> <!-- audio mixer panel -->            
                                 
             </div> <!--main Panel-->
+                <div id = "contactPanel" >
+                &copy; 2026 Jeffrey Ventrella &amp; Canton Becker
+            </div> <!-- contact Panel -->    
         </div>  <!--masterPanel-->
 
         <!-- ------------------------------------------------------------------ -->
@@ -784,8 +1008,15 @@
             <br>
             Select the "fast" button to make the simulation run as fast as possible. (Keep in mind that running fast uses more power). To monitor population and progress, select the graph menu button. 
             -->
-        </div>                  
-        
+        </div>
+
+        <!-- ------------------------------------------------------------------ -->
+        <!-- utterance statistics overlay (Darwin's Chorus — Canton Becker)     -->
+        <!-- populated and controlled by js/utteranceStats.js                   -->
+        <!-- ------------------------------------------------------------------ -->
+        <div id="utteranceStatsPanel"></div>
+
+
 		<!-- ------------------------------------------------------------ -->
 		<!-- prepare the UI...                                            -->
 		<!-- turn on the info panel and set it to the first page...       -->
