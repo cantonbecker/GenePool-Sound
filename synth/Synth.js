@@ -81,6 +81,7 @@ const WA_SAMPLE_CATALOG = {
 	'eat-01': 'synth/sounds-eat/eat-01.wav',
 	'eat-02': 'synth/sounds-eat/eat-02.wav',
 	'eat-03': 'synth/sounds-eat/eat-03.wav',
+	'eat-04': 'synth/sounds-eat/eat-04.wav',
 	// Loops
 	'loop-bell-drone': 'synth/sounds-loops/bell-drone.wav',
 	'reaktor-drone': 'synth/sounds-loops/reaktor-drone.wav',
