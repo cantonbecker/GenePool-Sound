@@ -84,12 +84,7 @@ const POOL_BOUNDARY_MARGIN      = 1200.0;
 	//----------------------------------
 	this.initialize = function( t )
 	{
-    	_touch.time = t;
-    	
-    	// _backgroundImage.src = 'images/background.png';   
-    	// _backgroundImage.src = 'images/background-upscaled.jpg';   
-    	// _backgroundImage.src = 'images/background-upscaled-blur.jpg';   
-    	// _backgroundImage.src = 'images/background-dark-circle.jpg';   
+    	_touch.time = t;    	
     	_backgroundImage.src 	= 'images/background-dark-circle-brighter_2.jpg';   
     	
     	for (let b=0; b<NUM_EFFECT_BLOBS; b++)
