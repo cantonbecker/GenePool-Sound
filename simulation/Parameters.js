@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-03-19 WEB2';
+const SWIMBOT_VERSION			= '2026-03-21 WEB';
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other

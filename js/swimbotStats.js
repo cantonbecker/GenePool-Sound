@@ -1,21 +1,24 @@
 "use strict";
 
 // ============================================================================
-//  utteranceStats.js — Darwin's Chorus — Canton Becker
+//  swimbotStats.js — Darwin's Chorus — Canton Becker
 //
-//  Real-time utterance statistics overlay for the living swimbot population.
-//  Triggered from the "Utterance Statistics..." link in the Pool panel.
+//  Real-time swimbot statistics overlay for the living population.
+//  Triggered from the "Swimbot Statistics..." link in the Audio panel.
 //
-//  Shows canvas-based histograms and a scatter plot so you can quickly answer:
+//  Shows canvas-based histograms, scatter plots, pitch activity, and
+//  population history so you can quickly answer:
 //    - Is utterRange diverse or has everything converged to the same value?
 //    - Are there tribal clusters in period × duration space?
 //    - Is there variety in song complexity (note count, mod count, pitch span)?
 //    - How are the underlying genes distributed across the population?
+//    - What pitch classes are currently active?
+//    - How is the population trending over time?
 //
 //  Data source: genePool.getLivingSwimbotUtteranceData()  (GenePool.js)
 // ============================================================================
 
-const UtteranceStats = (function() {
+const SwimbotStats = (function() {
 
     // ---- colour palette (dark theme) ----
     const C = {
@@ -62,8 +65,29 @@ const UtteranceStats = (function() {
     }
 
     // ---- auto-refresh state ----
-    let _refreshInterval = 0;   // seconds; 0 = do not refresh
+    let _refreshInterval = 2;   // seconds; 0 = do not refresh (default: 2s)
     let _refreshTimer    = null;
+
+    // ---- population history (fed every second from updateUI in ui.js) ----
+    const POP_MAX_SAMPLES = 3600;   // 1 hour at 1 sample/sec
+    let _popTime     = [];
+    let _popSwimbots = [];
+    let _popFood     = [];
+    let _popCount    = 0;
+
+    function recordPopulation(clock, numSwimbots, numFoodBits) {
+        if (_popCount >= POP_MAX_SAMPLES) {
+            // scroll left — drop oldest sample
+            _popTime.shift();
+            _popSwimbots.shift();
+            _popFood.shift();
+        } else {
+            _popCount++;
+        }
+        _popTime.push(clock);
+        _popSwimbots.push(numSwimbots);
+        _popFood.push(numFoodBits);
+    }
 
     function setRefresh(seconds) {
         _refreshInterval = seconds;
@@ -85,6 +109,191 @@ const UtteranceStats = (function() {
     }
 
     // ---- canvas chart renderers ----
+
+    const NOTE_LABEL = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+    // Draws a pre-binned 12-bar pitch-class chart from the global NOTE_HISTOGRAM
+    // (populated and decayed in Sound.js). Unlike drawHistogram() which bins raw
+    // values, this takes the already-bucketed Int32Array directly.
+    function drawPitchBars(canvas, label) {
+        const ctx = canvas.getContext('2d');
+        const W = canvas.width;
+        const H = canvas.height;
+        const P = { t: 20, r: 8, b: 18, l: 28 };
+        const cW = W - P.l - P.r;
+        const cH = H - P.t - P.b;
+
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = C.surface;
+        ctx.fillRect(0, 0, W, H);
+
+        if (label) {
+            ctx.fillStyle = '#9a9e92';
+            ctx.font      = 'bold 10px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(label, P.l, 13);
+        }
+
+        // read the global histogram (decayed in Sound.js every ~100ms)
+        var maxBin = 0;
+        for (var i = 0; i < 12; i++) {
+            if (NOTE_HISTOGRAM[i] > maxBin) maxBin = NOTE_HISTOGRAM[i];
+        }
+        if (maxBin === 0) {
+            ctx.fillStyle = C.subtext;
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('no recent notes', W / 2, H / 2);
+            return;
+        }
+
+        var bW = cW / 12;
+
+        // bars
+        for (var i = 0; i < 12; i++) {
+            var bh = (NOTE_HISTOGRAM[i] / maxBin) * cH;
+            if (bh > 0) {
+                ctx.fillStyle = NOTE_HISTOGRAM[i] === maxBin ? '#c8b84a' : '#8a8430';
+                ctx.fillRect(P.l + i * bW + 1, P.t + cH - bh, bW - 2, bh);
+            }
+        }
+
+        // x-axis baseline
+        ctx.strokeStyle = C.border;
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(P.l, P.t + cH);
+        ctx.lineTo(P.l + cW, P.t + cH);
+        ctx.stroke();
+
+        // pitch-class labels below bars
+        ctx.fillStyle = C.subtext;
+        ctx.font      = '9px Arial';
+        ctx.textAlign = 'center';
+        for (var i = 0; i < 12; i++) {
+            var x = P.l + i * bW + bW / 2;
+            ctx.fillStyle = NOTE_HISTOGRAM[i] > 0 ? C.text : C.subtext;
+            ctx.fillText(NOTE_LABEL[i], x, H - 2);
+        }
+
+        // y-axis max count label
+        ctx.fillStyle = C.subtext;
+        ctx.textAlign = 'right';
+        ctx.fillText(maxBin, P.l - 2, P.t + 8);
+    }
+
+    // Draws a dual-axis time-series population chart from the module-level _pop* arrays.
+    // Left Y-axis (red): swimbot count, fixed 0–MAX_SWIMBOTS.
+    // Right Y-axis (green): food count, fixed 0–MAX_FOODBITS.
+    // Each line is scaled to its own axis so they use the full chart height independently.
+    function drawPopulationChart(canvas, label) {
+        var ctx = canvas.getContext('2d');
+        var W = canvas.width;
+        var H = canvas.height;
+        var P = { t: 20, r: 36, b: 22, l: 36 };  // right margin widened for food axis
+        var cW = W - P.l - P.r;
+        var cH = H - P.t - P.b;
+
+        var COL_SWIM = '#c85a3a';
+        var COL_FOOD = '#5a9a5a';
+
+        ctx.clearRect(0, 0, W, H);
+        ctx.fillStyle = C.surface;
+        ctx.fillRect(0, 0, W, H);
+
+        if (label) {
+            ctx.fillStyle = '#9a9e92';
+            ctx.font      = 'bold 10px Arial';
+            ctx.textAlign = 'left';
+            ctx.fillText(label, P.l, 13);
+        }
+
+        if (_popCount < 2) {
+            ctx.fillStyle = C.subtext;
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('collecting data\u2026', W / 2, H / 2);
+            return;
+        }
+
+        function toX(idx) { return P.l + (idx / (_popCount - 1)) * cW; }
+        function toYSwim(val) { return P.t + cH - (val / MAX_SWIMBOTS) * cH; }
+        function toYFood(val) { return P.t + cH - (val / MAX_FOODBITS) * cH; }
+
+        // horizontal grid lines (3 evenly spaced by chart height)
+        ctx.strokeStyle = C.border;
+        ctx.lineWidth   = 0.5;
+        ctx.setLineDash([3, 4]);
+        for (var g = 1; g <= 3; g++) {
+            var gy = P.t + cH - (g / 4) * cH;
+            ctx.beginPath();
+            ctx.moveTo(P.l, gy);
+            ctx.lineTo(P.l + cW, gy);
+            ctx.stroke();
+        }
+        ctx.setLineDash([]);
+
+        // draw a polyline helper
+        function drawLine(arr, color, toYFn) {
+            ctx.strokeStyle = color;
+            ctx.lineWidth   = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(toX(0), toYFn(arr[0]));
+            for (var i = 1; i < _popCount; i++) {
+                ctx.lineTo(toX(i), toYFn(arr[i]));
+            }
+            ctx.stroke();
+        }
+
+        // food line first (behind), then swimbots on top
+        drawLine(_popFood,     COL_FOOD, toYFood);
+        drawLine(_popSwimbots, COL_SWIM, toYSwim);
+
+        // left + right + bottom axes
+        ctx.strokeStyle = C.border;
+        ctx.lineWidth   = 1;
+        ctx.beginPath();
+        ctx.moveTo(P.l, P.t);
+        ctx.lineTo(P.l, P.t + cH);
+        ctx.lineTo(P.l + cW, P.t + cH);
+        ctx.lineTo(P.l + cW, P.t);
+        ctx.stroke();
+
+        // left Y-axis labels (red — swimbot scale 0–MAX_SWIMBOTS)
+        ctx.font      = '9px Arial';
+        ctx.fillStyle = COL_SWIM;
+        ctx.textAlign = 'right';
+        ctx.fillText('0',                        P.l - 3, P.t + cH + 3);
+        ctx.fillText(MAX_SWIMBOTS,               P.l - 3, P.t + 8);
+        ctx.fillText(Math.round(MAX_SWIMBOTS / 2), P.l - 3, P.t + cH / 2 + 3);
+
+        // right Y-axis labels (green — food scale 0–MAX_FOODBITS)
+        ctx.fillStyle = COL_FOOD;
+        ctx.textAlign = 'left';
+        ctx.fillText('0',                         P.l + cW + 3, P.t + cH + 3);
+        ctx.fillText(MAX_FOODBITS,                P.l + cW + 3, P.t + 8);
+        ctx.fillText(Math.round(MAX_FOODBITS / 2), P.l + cW + 3, P.t + cH / 2 + 3);
+
+        // x-axis time labels (first and last clock tick)
+        ctx.fillStyle = C.subtext;
+        ctx.font      = '9px Arial';
+        ctx.textAlign = 'left';
+        ctx.fillText('t=' + _popTime[0], P.l, H - 2);
+        ctx.textAlign = 'right';
+        ctx.fillText('t=' + _popTime[_popCount - 1], P.l + cW, H - 2);
+        ctx.textAlign = 'center';
+        ctx.fillText(_popCount + ' samples', P.l + cW / 2, H - 2);
+
+        // legend (bottom-right corner)
+        var lx = P.l + cW - 4;
+        var ly = P.t + cH - 14;
+        ctx.font      = '9px Arial';
+        ctx.textAlign = 'right';
+        ctx.fillStyle = COL_SWIM;
+        ctx.fillText('\u2501 swimbots: ' + _popSwimbots[_popCount - 1], lx, ly);
+        ctx.fillStyle = COL_FOOD;
+        ctx.fillText('\u2501 food: ' + _popFood[_popCount - 1], lx, ly + 12);
+    }
 
     // Draws a histogram with a shaded ±1σ band and a mean line.
     // label is drawn directly onto the canvas so it appears in saved PNGs.
@@ -323,7 +532,7 @@ const UtteranceStats = (function() {
     // ---- main panel builder ----
 
     function buildAndRender(rawData) {
-        const panel = document.getElementById('utteranceStatsPanel');
+        const panel = document.getElementById('swimbotStatsPanel');
         if (!panel) return;
 
         const n = rawData.length;
@@ -366,11 +575,12 @@ const UtteranceStats = (function() {
 
                 // ---- header ----
                 '<div id="ustHeader">' +
-                    '<div id="ustTitle">Utterance Statistics' +
+                    '<div id="ustTitle">Swimbot Statistics' +
                         '&nbsp;<span id="ustCount">' + n + ' living swimbots</span>' +
                         '&nbsp;<span id="ustTimestamp">snapshot ' + ts + '</span>' +
-                        '&nbsp;<select id="ustRefreshSelect" class="ust-refresh-select" onchange="UtteranceStats.setRefresh(+this.value)">' +
+                        '&nbsp;<select id="ustRefreshSelect" class="ust-refresh-select" onchange="SwimbotStats.setRefresh(+this.value)">' +
                             '<option value="0">do not refresh</option>' +
+                            '<option value="2">refresh every 2 s</option>' +
                             '<option value="5">refresh every 5 s</option>' +
                             '<option value="30">refresh every 30 s</option>' +
                             '<option value="60">refresh every 60 s</option>' +
@@ -382,7 +592,7 @@ const UtteranceStats = (function() {
                     '</div>' +
                     '<div id="ustHeaderButtons">' +
                         '<button id="ustLogBtn" class="ust-header-btn ust-log-btn" onclick="UtteranceLogger.startLogging()">&#128247; Log PNGs\u2026</button>' +
-                        '<button class="ust-header-btn" onclick="UtteranceStats.close()">&#10005; Close</button>' +
+                        '<button class="ust-header-btn" onclick="SwimbotStats.close()">&#10005; Close</button>' +
                     '</div>' +
                 '</div>' +
 
@@ -399,7 +609,25 @@ const UtteranceStats = (function() {
                             '<br>Busy utterer \u2192 duty near 1.0 &nbsp;|&nbsp; Quiet utterer \u2192 duty near 0') +
                     '</div>' +
 
-                    // SECTION 2: Range + scatter
+                    // SECTION 2: Note intervals (2/5) + population growth (3/5) side by side
+                    '<div class="ust-section-title">Note Intervals &amp; Population Growth</div>' +
+                    '<div class="ust-row">' +
+                        '<div class="ust-chart-unit" style="flex:2;">' +
+                            '<canvas id="ustCPitch" width="280" height="160"></canvas>' +
+                            '<div class="ust-chart-stats">' +
+                                '<b>' + NOTE_COUNT + '</b> notes &nbsp; <b>' + MOD_COUNT + '</b> mods' +
+                                '<br>Decays to reflect recent activity' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="ust-chart-unit" style="flex:3;">' +
+                            '<canvas id="ustCPopulation" width="700" height="200"></canvas>' +
+                            '<div class="ust-chart-stats">' +
+                                'Swimbot and food counts sampled every second (' + _popCount + ' samples)' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+
+                    // SECTION 3: Range + scatter
                     '<div class="ust-section-title">Hearing Range</div>' +
                     '<div class="ust-row">' +
                         chartUnit('ustCRange', 'Utterance Range (pool units 150\u2013600)',
@@ -411,7 +639,7 @@ const UtteranceStats = (function() {
                         '</div>' +
                     '</div>' +
 
-                    // SECTION 3: Song composition
+                    // SECTION 4: Song composition
                     '<div class="ust-section-title">Song Composition</div>' +
                     '<div class="ust-row">' +
                         chartUnit('ustCNoteCount', 'Note Count (total notes in song)',
@@ -448,6 +676,8 @@ const UtteranceStats = (function() {
             drawHistogram(document.getElementById('ustCNoteSpan'), noteSpans,     0, spanHi,  C.compose, 16, 'Note Span (high \u2212 low, semitones)');
             drawHistogram(document.getElementById('ustCPref'),     prefs,         0,   1,     C.pref,    20, 'Utterance Preference gene');
             drawScatter(document.getElementById('ustCScatter'), rawData, 'Period \u00d7 Duration scatter');
+            drawPitchBars(document.getElementById('ustCPitch'), NOTE_COUNT + '/' + MOD_COUNT + ' recent notes/mods');
+            drawPopulationChart(document.getElementById('ustCPopulation'), 'Population History');
 
             // restore log button state (innerHTML rebuild resets it each refresh)
             if (typeof UtteranceLogger !== 'undefined') {
@@ -485,18 +715,30 @@ const UtteranceStats = (function() {
     function open() {
         const rawData = genePool.getLivingSwimbotUtteranceData();
         buildAndRender(rawData);
+        // start default auto-refresh if not already running
+        if (!_refreshTimer && _refreshInterval > 0) {
+            setRefresh(_refreshInterval);
+        }
     }
 
     function close() {
         if (_refreshTimer) { clearInterval(_refreshTimer); _refreshTimer = null; }
-        _refreshInterval = 0;
-        const panel = document.getElementById('utteranceStatsPanel');
+        _refreshInterval = 2;   // reset to default for next open
+        const panel = document.getElementById('swimbotStatsPanel');
         if (panel) {
             panel.style.visibility = 'hidden';
             panel.innerHTML = '';   // free memory — charts can be large
         }
     }
 
-    return { open: open, close: close, setRefresh: setRefresh, onLoggerStatusChange: onLoggerStatusChange };
+    // Called on preset launch so all charts start fresh.
+    function reset() {
+        _popTime     = [];
+        _popSwimbots = [];
+        _popFood     = [];
+        _popCount    = 0;
+    }
+
+    return { open: open, close: close, reset: reset, setRefresh: setRefresh, onLoggerStatusChange: onLoggerStatusChange, recordPopulation: recordPopulation };
 
 })();

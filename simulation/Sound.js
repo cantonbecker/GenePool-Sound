@@ -170,6 +170,13 @@ function Sound()
 	let _parameter_3 = ZERO;
 
 	//--------------------------------
+	this.resetHistogram = function()
+	{
+		for (let i = 0; i < 12; i++) NOTE_HISTOGRAM[i] = 0;
+		NOTE_COUNT = 0;
+		MOD_COUNT  = 0;
+	}
+
 	this.initialize = function()
 	{
 		console.log("*** Sound.initialize() ***");
@@ -266,10 +273,6 @@ function Sound()
 			for (let i = 0; i < 12; i++) NOTE_HISTOGRAM[i] = Math.floor(NOTE_HISTOGRAM[i] * 0.92);
 			NOTE_COUNT = Math.floor(NOTE_COUNT * 0.92);
 			MOD_COUNT  = Math.floor(MOD_COUNT * 0.92);
-
-			const tableHTML = getPitchHistogram();
-			const el = document.getElementById('pitchHistogramPanel');
-			if (el) el.innerHTML = tableHTML;
 		}
 	} /* end setGlobalParameters */
 
@@ -888,42 +891,6 @@ function determineCurrentMusicParameters () {
 
 
 
-const NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-
-function getPitchHistogram() {
-	const maxHeight = 14;
-	let maxCount = 0;
-
-	for (let i = 0; i < 12; i++) {
-		if (NOTE_HISTOGRAM[i] > maxCount) maxCount = NOTE_HISTOGRAM[i];
-	}
-	if (maxCount === 0) maxCount = 1;
-
-	let tableHTML = '<table><tbody style="font-size: 10px; text-align:center;"><tr><th colspan="11">' + NOTE_COUNT + '/' + MOD_COUNT + ' notes/mods</th></tr>';
-	for (let row = 0; row < maxHeight; row++) {
-		tableHTML += '<tr>';
-		for (let i = 0; i < 12; i++) {
-			const barHeight = Math.round((NOTE_HISTOGRAM[i] / maxCount) * maxHeight);
-			if (maxHeight - row <= barHeight) {
-				tableHTML += '<td style="width:11px;height:11px;background:#4b8fff;"></td>';
-			} else {
-				tableHTML += '<td style="width:11px;height:11px;background:#eee;"></td>';
-			}
-		}
-		tableHTML += '</tr>';
-	}
-	tableHTML += '<tr>';
-	for (let i = 0; i < 12; i++) {
-		if (NOTE_HISTOGRAM[i] > 0) {
-			tableHTML += `<td style="padding:0; background:#28b245; color:#fff; font-weight:bold;">${NOTE_NAMES[i]}</td>`;
-		} else {
-			tableHTML += `<td style="padding:0; background:#fff; color:#444;">${NOTE_NAMES[i]}</td>`;
-		}
-	}
-	tableHTML += '</tr></tbody></table>';
-
-	return tableHTML;
-}
 
 
 

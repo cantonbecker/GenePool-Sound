@@ -343,6 +343,8 @@ function GenePool()
 	    
 	    
 	    _utteranceRenderer.clearAllUtterances();
+	    _sound.resetHistogram();
+	    SwimbotStats.reset();
 	    
         //-------------------------
         // initialize camera
@@ -4275,7 +4277,7 @@ for (let g=0; g<NUM_GENES; g++)
 	this.getSwimbotNickname                 = function( ID ) {	return _swimbots[ ID ].getNickname                  (); }
 
     // Returns an array of utterance-related phenotype data for every currently-living swimbot.
-    // Used by the Utterance Statistics panel (js/utteranceStats.js) to snapshot the population.
+    // Used by the Swimbot Statistics panel (js/swimbotStats.js) to snapshot the population.
     this.getLivingSwimbotUtteranceData = function() {
         const data = [];
         for ( let s = 0; s < MAX_SWIMBOTS; s++ ) {

@@ -1,5 +1,5 @@
 <!-- ---------------------------------------------------------------------- -->
-<!--                                                                        -->
+<!--    https://github.com/cantonbecker/GenePool-Sound/tree/webaudio        -->
 <!--    This file is part of GenePool Swimbots.                             -->
 <!--    Copyright (c) 2021 by Jeffrey Ventrella - All Rights Reserved.      -->
 <!--                                                                        -->
@@ -174,7 +174,7 @@
 		<script type = "text/javascript" src = "js/info.js"             ></script>
 		<script type = "text/javascript" src = "js/ui.js"               ></script>
 		<script type = "text/javascript" src = "js/utteranceLogger.js"  ></script>
-		<script type = "text/javascript" src = "js/utteranceStats.js"   ></script>
+		<script type = "text/javascript" src = "js/swimbotStats.js"      ></script>
         
 
         <script>
@@ -294,7 +294,7 @@
                 <button id = "menuPoolButton"     class = "basicButton" onmousedown = "openPanel( 'menuPoolButton'    );" >pool      </button>                
                 <button id = "menuSwimbotButton"  class = "basicButton" onmousedown = "openPanel( 'menuSwimbotButton' );" >swimbot   </button>
                 <button id = "menuTweakButton"    class = "basicButton" onmousedown = "openPanel( 'menuTweakButton'   );" >tweak     </button>
-                <button id = "menuGraphButton"    class = "basicButton" onmousedown = "openPanel( 'menuGraphButton'   );" >graph     </button>
+                <button id = "menuGraphButton"    class = "basicButton" onmousedown = "openPanel( 'menuGraphButton'   );" >stats     </button>
                 <button id = "menuInfoButton"     class = "basicButton" onmousedown = "openPanel( 'menuInfoButton'    );" >audio     </button>
             </div>       
             <div id = "mainPanel" class = "basicPanel" >
@@ -618,6 +618,12 @@
                     <div id = "graphData">
                         (no data)     
                     </div>
+
+                        <div id="poolSwimbotStatsLink" onclick="SwimbotStats.open()" style="cursor:pointer; margin-top:465px; padding:4px 8px; background:#fff; border-radius:4px; font-size:12px; text-align:center; border: 1px solid #9A9; font-weight: bold; ">
+                            SWIMBOT STATS &amp; LOGGER ...
+                        </div>
+
+
                 </div> 	 <!-- graph Panel -->	
 
             
@@ -639,7 +645,7 @@
                         <!-- these will be auto-filled by ui.js -->
                     </div>
 
-                    <div id="poolStatusPanel" style="margin-top: 0 !important; padding:6px; background:#f0f0f0; border-radius:4px; font-size:11px; color:#666; line-height:1.6; margin-top:8px;">
+                    <div id="poolStatusPanel" style="margin-top: 0 !important; padding:6px;  font-size:11px; color:#666; line-height:1.6; margin-top:8px;">
                         <!-- populated by updatePoolStatus() -->
                     </div>
 
@@ -888,14 +894,6 @@
                             <!-- populated by updateAudioStatus() -->
                         </div>
 
-                        <div id="pitchHistogramPanel" style="width: 200px; padding:6px; text-align:center; background:#FFF; border-radius:4px; margin-top:60px; margin-left: 50px; border: 1px solid #9A9;">
-                            <!-- populated by getPitchHistogram() -->
-                        </div>
-
-                        <div id="poolUtteranceStatsLink" onclick="UtteranceStats.open()" style="cursor:pointer; margin-top:10px; padding:4px 8px; background:#fff; border-radius:4px; font-size:12px; text-align:center; border: 1px solid #9A9; ">
-                            UTTERANCE STATS &amp; LOGGER ...
-                        </div>
-
                     </div>
                 </div> <!-- audio mixer panel -->            
                                 
@@ -1011,10 +1009,10 @@
         </div>
 
         <!-- ------------------------------------------------------------------ -->
-        <!-- utterance statistics overlay (Darwin's Chorus — Canton Becker)     -->
-        <!-- populated and controlled by js/utteranceStats.js                   -->
+        <!-- swimbot statistics overlay (Darwin's Chorus — Canton Becker)        -->
+        <!-- populated and controlled by js/swimbotStats.js                     -->
         <!-- ------------------------------------------------------------------ -->
-        <div id="utteranceStatsPanel"></div>
+        <div id="swimbotStatsPanel"></div>
 
 
 		<!-- ------------------------------------------------------------ -->

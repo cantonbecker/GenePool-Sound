@@ -1242,29 +1242,24 @@ overflow:auto; /* added for the family tree display
 
 
 /* ============================================================================
-   Utterance Statistics panel — Darwin's Chorus (Canton Becker)
+   Swimbot Statistics panel — Darwin's Chorus (Canton Becker)
    ============================================================================ */
 
-#poolUtteranceStatsLink {
+#poolSwimbotStatsLink {
     margin-top: 5px;
-    padding: 2px 0 0 4px;
+    padding: 8px 12px;
     font-size: 12px;
+    cursor: pointer;
+    display: block;
+    text-align: center;
 }
 
-#poolUtteranceStatsLink a {
-    color: #5a7a5a;
-    text-decoration: none;
-    border: 1px solid #5a7a5a;
-    padding: 4px;
-}
-
-#poolUtteranceStatsLink a:hover {
-    color: #3a5a3a;
-    text-decoration: underline;
+#poolSwimbotStatsLink:hover {
+    background: #e8efe8;
 }
 
 /* Full-screen overlay container */
-#utteranceStatsPanel {
+#swimbotStatsPanel {
     position:         fixed;
     top:              0;
     left:             0;

@@ -16,7 +16,7 @@
 //       into the chosen folder silently.
 //    4. Click the active button again (or close the stats panel) to stop.
 //
-//  The logger notifies UtteranceStats of state changes so the button UI
+//  The logger notifies SwimbotStats of state changes so the button UI
 //  stays in sync after each panel rebuild.
 //
 //  Browser support: Chrome 86+, Edge 86+.
@@ -71,7 +71,7 @@ const UtteranceLogger = (function() {
         _notifyStatusChange();
     }
 
-    // ---- public: called by UtteranceStats after every panel render ----
+    // ---- public: called by SwimbotStats after every panel render ----
 
     async function saveSnapshot() {
         if (!_isLogging || !_dirHandle) return;
@@ -158,13 +158,13 @@ const UtteranceLogger = (function() {
 
     // ---- private helpers ----
 
-    // Tell UtteranceStats to update its log button UI.
+    // Tell SwimbotStats to update its log button UI.
     // Called after every state change so the button stays in sync
     // across panel rebuilds (buildAndRender replaces all innerHTML).
     function _notifyStatusChange() {
-        if (typeof UtteranceStats !== 'undefined' &&
-            typeof UtteranceStats.onLoggerStatusChange === 'function') {
-            UtteranceStats.onLoggerStatusChange(_isLogging, _saveCount);
+        if (typeof SwimbotStats !== 'undefined' &&
+            typeof SwimbotStats.onLoggerStatusChange === 'function') {
+            SwimbotStats.onLoggerStatusChange(_isLogging, _saveCount);
         }
     }
 

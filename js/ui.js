@@ -1144,6 +1144,7 @@ function updateUI()
         if ( genePoolIsDefined )
         {    
             _graph.update( genePool.getTimeStep(), genePool.getNumSwimbots(), genePool.getNumFoodBits() );
+            SwimbotStats.recordPopulation( genePool.getTimeStep(), genePool.getNumSwimbots(), genePool.getNumFoodBits() );
             // _graph.update( genePool.getTimeStep(), genePool.getNumSwimbots(), genePool.getNumFoodBits() , genePool.getNumFoodBits1() );
         }
     
