@@ -53,7 +53,9 @@ The concept: evolving digital creatures called **swimbots** live, eat, reproduce
 | `ui.js` | Developer panel, preset buttons, gene tweakers, camera nav controls, Audio tab mixer, pointer lock / fullscreen |
 | `info.js` | In-app info/tutorial text (28 pages) |
 | `saveLoad.js` | Save/load swimbots and pools (file and preset modes) |
-| `graph.js` | Population graphs for debugging |
+| `graph.js` | Population graph (basic beige style, in the Graph panel) |
+| `swimbotStats.js` | **Swimbot Statistics** overlay — canvas-based histograms for utterance genes, scatter plot, pitch-class bar chart, dual-axis population history. `SwimbotStats` IIFE with auto-refresh (default 2s). All charts reset on preset launch. |
+| `utteranceLogger.js` | PNG snapshot logger for the stats panel — saves canvas charts to disk on a timer |
 
 ---
 
@@ -89,6 +91,7 @@ The **Audio** tab in the developer panel provides:
 - Per-category mix sliders: utterances, birth/spawn, death, eating, background loop
 - Max simultaneous voices slider (1–64)
 - Live status: active voices, current reverb IR + wet level, active loop, sample/IR loading progress
+- Link to open the **Swimbot Statistics** overlay (detailed charts, pitch histogram, population history)
 
 Mixer defaults are set in `Parameters.js` (`WEB_AUDIO_VOLUME`, `WEB_VOLUME_*`, `WEB_MAXIMUM_VOICES`).
 
@@ -133,6 +136,18 @@ AUTOPILOT:        activates after 5 minutes of user inactivity
 - Canton modified genotype preset system in Sept 2025 to auto-generate constants from `PRESET_LIST` array
 - The `PROTOTYPING_SOUND = true` flag exists in `Swimbot.js`
 - `gpRandom()` wraps `Math.random()` with a commented-out seeded PRNG (aleaPRNG) for future reproducibility
+
+### Goal Overlay (toggled with `_renderingGoals`)
+- Labels above each swimbot show brain state: 👀 looking for mate, ❤️ pursuing mate, 🍏 pursuing food
+- Mate pursuit labels get a **pair-hashed color** so you can visually spot reciprocal pursuits: if swimbot 5 chases 10 AND swimbot 10 chases 5, both labels are the same color. If 5→10 but 10→15, they get different colors. The color comes from hashing the unordered pair `(min, max)` of the two IDs with two primes, mapped to HSL at full saturation / 75% lightness.
+- All goal labels render with a semi-transparent black backdrop for contrast against any swimbot color.
+
+### Swimbot Statistics Panel (`js/swimbotStats.js`)
+- Formerly called "Utterance Statistics" / `utteranceStats.js` — renamed March 2026 because the panel now covers more than just utterances (pitch activity, population history).
+- The `SwimbotStats` IIFE accumulates population history every second (via `recordPopulation()` called from `updateUI()`), even when the panel is closed. No charts are rendered while closed — only the lightweight array push runs.
+- **All charts zero out when a new preset is launched.** `startSimulation()` calls both `_sound.resetHistogram()` (pitch data) and `SwimbotStats.reset()` (population history). The per-swimbot histograms (timing, range, composition) naturally refresh because they pull live data from the new swimbots.
+- Population history chart uses **dual Y-axes**: left axis (red) is fixed 0–`MAX_SWIMBOTS`, right axis (green) is fixed 0–`MAX_FOODBITS`. Each line scales to its own axis independently.
+- Default auto-refresh is 2 seconds. Options: 0/2/5/30/60s.
 
 ## TO DO
 
