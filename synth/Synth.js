@@ -57,26 +57,15 @@ const WA_REVERB_CATALOG  = {
 
 // Sample catalog — all samples are preloaded at startup
 const WA_SAMPLE_CATALOG = {
-	// One-shots: birth (16 variations)
+	// One-shots: birth
 	'birth-01': 'synth/sounds-birth/birth-01.wav',
 	'birth-02': 'synth/sounds-birth/birth-02.wav',
-	'birth-03': 'synth/sounds-birth/birth-03.wav',
-	'birth-04': 'synth/sounds-birth/birth-04.wav',
-	'birth-05': 'synth/sounds-birth/birth-05.wav',
-	'birth-06': 'synth/sounds-birth/birth-06.wav',
-	'birth-07': 'synth/sounds-birth/birth-07.wav',
-	'birth-08': 'synth/sounds-birth/birth-08.wav',
-	'birth-09': 'synth/sounds-birth/birth-09.wav',
-	'birth-10': 'synth/sounds-birth/birth-10.wav',
-	'birth-11': 'synth/sounds-birth/birth-11.wav',
-	'birth-12': 'synth/sounds-birth/birth-12.wav',
-	'birth-13': 'synth/sounds-birth/birth-13.wav',
-	'birth-14': 'synth/sounds-birth/birth-14.wav',
-	'birth-15': 'synth/sounds-birth/birth-15.wav',
-	'birth-16': 'synth/sounds-birth/birth-16.wav',
 	// One-shots: death
 	'death-01': 'synth/sounds-death/death-01.wav',
 	'death-02': 'synth/sounds-death/death-02.wav',
+	'death-03': 'synth/sounds-death/death-03.wav',
+	'death-04': 'synth/sounds-death/death-04.wav',
+	'death-05': 'synth/sounds-death/death-05.wav',
 	// One-shots: eat
 	'eat-01': 'synth/sounds-eat/eat-01.wav',
 	'eat-02': 'synth/sounds-eat/eat-02.wav',
@@ -229,7 +218,7 @@ var SwimbotSynth = (function () {
 	}
 
 	// ── One-shot sample playback ─────────────────────────────────────────────
-	// options: { volume: 0–1, rate: playbackRate, reverb: bool }
+	// options: { volume: 0–1, semitones: pitch shift in semitones (varispeed), reverb: bool }
 
 	function _playSample(name, options) {
 		if (!audioCtx || !masterGain) return;
@@ -237,9 +226,10 @@ var SwimbotSynth = (function () {
 		if (!buf) return;
 		if (audioCtx.state === 'suspended') audioCtx.resume();
 		const opts = options || {};
-		const vol       = (opts.volume !== undefined) ? opts.volume : 1.0;
-		const rate      = (opts.rate   !== undefined) ? opts.rate   : 1.0;
-		const useReverb = (opts.reverb !== undefined) ? opts.reverb : false;
+		const vol       = (opts.volume    !== undefined) ? opts.volume    : 1.0;
+		const semitones = (opts.semitones !== undefined) ? opts.semitones : 0;
+		const rate      = Math.pow(2, semitones / 12);
+		const useReverb = (opts.reverb    !== undefined) ? opts.reverb    : false;
 
 		const source = audioCtx.createBufferSource();
 		source.buffer = buf;
@@ -570,7 +560,7 @@ var SwimbotSynth = (function () {
 		// Swap reverb to a preloaded IR by catalog name (e.g. 'bright4', 'dark4', 'medium4', 'bright5').
 		setReverbIR: function (name) { _setReverbIR(name); },
 
-		// Play a one-shot sample. options: { volume: 0–1, rate: playbackRate, reverb: bool }
+		// Play a one-shot sample. options: { volume: 0–1, semitones: pitch shift (varispeed), reverb: bool }
 		playSample: function (name, options) { _playSample(name, options); },
 
 		// Start a looping sample (one at a time). Same name = no-op. Different name = swap.

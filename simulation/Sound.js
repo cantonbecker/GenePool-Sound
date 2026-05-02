@@ -302,13 +302,19 @@ function Sound()
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) {
 			if (SOUND_OUTPUT_BIRTH) {
+				// first pick a random birth sound
 				const pick = WA_BIRTH_SAMPLES[Math.floor(Math.random() * WA_BIRTH_SAMPLES.length)];
-				SwimbotSynth.playSample(pick, { volume: 0.8 * WEB_VOLUME_BIRTH, reverb: true });
+				// now pick a random note shift according to our crrent interval
+				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)];
+				SwimbotSynth.playSample(pick, { volume: 0.8 * WEB_VOLUME_BIRTH, semitones: semitones, reverb: true });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
 			if (SOUND_OUTPUT_DEATH) {
 				const pick = WA_DEATH_SAMPLES[Math.floor(Math.random() * WA_DEATH_SAMPLES.length)];
-				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_DEATH, reverb: true });
+				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)];
+				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_DEATH, semitones: semitones, reverb: true });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) {
 			if (SOUND_OUTPUT_SPAWN) {
@@ -827,7 +833,8 @@ function determineCurrentMusicParameters () {
 	/*** BLANK POOL ***/
 	if (_chosenPoolToLoad == 0) {
 		backgroundLoop = 'reaktor-drone'; 							// no background loop
-		mySet = getNoteIntervalSetFor('minor pentatonic');
+		// mySet = getNoteIntervalSetFor('minor pentatonic');
+		mySet = getNoteIntervalSetFor('octaves');
 		SwimbotSynth.setReverbIR('tunnel');
 		// minReverb = maxReverb = 120;
 	/*** INVASION ***/
