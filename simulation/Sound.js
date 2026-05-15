@@ -66,6 +66,7 @@ var SOUND_OUTPUT_SPAWN		 	= true;
 var SOUND_OUTPUT_LAUNCH			= true;
 
 var UTTER_ATTENUATION = 0; // stores current attenuation level
+var CURRENT_ZOOM_PERCENTAGE = 0; // 0 = zoomed all the way in, 1 = zoomed all the way out. updated each tick in setGlobalParameters
 
 const MIN_REVERB_DEFAULT = 10; // 0-127
 const MAX_REVERB_DEFAULT = 50;
@@ -216,6 +217,7 @@ function Sound()
 
 		// grab camera zoom and use it for some globals
 		const zoomPercentage = Math.min(1, Math.max(0, (_parameter_3 - 500) / (8000 - 500)));
+		CURRENT_ZOOM_PERCENTAGE = zoomPercentage; // expose to doSwimbotSoundEvent for per-event zoom-attenuation
 
 		// when you're zoomed out, swimbots are a little quieter
 		UTTER_ATTENUATION = Math.round(zoomPercentage * MAX_UTTER_ATTENUATION);
@@ -307,14 +309,9 @@ function Sound()
 				// now pick a random note shift according to our current interval
 				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
 				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
-				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_BIRTH, semitones: semitones, reverb: true });
-			}
-		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
-			if (SOUND_OUTPUT_DEATH) {
-				const pick = WA_DEATH_SAMPLES[Math.floor(Math.random() * WA_DEATH_SAMPLES.length)];
-				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
-				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
-				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_DEATH, semitones: semitones, reverb: true });
+				// quieter when zoomed out: 0.90 zoomed all the way in → 0.50 zoomed all the way out
+				const zoomAttn = 0.90 - (0.40 * CURRENT_ZOOM_PERCENTAGE);
+				SwimbotSynth.playSample(pick, { volume: zoomAttn * WEB_VOLUME_BIRTH, semitones: semitones, reverb: true });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) { // only invoked when we makeNewRandomSwimbot()
 			if (SOUND_OUTPUT_SPAWN) {
@@ -339,6 +336,13 @@ function Sound()
 						SwimbotSynth.playSample(secondSample, { volume: 0.9 * WEB_VOLUME_SPAWN, reverb: true });
 					}, 220); // ~q*bert syllable timing
 				}
+			}
+		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
+			if (SOUND_OUTPUT_DEATH) {
+				const pick = WA_DEATH_SAMPLES[Math.floor(Math.random() * WA_DEATH_SAMPLES.length)];
+				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
+				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_DEATH, semitones: semitones, reverb: true });
 			}
 		}
 
