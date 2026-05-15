@@ -1869,11 +1869,11 @@ if ( mode === SimulationStartMode.SPECIES )
             //-----------------------------------------------------------------------
             // Spawn animation
             //-----------------------------------------------------------------------
-			_swimbots[ newBornSwimbotIndex ].doCreationEffect( _camera.getScale() );
                                 
                                 	
-                                // If we're born within view, let's hear it
+                                // If we're born within view, let's see our fancy starburst animation and trigger a special birth sound
                                 if (_rendering && _camera.getWithinView( _swimbots[ newBornSwimbotIndex ].getPosition(), _swimbots[ newBornSwimbotIndex ].getBoundingRadius() )) {
+			                           _swimbots[ newBornSwimbotIndex ].doCreationEffect( _camera.getScale() );
                                     _sound.doSwimbotSoundEvent (SOUND_EVENT_TYPE_BIRTH, s);
                                 }
                             
