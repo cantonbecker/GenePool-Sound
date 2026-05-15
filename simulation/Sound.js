@@ -46,7 +46,7 @@ var BASE_NOTE = 41; // A1 = 33 | A2 = 45 | A3 = 57 | A440 = 69
 const SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT = 0; // enable this to have the background tone gradually drift around the default intervals
 var UNIVERSAL_NOTE_SHIFT = 0; // remembers our current shift, see constant SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT
 
-const DEFAULT_BACKGROUND_LOOP = 'loop-lake-bacalar';
+const DEFAULT_BACKGROUND_LOOP = 'bg-lake-bacalar';
 
 const MODULATION_SPEED_MS = 15; // how often CC modulation events are inserted into utterance sequences (ms)
 
@@ -298,27 +298,47 @@ function Sound()
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
 			if (SOUND_OUTPUT_EAT) {
 				const pick = WA_EAT_SAMPLES[Math.floor(Math.random() * WA_EAT_SAMPLES.length)];
-				SwimbotSynth.playSample(pick, { volume: 0.7 * WEB_VOLUME_EAT, reverb: true });
+				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_EAT, reverb: true });
 			}
-		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) {
+		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) { // 'natural' birth in the simulation causes this
 			if (SOUND_OUTPUT_BIRTH) {
 				// first pick a random birth sound
 				const pick = WA_BIRTH_SAMPLES[Math.floor(Math.random() * WA_BIRTH_SAMPLES.length)];
-				// now pick a random note shift according to our crrent interval
+				// now pick a random note shift according to our current interval
 				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
-				const semitones = intervals[Math.floor(Math.random() * intervals.length)];
-				SwimbotSynth.playSample(pick, { volume: 0.8 * WEB_VOLUME_BIRTH, semitones: semitones, reverb: true });
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
+				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_BIRTH, semitones: semitones, reverb: true });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_DEATH ) {
 			if (SOUND_OUTPUT_DEATH) {
 				const pick = WA_DEATH_SAMPLES[Math.floor(Math.random() * WA_DEATH_SAMPLES.length)];
 				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
-				const semitones = intervals[Math.floor(Math.random() * intervals.length)];
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
 				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_DEATH, semitones: semitones, reverb: true });
 			}
-		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) {
+		} else if ( type === SOUND_EVENT_TYPE_SPAWN ) { // only invoked when we makeNewRandomSwimbot()
 			if (SOUND_OUTPUT_SPAWN) {
-				this.doSwimbotSoundEvent(SOUND_EVENT_TYPE_BIRTH, false);
+				// first play the birth sound, as if this were a natural birth, but QUIETER
+				const pick = WA_BIRTH_SAMPLES[Math.floor(Math.random() * WA_BIRTH_SAMPLES.length)];
+				// now pick a random note shift according to our current interval
+				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
+				SwimbotSynth.playSample(pick, { volume: 0.25 * WEB_VOLUME_BIRTH, semitones: semitones, reverb: true });
+
+				// now do a q*bert style vocalization by choosing two random spawn-01 to spawn-09 sounds and playing them back-to-back
+				if (WA_SPAWN_SAMPLES.length >= 2) {
+					const firstIdx = Math.floor(Math.random() * WA_SPAWN_SAMPLES.length);
+					let secondIdx;
+					do {
+						secondIdx = Math.floor(Math.random() * WA_SPAWN_SAMPLES.length);
+					} while (secondIdx === firstIdx); // while forces us to choose different samples
+					const firstSample  = WA_SPAWN_SAMPLES[firstIdx];
+					const secondSample = WA_SPAWN_SAMPLES[secondIdx];
+					SwimbotSynth.playSample(firstSample,  { volume: 0.9 * WEB_VOLUME_SPAWN, reverb: true });
+					setTimeout(() => {
+						SwimbotSynth.playSample(secondSample, { volume: 0.9 * WEB_VOLUME_SPAWN, reverb: true });
+					}, 220); // ~q*bert syllable timing
+				}
 			}
 		}
 
@@ -820,11 +840,10 @@ function determineCurrentMusicParameters () {
 	let secBetweenUnivNoteShift = SECONDS_BETWEEN_UNIVERSAL_NOTE_SHIFT_DEFAULT;
 	let shortestNoteMs = SHORTEST_NOTE_MS_DEFAULT;
 	let noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['super']); // default to bell curve instead of 'sharp' or 'super'
-	let seqDurationStates = structuredClone(DEFAULT_SEQUENCE_DURATION_STATES);
 	let backgroundLoop = DEFAULT_BACKGROUND_LOOP;
+	let seqDurationStates = structuredClone(DEFAULT_SEQUENCE_DURATION_STATES);
 	
-	seqDurationStates
-	/*
+	/* seqDurationStates default is something like
 	{ name: 'short',  min: 60,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS_DEFAULT 
 	{ name: 'medium', min: 140, max: 210 },   // 120ms is an 8th note at 125 BPM
 	{ name: 'long',   min: 280, max: 420 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
@@ -832,9 +851,9 @@ function determineCurrentMusicParameters () {
 	
 	/*** BLANK POOL ***/
 	if (_chosenPoolToLoad == 0) {
-		backgroundLoop = 'reaktor-drone'; 							// no background loop
-		// mySet = getNoteIntervalSetFor('minor pentatonic');
-		mySet = getNoteIntervalSetFor('octaves');
+		backgroundLoop = 'bg-lake-bacalar'; 							// no background loop
+		mySet = getNoteIntervalSetFor('minor pentatonic');
+		// mySet = getNoteIntervalSetFor('octaves');
 		SwimbotSynth.setReverbIR('tunnel');
 		// minReverb = maxReverb = 120;
 	/*** INVASION ***/
@@ -845,12 +864,12 @@ function determineCurrentMusicParameters () {
 		shortestNoteMs = 90; 							// shortest notes will be 90ms
 		seqDurationStates[0].min = 100; 				// lengthen 'short' min to 100ms
 		seqDurationStates[0].max = 140; 				// lengthen 'short' max to 140mx
-		backgroundLoop = 'loop-bell-drone';
+		backgroundLoop = 'bg-bell-drone';
 		SwimbotSynth.setReverbIR('bright4');
 
 	/*** FLOCKS ***/
 	} else if (_chosenPoolToLoad == 2) {
-		backgroundLoop = 'loop-bell-drone';
+		backgroundLoop = 'bg-bell-drone';
 		mySet = getNoteIntervalSetFor('pentatonic');
 		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
 		SwimbotSynth.setReverbIR('echohall');
@@ -871,7 +890,7 @@ function determineCurrentMusicParameters () {
 	/*** AUTOPILOT ***/
 	} else if (_chosenPoolToLoad == 5) {
 		mySet = getNoteIntervalSetFor('octaves');
-		backgroundLoop = 'loop-bell-drone';
+		backgroundLoop = 'bg-reaktor-drone';
 		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .95); // loads of reverb
 		SwimbotSynth.setReverbIR('dark4');
 	}

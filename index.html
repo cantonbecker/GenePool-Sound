@@ -72,7 +72,8 @@
         ">
             <div style="text-align:center; max-width:420px; padding:32px;">
                 <div style="font-size:28px; font-weight:bold; color:#fff; margin-bottom:6px;">Darwin's Chorus</div>
-                <div style="font-size:13px; color:#aaa; margin-bottom:20px;">An artificial life simulation that evolves generative music</div>
+                <div style="font-size:13px; color:#aaa; margin-bottom:6px;">An artificial life simulation that evolves generative music</div>
+                <div id="splashVersion" style="font-size:11px; color:#666; margin-bottom:20px;"></div>
                 <table id="splashParamsTable" style="margin:0 auto 20px; font-size:12px; color:#999; border-collapse:collapse; text-align:left;">
                     <!-- populated after Parameters.js loads (see populateSplashParams below) -->
                 </table>
@@ -181,6 +182,8 @@
             // Populate splash screen params table now that Parameters.js constants are available.
             // This was previously done inline via document.write() but that ran before Parameters.js loaded.
             (function() {
+                var versionEl = document.getElementById('splashVersion');
+                if (versionEl) versionEl.textContent = 'v' + SWIMBOT_VERSION;
                 var table = document.getElementById('splashParamsTable');
                 if (!table) return;
                 var params = [
@@ -831,10 +834,16 @@
                             <span id="mixerUtteranceVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
                         </div>
                         <div class="mix-row">
-                            <label style="text-align: right;">Birth / Spawn &nbsp;</label>
+                            <label style="text-align: right;">Birth &nbsp;</label>
                             <input type="range" id="mixerBirth" min="0" max="100" step="1"
                                 oninput="WEB_VOLUME_BIRTH = this.value / 100; document.getElementById('mixerBirthVal').textContent = this.value;">
                             <span id="mixerBirthVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
+                        </div>
+                        <div class="mix-row">
+                            <label style="text-align: right;">Spawn &nbsp;</label>
+                            <input type="range" id="mixerSpawn" min="0" max="100" step="1"
+                                oninput="WEB_VOLUME_SPAWN = this.value / 100; document.getElementById('mixerSpawnVal').textContent = this.value;">
+                            <span id="mixerSpawnVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
                         </div>
                         <div class="mix-row">
                             <label style="text-align: right;">Death &nbsp;</label>
@@ -878,6 +887,8 @@
                             document.getElementById('mixerUtteranceVal').textContent = Math.round(WEB_VOLUME_UTTERANCE * 100);
                             document.getElementById('mixerBirth').value     = Math.round(WEB_VOLUME_BIRTH * 100);
                             document.getElementById('mixerBirthVal').textContent     = Math.round(WEB_VOLUME_BIRTH * 100);
+                            document.getElementById('mixerSpawn').value     = Math.round(WEB_VOLUME_SPAWN * 100);
+                            document.getElementById('mixerSpawnVal').textContent     = Math.round(WEB_VOLUME_SPAWN * 100);
                             document.getElementById('mixerDeath').value     = Math.round(WEB_VOLUME_DEATH * 100);
                             document.getElementById('mixerDeathVal').textContent     = Math.round(WEB_VOLUME_DEATH * 100);
                             document.getElementById('mixerEat').value       = Math.round(WEB_VOLUME_EAT * 100);

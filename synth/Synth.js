@@ -58,8 +58,9 @@ const WA_REVERB_CATALOG  = {
 // Sample catalog — all samples are preloaded at startup
 const WA_SAMPLE_CATALOG = {
 	// One-shots: birth
-	'birth-01': 'synth/sounds-birth/birth-01.wav',
-	'birth-02': 'synth/sounds-birth/birth-02.wav',
+	'birth-01': 'synth/sounds-birth/birth.wav',
+	'birth-02': 'synth/sounds-birth/birth-filtered.wav',
+	'birth-03': 'synth/sounds-birth/birth-phased.wav',
 	// One-shots: death
 	'death-01': 'synth/sounds-death/death-01.wav',
 	'death-02': 'synth/sounds-death/death-02.wav',
@@ -72,9 +73,9 @@ const WA_SAMPLE_CATALOG = {
 	'eat-03': 'synth/sounds-eat/eat-03.wav',
 	'eat-04': 'synth/sounds-eat/eat-04.wav',
 	// Loops
-	'loop-bell-drone': 'synth/sounds-loops/bell-drone.wav',
-	'reaktor-drone': 'synth/sounds-loops/reaktor-drone.wav',
-	'loop-lake-bacalar': 'synth/sounds-loops/sample-lake-bacalar.wav',
+	'bg-bell-drone': 'synth/sounds-loops/bell-drone.wav',
+	'bg-reaktor-drone': 'synth/sounds-loops/reaktor-drone.wav',
+	'bg-lake-bacalar': 'synth/sounds-loops/sample-lake-bacalar.wav',
 
 	// UI: preset launch sounds
 	'start-q': 'synth/sounds-presets/start-q.wav',
