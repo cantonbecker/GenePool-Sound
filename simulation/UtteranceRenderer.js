@@ -81,9 +81,52 @@ function UtteranceRenderer()
 			
 			canvas.globalAlpha = this.brightness * ( ONE - ageFraction );
 			canvas.globalAlpha = Math.pow( canvas.globalAlpha, 0.9 ); // lower the power to increase general brightness
-			//if ( canvas.globalAlpha > ONE  ) { canvas.globalAlpha = ONE; }		
-			//if ( canvas.globalAlpha < ZERO ) { canvas.globalAlpha = ZERO; }		
 				
+			//----------------------------------------------------------
+			// draw the ripple particle circles procedurally
+			//----------------------------------------------------------
+			canvas.strokeStyle = "rgb( 255, 255, 255 )";
+			canvas.lineWidth = 1;				
+			canvas.beginPath();
+
+			let res = 1000;
+			
+			let min = 0.3;
+			
+			let numBumps = Math.floor( this.pitch * 40 );
+			let bumpSize = this.width * 0.08 * ( this.pitch - min );
+
+			for (let i=0; i<res+1; i++)
+			{				
+				let angle 	= i/res * Math.PI * 2;
+				let bumps	= ZERO;
+				
+				if ( this.pitch > min )
+				{
+					bumps = bumpSize * Math.cos( angle * numBumps );
+				}
+				
+				let radius 	= this.width * ONE_HALF + bumps;
+				let x 		= this.position.x + radius * Math.cos( angle );
+				let y 		= this.position.y + radius * Math.sin( angle );
+				
+				if ( i === 0 )
+				{
+					canvas.moveTo( x, y );
+				}			
+				else
+				{
+					canvas.lineTo( x, y );
+				}			
+			}
+				
+			canvas.stroke();
+			canvas.closePath();
+			
+			/*
+			//----------------------------------------------------------
+			// draw the ripple particle circles using an image
+			//----------------------------------------------------------
 			canvas.drawImage
 			( 
 				_particleImage, 
@@ -92,6 +135,7 @@ function UtteranceRenderer()
 				this.width, 
 				this.height 
 			);  
+			*/
 			
 			canvas.globalAlpha = ONE;
 		}
@@ -263,6 +307,24 @@ function UtteranceRenderer()
 					canvas.closePath();
 				}
 				
+/*
+		this.id					= -1;
+		this.active				= false;
+		this.position 			= new Vector2D();
+		this.startPosition 		= new Vector2D();
+		this.clock	 			= 0;
+		this.duration 			= 0;
+		this.modCount			= 0;
+		this.noteCount			= 0;
+		this.highNote			= 0;
+		this.lowNote			= 0;
+		this.pitch		 		= 0;
+*/
+
+
+//try to get phenotype.range in here...to affect radius
+			
+				
 				
 				//-------------------------------------------------
 				// periodically launch particles
@@ -289,7 +351,7 @@ function UtteranceRenderer()
 					
 						// brightness is determined by pitch
 						let brightness = MIN_BRIGHTNESS + _utterances[u].pitch * _utterances[u].pitch * _utterances[u].pitch * PITCH_BRIGHTNESS_SCALAR;
-						
+
 						if ( brightness > MAX_BRIGHTNESS )
 						{
 							brightness = MAX_BRIGHTNESS;
@@ -298,7 +360,6 @@ function UtteranceRenderer()
 						_particles[p].launch( _utterances[u].position, lifespan, brightness, _utterances[u].pitch );
 					}
 				}				
-				
 			}			
 		}
 		
