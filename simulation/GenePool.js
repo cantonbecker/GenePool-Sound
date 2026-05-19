@@ -1706,22 +1706,28 @@ if ( mode === SimulationStartMode.SPECIES )
 						const _normX   = (utterVariablesObj.swimbotPosition.x - _camLeft) / _camera.getXDimension();
 						utterVariablesObj.panValue = Math.max(-0.75, Math.min(0.75, _normX * 2 - 1));
 
-						// play the utterance via Web Audio, or, at least, schedule when to stop uttering
-						_sound.doUtterance (utterVariablesObj, this);
-						
                     	if ( isInView ) // do the animation as well
-                    	{						
+                    	{
 							_utteranceRenderer.startUtterance
-							( 
+							(
 								s,
-								_swimbots[s].getMouthPosition(), 
+								_swimbots[s].getMouthPosition(),
 								_swimbots[s].getUtterDuration(),
 								_swimbots[s].getUtterHighNote(),
 								_swimbots[s].getUtterLowNote(),
 								_swimbots[s].getUtterNoteCount(),
 								_swimbots[s].getUtterModCount()
 							);
+
+							// give Sound.js a per-note hook into the renderer so each
+							// MIDI note in the sequence can emit its own ripple
+							utterVariablesObj.onNoteEmit = function(note) {
+								_utteranceRenderer.emitNote(s, note);
+							};
 						}
+
+						// play the utterance via Web Audio, or, at least, schedule when to stop uttering
+						_sound.doUtterance (utterVariablesObj, this);
 					}
 				}
 				else

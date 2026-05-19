@@ -369,7 +369,10 @@ function Sound()
 					if (UTTER_ATTENUATION) {
 						step.velocity = Math.max(20, step.velocity - UTTER_ATTENUATION);
 					}
+					// Sound the note (synth)
 					if (voice) SwimbotSynth.playVoiceNote(voice, step.note, step.velocity, step.duration);
+					// Visualize the note (utterance ripple)
+					if (utterVariablesObj.onNoteEmit) utterVariablesObj.onNoteEmit(step.note);
 					NOTE_HISTOGRAM[step.note % 12]++;
 					NOTE_COUNT++;
 				} else if (step.type === 'cc') {

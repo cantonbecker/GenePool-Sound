@@ -21,12 +21,13 @@ function UtteranceRenderer()
 	const MAX_NOTE_RANGE	= 99;
 	const MIN_LIFESPAN		= 25;
 	const MAX_LIFESPAN		= 100;
-	const MIN_PERIOD		= 4;
-	const MAX_PERIOD		= 20;
 	const MIN_BRIGHTNESS	= 0.2;
 	const MAX_BRIGHTNESS	= 1.0;
 	const GROWTH_RATE 		= 4;
-	
+
+	// Throttle per-note ripples so a staccato burst doesn't flood our available MAX_PARTICLES
+	const MIN_CYCLES_BETWEEN_RIPPLES = 3;
+
 	const PITCH_BRIGHTNESS_SCALAR = 12;
 
 	function Particle()
@@ -154,6 +155,7 @@ function UtteranceRenderer()
 		this.highNote			= 0;
 		this.lowNote			= 0;
 		this.pitch		 		= 0;
+		this.lastRippleClock	= -MIN_CYCLES_BETWEEN_RIPPLES; // ensures the first note always passes the throttle
 	}
 	
 	//--------------------------------
@@ -187,9 +189,10 @@ function UtteranceRenderer()
 			_utterances[u].active 	= false;
 			_utterances[u].duration 	= 0;
 			_utterances[u].modCount 	= 0;
-			_utterances[u].clock		= 0;				
+			_utterances[u].clock		= 0;
 			_utterances[u].highNote	= 0;
 			_utterances[u].lowNote	= 0;
+			_utterances[u].lastRippleClock = -MIN_CYCLES_BETWEEN_RIPPLES;
 		}
 	}
    
@@ -227,8 +230,9 @@ function UtteranceRenderer()
 					_utterances[u].lowNote	= lowNote;
 					_utterances[u].noteCount	= noteCount;
 					_utterances[u].modCount	= modCount;
+					_utterances[u].lastRippleClock = -MIN_CYCLES_BETWEEN_RIPPLES;
 					_utterances[u].startPosition.copyFrom( _utterances[u].position );
-					
+
 					searching = false;
 				}
 			}
@@ -260,9 +264,47 @@ function UtteranceRenderer()
 				_utterances[u].position.copyFrom( position );
 				return;
 			}
-		}		
+		}
 	}
-	
+
+	//---------------------------------------------------------------
+	// emitNote() is called by Sound.js for each MIDI note as it
+	// actually fires, so the ripple's pitch (and therefore its
+	// bump count, size, lifespan, brightness) reflects that note
+	// rather than the utterance's averaged pitch.
+	//---------------------------------------------------------------
+	this.emitNote = function( id, note )
+	{
+		for (let u=0; u<MAX_UTTERANCES_TO_RENDER; u++)
+		{
+			if ( _utterances[u].active && _utterances[u].id === id )
+			{
+				// throttle: skip if we just emitted a ripple for this swimbot
+				if ( _utterances[u].clock - _utterances[u].lastRippleClock < MIN_CYCLES_BETWEEN_RIPPLES )
+				{
+					return;
+				}
+
+				let notePitch = ( note - MIN_NOTE_RANGE ) / ( MAX_NOTE_RANGE - MIN_NOTE_RANGE );
+					 if ( notePitch < ZERO ) { notePitch = ZERO; }
+				else if ( notePitch > ONE  ) { notePitch = ONE;  }
+
+				let p = this.findInactiveParticle();
+				if ( p === NULL_INDEX ) { return; }
+
+				let lifespan = MAX_LIFESPAN - Math.floor( notePitch * 120 );
+				if ( lifespan < MIN_LIFESPAN ) { lifespan = MIN_LIFESPAN; }
+
+				let brightness = MIN_BRIGHTNESS + notePitch * notePitch * notePitch * PITCH_BRIGHTNESS_SCALAR;
+				if ( brightness > MAX_BRIGHTNESS ) { brightness = MAX_BRIGHTNESS; }
+
+				_particles[p].launch( _utterances[u].position, lifespan, brightness, notePitch );
+				_utterances[u].lastRippleClock = _utterances[u].clock;
+				return;
+			}
+		}
+	}
+
 	//---------------------------------
 	this.updateAndRender = function()
 	{
@@ -307,60 +349,11 @@ function UtteranceRenderer()
 					canvas.closePath();
 				}
 				
-/*
-		this.id					= -1;
-		this.active				= false;
-		this.position 			= new Vector2D();
-		this.startPosition 		= new Vector2D();
-		this.clock	 			= 0;
-		this.duration 			= 0;
-		this.modCount			= 0;
-		this.noteCount			= 0;
-		this.highNote			= 0;
-		this.lowNote			= 0;
-		this.pitch		 		= 0;
-*/
+				// Ripples are now launched per-MIDI-note by emitNote(),
+				// which is called from Sound.js as each note actually fires.
+				// future option: phenotype.range could impact ripple radius?
 
-
-//try to get phenotype.range in here...to affect radius
-			
-				
-				
-				//-------------------------------------------------
-				// periodically launch particles
-				//-------------------------------------------------	
-				let period = MAX_PERIOD - _utterances[u].noteCount;
-
-				if ( period < MIN_PERIOD ) 
-				{
-					period = MIN_PERIOD;
-				}
-						
-				if ( _utterances[u].clock % period === 0 )
-				{
-					let p = this.findInactiveParticle();
-					
-					if ( p != NULL_INDEX )
-					{
-						let lifespan = MAX_LIFESPAN - Math.floor( _utterances[u].pitch * 120 );
-
-						if ( lifespan < MIN_LIFESPAN )
-						{
-							lifespan = MIN_LIFESPAN;
-						}
-					
-						// brightness is determined by pitch
-						let brightness = MIN_BRIGHTNESS + _utterances[u].pitch * _utterances[u].pitch * _utterances[u].pitch * PITCH_BRIGHTNESS_SCALAR;
-
-						if ( brightness > MAX_BRIGHTNESS )
-						{
-							brightness = MAX_BRIGHTNESS;
-						}
-												
-						_particles[p].launch( _utterances[u].position, lifespan, brightness, _utterances[u].pitch );
-					}
-				}				
-			}			
+			}
 		}
 		
 		//-------------------------------------------------
