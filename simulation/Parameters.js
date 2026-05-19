@@ -31,7 +31,7 @@ const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reduci
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 0; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 60; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
 const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
 

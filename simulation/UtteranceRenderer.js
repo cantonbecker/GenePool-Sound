@@ -90,7 +90,8 @@ function UtteranceRenderer()
 			canvas.lineWidth = 1;				
 			canvas.beginPath();
 
-			let res = 1000;
+			// resolution for 'bumps' in each ripple, 1000 = smooth, 100 = rough
+			let res = 500;
 			
 			let min = 0.3;
 			
