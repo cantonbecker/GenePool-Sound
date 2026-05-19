@@ -300,7 +300,9 @@ function Sound()
 		if ( type === SOUND_EVENT_TYPE_EAT ) {
 			if (SOUND_OUTPUT_EAT) {
 				const pick = WA_EAT_SAMPLES[Math.floor(Math.random() * WA_EAT_SAMPLES.length)];
-				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_EAT, reverb: true });
+				const intervals = getNoteIntervalSetFor(CURRENT_INTERVAL_SET_NAME).intervals;
+				const semitones = intervals[Math.floor(Math.random() * intervals.length)]; // pick from our current interval options
+				SwimbotSynth.playSample(pick, { volume: 0.9 * WEB_VOLUME_EAT, semitones: semitones, reverb: true, reverbSend: 3.0 });
 			}
 		} else if ( type === SOUND_EVENT_TYPE_BIRTH ) { // 'natural' birth in the simulation causes this
 			if (SOUND_OUTPUT_BIRTH) {
@@ -882,6 +884,7 @@ function determineCurrentMusicParameters () {
 	} else if (_chosenPoolToLoad == 3) {
 		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['sharp']); // evener note distribution
 		mySet = getNoteIntervalSetFor('12tone');
+		backgroundLoop = 'bg-reaktor-drone';
 		SwimbotSynth.setReverbIR('tunnel');
 
 	/*** BIG BANG ***/
@@ -894,7 +897,7 @@ function determineCurrentMusicParameters () {
 	/*** AUTOPILOT ***/
 	} else if (_chosenPoolToLoad == 5) {
 		mySet = getNoteIntervalSetFor('octaves');
-		backgroundLoop = 'bg-reaktor-drone';
+		backgroundLoop = 'bg-lake-bacalar';
 		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .95); // loads of reverb
 		SwimbotSynth.setReverbIR('dark4');
 	}

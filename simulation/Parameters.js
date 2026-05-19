@@ -9,11 +9,11 @@ const SWIMBOT_VERSION			= '2026-05-15 WEB';
 // Audio mixer defaults — adjust these to set the startup balance.
 // The Audio tab sliders will initialize from these values.
 var WEB_AUDIO_VOLUME     = 0.75; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
-var WEB_VOLUME_UTTERANCE = 1.00; // category mix: swimbot vocal utterances
+var WEB_VOLUME_UTTERANCE = 0.80; // category mix: swimbot vocal utterances
 var WEB_VOLUME_BIRTH     = 0.75; // category mix: birth samples
 var WEB_VOLUME_SPAWN     = 0.75; // category mix: spawn (q*bert) samples
 var WEB_VOLUME_DEATH     = 1.00; // category mix: death samples
-var WEB_VOLUME_EAT       = 0.70; // category mix: eating samples
+var WEB_VOLUME_EAT       = 0.50; // category mix: eating samples
 var WEB_VOLUME_LOOP      = 0.75; // category mix: background loop
 var WEB_VOLUME_UI        = 0.50; // category mix: UI sounds (preset launch)
 var WEB_MAXIMUM_VOICES   = 32; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!

@@ -68,10 +68,7 @@ const WA_SAMPLE_CATALOG = {
 	'death-04': 'synth/sounds-death/death-04.wav',
 	'death-05': 'synth/sounds-death/death-05.wav',
 	// One-shots: eat
-	'eat-01': 'synth/sounds-eat/eat-01.wav',
-	'eat-02': 'synth/sounds-eat/eat-02.wav',
-	'eat-03': 'synth/sounds-eat/eat-03.wav',
-	'eat-04': 'synth/sounds-eat/eat-04.wav',
+	'eat-01': 'synth/sounds-eat/tuned-click.wav',
 	// Loops
 	'bg-bell-drone': 'synth/sounds-loops/bell-drone.wav',
 	'bg-reaktor-drone': 'synth/sounds-loops/reaktor-drone.wav',
@@ -219,7 +216,13 @@ var SwimbotSynth = (function () {
 	}
 
 	// ── One-shot sample playback ─────────────────────────────────────────────
-	// options: { volume: 0–1, semitones: pitch shift in semitones (varispeed), reverb: bool }
+	// options:
+	//   volume:     0–1
+	//   semitones:  pitch shift in semitones (varispeed)
+	//   reverb:     bool — route a wet copy to the shared reverb bus
+	//   reverbSend: per-call wet send multiplier (default 1.0). Multiplies on
+	//               top of the global zoom-driven reverb wet level, so a value
+	//               of 2.0 = twice as wet as a normal sample at the same zoom.
 
 	function _playSample(name, options) {
 		if (!audioCtx || !masterGain) return;
@@ -227,10 +230,11 @@ var SwimbotSynth = (function () {
 		if (!buf) return;
 		if (audioCtx.state === 'suspended') audioCtx.resume();
 		const opts = options || {};
-		const vol       = (opts.volume    !== undefined) ? opts.volume    : 1.0;
-		const semitones = (opts.semitones !== undefined) ? opts.semitones : 0;
-		const rate      = Math.pow(2, semitones / 12);
-		const useReverb = (opts.reverb    !== undefined) ? opts.reverb    : false;
+		const vol        = (opts.volume     !== undefined) ? opts.volume     : 1.0;
+		const semitones  = (opts.semitones  !== undefined) ? opts.semitones  : 0;
+		const rate       = Math.pow(2, semitones / 12);
+		const useReverb  = (opts.reverb     !== undefined) ? opts.reverb     : false;
+		const reverbSend = (opts.reverbSend !== undefined) ? opts.reverbSend : 1.0;
 
 		const source = audioCtx.createBufferSource();
 		source.buffer = buf;
@@ -240,10 +244,20 @@ var SwimbotSynth = (function () {
 		gain.gain.value = vol * WEB_AUDIO_VOLUME; // category vol × master vol
 		source.connect(gain);
 		gain.connect(masterGain);
-		if (useReverb && reverbBus) gain.connect(reverbBus);
+
+		let sendGain = null;
+		if (useReverb && reverbBus) {
+			sendGain = audioCtx.createGain();
+			sendGain.gain.value = reverbSend;
+			gain.connect(sendGain);
+			sendGain.connect(reverbBus);
+		}
 
 		source.start();
-		source.onended = () => { try { gain.disconnect(); } catch(e) {} };
+		source.onended = () => {
+			try { gain.disconnect(); } catch(e) {}
+			if (sendGain) { try { sendGain.disconnect(); } catch(e) {} }
+		};
 	}
 
 	// ── Looping sample playback (crossfade strategy) ────────────────────────
@@ -561,7 +575,7 @@ var SwimbotSynth = (function () {
 		// Swap reverb to a preloaded IR by catalog name (e.g. 'bright4', 'dark4', 'medium4', 'bright5').
 		setReverbIR: function (name) { _setReverbIR(name); },
 
-		// Play a one-shot sample. options: { volume: 0–1, semitones: pitch shift (varispeed), reverb: bool }
+		// Play a one-shot sample. options: { volume: 0–1, semitones: pitch shift (varispeed), reverb: bool, reverbSend: per-call wet multiplier on top of global zoom level }
 		playSample: function (name, options) { _playSample(name, options); },
 
 		// Start a looping sample (one at a time). Same name = no-op. Different name = swap.
