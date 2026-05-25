@@ -116,6 +116,7 @@ var SwimbotSynth = (function () {
 	let _irLoaded        = 0;
 	let _sampleTotal     = Object.keys(WA_SAMPLE_CATALOG).length;
 	let _sampleLoaded    = 0;
+	let _noiseBuffer     = null;               // reusable white-noise source for CC14 noise mix
 
 	// ── Utility ──────────────────────────────────────────────────────────────
 
@@ -135,6 +136,16 @@ var SwimbotSynth = (function () {
 	}
 
 	function _resToQ(r) { return 2 + r * 23; } // 0 → Q=2 (wide), 1 → Q=25 (narrow)
+
+	function _createNoiseBuffer() {
+		const length = audioCtx.sampleRate * 2;
+		const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
+		const data = buffer.getChannelData(0);
+		for (let i = 0; i < length; i++) {
+			data[i] = Math.random() * 2 - 1;
+		}
+		return buffer;
+	}
 
 	// ── Shared reverb (one ConvolverNode for all voices) ─────────────────────
 
@@ -435,12 +446,21 @@ var SwimbotSynth = (function () {
 		panner.connect(masterGain);    // panned → dry output
 		trebleFilter.connect(reverbBus); // pre-pan → centered reverb feed
 
+		const ccState = {
+			noiseMix: 0,
+			f2ResNorm: WA_FORMANT_BASE_RES[1],
+			f3GainNorm: 0.5
+		};
+
 		// Initialise formant frequencies to neutral mouth position
 		_applyFormantFreqs(formantFilters, 0);
 
 		// CC handlers — close over THIS voice's nodes only
 		function handleCC(cc, value) {
 			switch (cc) {
+				case 14: // Noise mix: 0=sawtooth formant voice, 127=pitch-tracked noise only
+					ccState.noiseMix = Math.max(0, Math.min(127, value)) / 127;
+					break;
 				case 15: // Mouth → all three formant frequencies
 					_applyFormantFreqs(formantFilters, value);
 					break;
@@ -452,11 +472,13 @@ var SwimbotSynth = (function () {
 				}
 				case 19: { // F2 resonance
 					const norm = Math.min(value, 70) / 70;
+					ccState.f2ResNorm = norm;
 					formantFilters[1].Q.setTargetAtTime(_resToQ(norm), audioCtx.currentTime, 0.02);
 					break;
 				}
 				case 20: { // F3 gain
 					const norm = value / 127;
+					ccState.f3GainNorm = norm;
 					formantGains[2].gain.setTargetAtTime(norm * WA_FORMANT_BASE_GAIN[2] * 2, audioCtx.currentTime, 0.02);
 					break;
 				}
@@ -479,7 +501,7 @@ var SwimbotSynth = (function () {
 			} catch (e) { /* already disconnected */ }
 		}
 
-		return { preEmphasis, handleCC, dispose };
+		return { preEmphasis, noiseInput: preEmphasis, ccState, handleCC, dispose };
 	}
 
 	// Apply CC15 mouth position (0–127) to a voice's formant filter set
@@ -493,7 +515,7 @@ var SwimbotSynth = (function () {
 		});
 	}
 
-	// Play one sawtooth note through a voice's formant chain
+	// Play one note through a voice's formant chain
 	// WEB_AUDIO_VOLUME and WEB_VOLUME_UTTERANCE are globals set by the Audio tab mixer
 	function _playVoiceNote(voice, noteNumber, velocity, durationMs) {
 		if (!audioCtx || !voice) return;
@@ -507,24 +529,78 @@ var SwimbotSynth = (function () {
 		const durSec = durationMs / 1000;
 		const envA   = 0.200;	// 200ms attack
 		const envR   = 0.050;	// 50ms release
+		const noiseDurSec 		= 0.018;
+		const noiseAttackSec		= 0.003;
+		const noiseReleaseSec	= 0.008;
+		const noiseFormantDrive = 7.5;
 
-		const env = audioCtx.createGain();
-		env.gain.setValueAtTime(0, now);
-		env.gain.linearRampToValueAtTime(amp, now + envA);
-		env.gain.setValueAtTime(amp, now + durSec);
-		env.gain.linearRampToValueAtTime(0.0001, now + durSec + envR);
+		const noiseMix = voice.ccState ? Math.max(0, Math.min(1, voice.ccState.noiseMix)) : 0;
+		const noiseMixResponse = Math.sqrt(noiseMix);
+		const sawAmp = amp * Math.cos(noiseMix * Math.PI * 0.5);
+		const noiseAmp = amp * noiseMixResponse * noiseFormantDrive * (0.55 + ((voice.ccState ? voice.ccState.f3GainNorm : 0.5) * 0.9));
 
-		const osc = audioCtx.createOscillator();
-		osc.type = 'sawtooth';
-		osc.frequency.value = freq;
-		osc.connect(env);
-		env.connect(voice.preEmphasis);
+		let osc = null;
+		let oscEnv = null;
+		if (sawAmp > 0.0001) {
+			osc = audioCtx.createOscillator();
+			osc.type = 'sawtooth';
+			osc.frequency.value = freq;
+			oscEnv = audioCtx.createGain();
+			oscEnv.gain.setValueAtTime(0, now);
+			oscEnv.gain.linearRampToValueAtTime(sawAmp, now + envA);
+			oscEnv.gain.setValueAtTime(sawAmp, now + durSec);
+			oscEnv.gain.linearRampToValueAtTime(0, now + durSec + envR);
+			osc.connect(oscEnv);
+			oscEnv.connect(voice.preEmphasis);
+		}
+
+		let noiseSource = null;
+		let noiseFilter = null;
+		let noiseEnv = null;
+		if (noiseMix > 0.001 && _noiseBuffer && voice.noiseInput) {
+			const pitchFilterFreq = Math.min(6000, Math.max(180, freq * 4));
+			const pitchFilterQ = 0.8 + ((voice.ccState ? voice.ccState.f2ResNorm : 0.5) * 5);
+
+			noiseSource = audioCtx.createBufferSource();
+			noiseSource.buffer = _noiseBuffer;
+			noiseSource.loop = true;
+
+			noiseFilter = audioCtx.createBiquadFilter();
+			noiseFilter.type = 'bandpass';
+			noiseFilter.frequency.value = pitchFilterFreq;
+			noiseFilter.Q.value = pitchFilterQ;
+
+			noiseEnv = audioCtx.createGain();
+			noiseEnv.gain.setValueAtTime(0, now);
+			noiseEnv.gain.linearRampToValueAtTime(noiseAmp, now + noiseAttackSec);
+			noiseEnv.gain.setValueAtTime(noiseAmp, now + noiseDurSec);
+			noiseEnv.gain.linearRampToValueAtTime(0, now + noiseDurSec + noiseReleaseSec);
+
+			noiseSource.connect(noiseFilter);
+			noiseFilter.connect(noiseEnv);
+			noiseEnv.connect(voice.noiseInput);
+		}
 
 		const endTime = now + durSec + envR + 0.05;
-		osc.start(now);
-		osc.stop(endTime);
-		osc.onended = () => {
-			try { env.disconnect(voice.preEmphasis); } catch (e) {}
+		if (osc) {
+			osc.start(now);
+			osc.stop(endTime);
+		}
+		if (noiseSource) {
+			noiseSource.start(now);
+			noiseSource.stop(now + noiseDurSec + noiseReleaseSec + 0.05);
+		}
+		if (osc) {
+			osc.onended = () => {
+				try { oscEnv.disconnect(voice.preEmphasis); } catch (e) {}
+			};
+		}
+		if (noiseSource) {
+			noiseSource.onended = () => {
+				try { noiseSource.disconnect(); } catch (e) {}
+				try { noiseFilter.disconnect(); } catch (e) {}
+				try { noiseEnv.disconnect(voice.noiseInput); } catch (e) {}
+			};
 		};
 	}
 
@@ -540,6 +616,7 @@ var SwimbotSynth = (function () {
 				masterGain = audioCtx.createGain();
 				masterGain.gain.value = 1.0; // per-note amplitude carries volume via WEB_AUDIO_VOLUME
 				masterGain.connect(audioCtx.destination);
+				_noiseBuffer = _createNoiseBuffer();
 				_initReverb();
 				_preloadAllSamples();
 				console.log("SwimbotSynth: Web Audio ready.");

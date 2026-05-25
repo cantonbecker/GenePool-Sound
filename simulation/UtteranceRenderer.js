@@ -24,11 +24,10 @@ function UtteranceRenderer()
 	const MIN_BRIGHTNESS	= 0.2;
 	const MAX_BRIGHTNESS	= 1.0;
 	const GROWTH_RATE 		= 4;
-
-	// Throttle per-note ripples so a staccato burst doesn't flood our available MAX_PARTICLES
-	const MIN_CYCLES_BETWEEN_RIPPLES = 3;
-
 	const PITCH_BRIGHTNESS_SCALAR = 12;
+
+	// Throttle ripple-making so a fast staccato burst doesn't make too many
+	const MIN_CYCLES_BETWEEN_RIPPLES = 3;
 
 	function Particle()
 	{	
@@ -91,7 +90,7 @@ function UtteranceRenderer()
 			canvas.beginPath();
 
 			// resolution for 'bumps' in each ripple, 1000 = smooth, 100 = rough
-			let res = 500;
+			let res = 300;
 			
 			let min = 0.3;
 			

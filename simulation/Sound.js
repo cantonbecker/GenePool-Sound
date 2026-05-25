@@ -599,34 +599,50 @@ mutationFactor = 1;
 
 	// SET UP THE SYNTHESIZER AT THE BEGINNING OF THE UTTERANCE		
 	// initialize synthesizer controls with a range of min to max.
-	// 'variable' means yes you can twiddle this knob during the sequence
+	// 'variable' means yes our sequence may twiddle this knob as part of sequencing
 	// in which case the variableWidth is how much you can twiddle it
 	let myControls = [
-		{ cc: 14, min: 94,	max: 97,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// wave
-		{ cc: 15, min: 0,		max: 127,	initalVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
-		{ cc: 16, min: 32,	max: 127,	initalVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
-		{ cc: 17, min: 70,	max: 95,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" 
-		{ cc: 19, min: 0,		max: 70,		initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  },	// "level 2" resonance
-		{ cc: 20, min: 0,		max: 127,	initalVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  } 	// "level 3"
+		{ cc: 14, min: 0,	max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// "noise mix"
+		{ cc: 15, min: 0,		max: 127,	initialVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
+		{ cc: 16, min: 32,	max: 127,	initialVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
+		{ cc: 17, min: 0,		max: 1,		initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" -- UNUSED
+		{ cc: 19, min: 32,		max: 64,		initialVal: 0,	variable: true,	variableWidth: 32,		lastVal: 0,	lastDir: 'up'  },	// "F3 resonance"
+		{ cc: 20, min: 20,		max: 100,	initialVal: 0,	variable: true,	variableWidth: 64,		lastVal: 0,	lastDir: 'up'  } 	// "F3 gain"
 	];
 	
 	for (let setting of myControls) {
 		const range = setting.max - setting.min + 1;
 		let myCCval = Math.floor((rng() * range) + setting.min);
-		setting.initalVal = myCCval; // remember our initial home position
+		setting.initialVal = myCCval; // remember our initial home position
 		setting.lastVal = myCCval; // this will also be our last known position
 		if (rng() > .5) setting.lastDir = 'down'; // randomly override initial spin direction
 	}
 	
-	// VOCAL SYNTH IS TOO QUIET IF CC15 plus CC16 DON'T ADD UP TO AT LEAST 100, so re-roll those values if necessary:
-	let cc15, cc16;
+	// Fine-tuning of initial controls:
+	let cc14, cc15, cc16;
+	const cc14Control = myControls.find(c => c.cc === 14);
+	const cc15Control = myControls.find(c => c.cc === 15);
+	const cc16Control = myControls.find(c => c.cc === 16);
+	
+	// 1. Quantize noise mix, either we want a lot or a little
+	if (cc14Control.initialVal < 48) {
+		cc14Control.initialVal = 0;
+	} else if ( cc14Control.initialVal >= 48 && cc14Control.initialVal < 100) {
+		cc14Control.initialVal = 40;
+	} else {
+		cc14Control.initialVal = 115;
+	}
+
+	// 2. Vocal synth is too quiet if CC15 plus CC16 don't add to much, so re-roll those values if necessary
 	do {
-		cc15 = Math.floor(rng() * (myControls[0].max - myControls[0].min + 1)) + myControls[0].min;
-		cc16 = Math.floor(rng() * (myControls[1].max - myControls[1].min + 1)) + myControls[1].min;
+		cc15 = Math.floor(rng() * (cc15Control.max - cc15Control.min + 1)) + cc15Control.min;
+		cc16 = Math.floor(rng() * (cc16Control.max - cc16Control.min + 1)) + cc16Control.min;
 	} while (cc15 + cc16 < 100);
 	
-	myControls[0].initalVal = myControls[0].lastVal = cc15;
-	myControls[1].initalVal = myControls[1].lastVal = cc16;
+	cc15Control.initialVal = cc15Control.lastVal = cc15;
+	cc16Control.initialVal = cc16Control.lastVal = cc16;	
+		
+	
 
 	// Now that we picked our synth settings, queue them up in the sequence itself to initialize the synth
 	for (let setting of myControls) {
@@ -635,7 +651,7 @@ mutationFactor = 1;
 			delay: sequenceTime,
 			type: 'cc',
 			cc: setting.cc,
-			value: setting.initalVal
+			value: setting.initialVal
 		});
 	}
 
@@ -725,8 +741,8 @@ mutationFactor = 1;
 
 			// 3. Calculate modulation range
 			const halfWidth = setting.variableWidth / 2;
-			const ccMin = Math.max(setting.min, setting.initalVal - halfWidth);
-			const ccMax = Math.min(setting.max, setting.initalVal + halfWidth);
+			const ccMin = Math.max(setting.min, setting.initialVal - halfWidth);
+			const ccMax = Math.min(setting.max, setting.initialVal + halfWidth);
 
 			// 4. Modulate value up or down depending on lastDir
 			let ccVal, newDir = setting.lastDir;

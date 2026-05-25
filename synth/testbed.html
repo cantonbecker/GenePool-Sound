@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<base href="../">
+	<title>Swimbot Utterance Testbed</title>
+	<style>
+		:root {
+			color-scheme: dark;
+			font-family: Arial, Helvetica, sans-serif;
+			background: #141816;
+			color: #edf2ec;
+		}
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: grid;
+			place-items: center;
+			background:
+				radial-gradient(circle at 20% 20%, rgba(72, 145, 112, 0.18), transparent 32rem),
+				linear-gradient(135deg, #151817 0%, #20271f 48%, #171a1d 100%);
+		}
+
+		main {
+			width: min(980px, calc(100vw - 40px));
+			padding: 28px;
+			border: 1px solid rgba(255, 255, 255, 0.13);
+			border-radius: 8px;
+			background: rgba(20, 24, 22, 0.88);
+			box-shadow: 0 18px 60px rgba(0, 0, 0, 0.3);
+		}
+
+		h1 {
+			margin: 0 0 8px;
+			font-size: 24px;
+			font-weight: 700;
+			letter-spacing: 0;
+		}
+
+		p {
+			margin: 0 0 22px;
+			color: #b9c6bd;
+			line-height: 1.45;
+		}
+
+		.controls {
+			display: grid;
+			grid-template-columns: 1fr auto auto;
+			gap: 10px;
+			align-items: end;
+		}
+
+		label {
+			display: grid;
+			gap: 6px;
+			font-size: 12px;
+			color: #aebbae;
+			text-transform: uppercase;
+		}
+
+		select, button {
+			height: 42px;
+			border-radius: 6px;
+			border: 1px solid rgba(255, 255, 255, 0.18);
+			background: #202821;
+			color: #f5f7f4;
+			font-size: 15px;
+		}
+
+		select {
+			width: 100%;
+			padding: 0 12px;
+		}
+
+		button {
+			padding: 0 16px;
+			cursor: pointer;
+			font-weight: 700;
+		}
+
+		button.primary {
+			background: #4a9e69;
+			border-color: #5fba80;
+			color: #061009;
+		}
+
+		button:disabled {
+			opacity: 0.45;
+			cursor: default;
+		}
+
+		.readout {
+			margin-top: 22px;
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 10px;
+		}
+
+		.stat {
+			padding: 12px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 6px;
+			background: rgba(255, 255, 255, 0.045);
+		}
+
+		.stat b {
+			display: block;
+			margin-bottom: 4px;
+			font-size: 11px;
+			color: #9eafa3;
+			text-transform: uppercase;
+		}
+
+		.stat span {
+			font-size: 18px;
+		}
+
+		.synth-panel {
+			margin-top: 18px;
+			padding: 18px;
+			border: 1px solid rgba(255, 255, 255, 0.12);
+			border-radius: 8px;
+			background: linear-gradient(180deg, rgba(255, 255, 255, 0.055), rgba(0, 0, 0, 0.18));
+		}
+
+		.panel-title {
+			display: flex;
+			justify-content: space-between;
+			gap: 14px;
+			margin-bottom: 16px;
+			color: #c9d7cb;
+			font-size: 13px;
+		}
+
+		.panel-title b {
+			color: #f3f7f2;
+			font-size: 14px;
+			text-transform: uppercase;
+		}
+
+		.repeater {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: 16px;
+			align-items: center;
+			margin-bottom: 16px;
+			padding: 12px 14px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 6px;
+			background: rgba(0, 0, 0, 0.16);
+		}
+
+		.switch {
+			display: flex;
+			grid-template-columns: none;
+			align-items: center;
+			gap: 10px;
+			color: #f3f7f2;
+			font-size: 13px;
+			font-weight: 700;
+			text-transform: uppercase;
+		}
+
+		.switch input {
+			position: absolute;
+			opacity: 0;
+		}
+
+		.switch-track {
+			width: 48px;
+			height: 26px;
+			border-radius: 999px;
+			position: relative;
+			background: #303932;
+			box-shadow: inset 0 0 0 1px rgba(255,255,255,0.16);
+		}
+
+		.switch-track::after {
+			content: "";
+			position: absolute;
+			top: 4px;
+			left: 4px;
+			width: 18px;
+			height: 18px;
+			border-radius: 50%;
+			background: #dfe8dd;
+			transition: transform 140ms ease, background 140ms ease;
+		}
+
+		.switch input:checked + .switch-track {
+			background: #4a9e69;
+		}
+
+		.switch input:checked + .switch-track::after {
+			transform: translateX(22px);
+			background: #071009;
+		}
+
+		.repeater-pitch {
+			display: grid;
+			grid-template-columns: auto 1fr;
+			gap: 12px;
+			align-items: center;
+			color: #aebbae;
+			font-size: 12px;
+			text-transform: uppercase;
+		}
+
+		.repeater-pitch input[type="range"] {
+			width: 100%;
+		}
+
+		.note-display {
+			min-width: 72px;
+			text-align: right;
+			font: 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			color: #dce8dd;
+		}
+
+		.mixer {
+			display: grid;
+			grid-template-columns: repeat(2, 1fr);
+			gap: 14px;
+			margin-bottom: 16px;
+		}
+
+		.mixer-control {
+			display: grid;
+			grid-template-columns: auto 1fr auto;
+			gap: 12px;
+			align-items: center;
+			padding: 12px 14px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 6px;
+			background: rgba(0, 0, 0, 0.16);
+			color: #aebbae;
+			font-size: 12px;
+			text-transform: uppercase;
+		}
+
+		.mixer-control input[type="range"] {
+			width: 100%;
+		}
+
+		.knobs {
+			display: grid;
+			grid-template-columns: repeat(6, minmax(96px, 1fr));
+			gap: 14px;
+		}
+
+		.knob {
+			display: grid;
+			justify-items: center;
+			gap: 8px;
+			padding: 12px 8px;
+			border: 1px solid rgba(255, 255, 255, 0.1);
+			border-radius: 6px;
+			background: rgba(0, 0, 0, 0.18);
+		}
+
+		.dial {
+			width: 68px;
+			aspect-ratio: 1;
+			border-radius: 50%;
+			position: relative;
+			background:
+				radial-gradient(circle at 50% 50%, #303932 0 45%, transparent 46%),
+				conic-gradient(from 225deg, #5fba80 0deg var(--arc, 0deg), rgba(255,255,255,0.14) var(--arc, 0deg) 270deg, transparent 270deg 360deg);
+			box-shadow: inset 0 0 0 2px rgba(255,255,255,0.08), 0 6px 18px rgba(0,0,0,0.25);
+		}
+
+		.dial::after {
+			content: "";
+			position: absolute;
+			left: calc(50% - 2px);
+			top: 9px;
+			width: 4px;
+			height: 22px;
+			border-radius: 999px;
+			background: #f5f7f4;
+			transform-origin: 50% 25px;
+			transform: rotate(var(--rotation, -135deg));
+		}
+
+		.knob.automated .dial {
+			box-shadow: inset 0 0 0 2px rgba(95,186,128,0.8), 0 0 24px rgba(95,186,128,0.22);
+		}
+
+		.knob-name {
+			text-align: center;
+			font-size: 12px;
+			color: #f1f5ef;
+			line-height: 1.2;
+		}
+
+		.knob-meta {
+			color: #98a899;
+			font-size: 11px;
+		}
+
+		input[type="range"] {
+			width: 82px;
+			accent-color: #6ec78a;
+		}
+
+		.value {
+			font: 12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			color: #dce8dd;
+		}
+
+		#status {
+			margin-top: 18px;
+			min-height: 20px;
+			color: #d3dbc9;
+			font-size: 14px;
+		}
+
+		#sequence {
+			margin-top: 14px;
+			max-height: 220px;
+			overflow: auto;
+			padding: 12px;
+			border-radius: 6px;
+			background: rgba(0, 0, 0, 0.24);
+			color: #c5d4c5;
+			font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+			white-space: pre-wrap;
+		}
+
+		@media (max-width: 680px) {
+			.controls,
+			.readout,
+			.repeater,
+			.mixer,
+			.mixer-control,
+			.knobs {
+				grid-template-columns: 1fr;
+			}
+
+			button {
+				width: 100%;
+			}
+		}
+	</style>
+</head>
+<body>
+	<main>
+		<h1>Swimbot Utterance Testbed</h1>
+		<p>Generate a random swimbot voice, or pick a preset genome, then play its real generated utterance through the formant synth.</p>
+
+		<div class="controls">
+			<label>
+				Swimbot
+				<select id="presetSelect">
+					<option value="__random__">Random swimbot</option>
+				</select>
+			</label>
+			<button id="randomBtn" type="button">New Random</button>
+			<button id="playBtn" class="primary" type="button">Play Utterance</button>
+		</div>
+
+		<div class="readout" aria-live="polite">
+			<div class="stat"><b>Notes</b><span id="noteCount">-</span></div>
+			<div class="stat"><b>Pitch Classes</b><span id="pitchClasses">-</span></div>
+			<div class="stat"><b>Range</b><span id="noteRange">-</span></div>
+		</div>
+
+		<section class="synth-panel" aria-label="Synth controls">
+			<div class="panel-title">
+				<b>Formant Voice</b>
+				<span>CC automation follows the current utterance. Noise Mix adds a pitch-tracked grit burst through the same formants; Tone is still an open hook.</span>
+			</div>
+			<div class="repeater">
+				<label class="switch">
+					<input id="noteRepeaterToggle" type="checkbox">
+					<span class="switch-track" aria-hidden="true"></span>
+					Note Repeater
+				</label>
+				<label class="repeater-pitch">
+					Pitch
+					<input id="noteRepeaterPitch" type="range" min="24" max="96" value="60">
+				</label>
+				<div class="note-display" id="noteRepeaterPitchValue">60 · C4</div>
+			</div>
+			<div class="mixer" aria-label="Mixer controls">
+				<label class="mixer-control">
+					Web Audio
+					<input id="webAudioVolume" type="range" min="0" max="1" step="0.01">
+					<span class="value" id="webAudioVolumeValue">-</span>
+				</label>
+				<label class="mixer-control">
+					Utterance
+					<input id="webUtteranceVolume" type="range" min="0" max="1" step="0.01">
+					<span class="value" id="webUtteranceVolumeValue">-</span>
+				</label>
+			</div>
+			<div class="knobs" id="knobs"></div>
+		</section>
+
+		<div id="status">Audio initializes on the first click.</div>
+		<pre id="sequence"></pre>
+	</main>
+
+	<script src="simulation/MathConstants.js"></script>
+	<script src="simulation/Vector2D.js"></script>
+	<script src="simulation/SwimbotTypes.js"></script>
+	<script src="simulation/Pool.js"></script>
+	<script src="simulation/FoodBit.js"></script>
+	<script src="simulation/Parameters.js"></script>
+	<script src="simulation/Utility.js"></script>
+	<script src="simulation/Genotype.js"></script>
+	<script src="simulation/Embryology.js"></script>
+	<script src="synth/Synth.js"></script>
+	<script src="simulation/Sound.js"></script>
+
+	<script>
+		"use strict";
+
+		var _chosenPoolToLoad = 0;
+		var _runningFast = false;
+		var globalTweakers = new GlobalTweakers();
+
+		function gpRandom() {
+			return Math.random();
+		}
+
+		const sound = new Sound();
+		const embryology = new Embryology();
+		const presetSelect = document.getElementById("presetSelect");
+		const randomBtn = document.getElementById("randomBtn");
+		const playBtn = document.getElementById("playBtn");
+		const statusEl = document.getElementById("status");
+		const sequenceEl = document.getElementById("sequence");
+		const noteCountEl = document.getElementById("noteCount");
+		const pitchClassesEl = document.getElementById("pitchClasses");
+		const noteRangeEl = document.getElementById("noteRange");
+		const knobsEl = document.getElementById("knobs");
+		const noteRepeaterToggle = document.getElementById("noteRepeaterToggle");
+		const noteRepeaterPitch = document.getElementById("noteRepeaterPitch");
+		const noteRepeaterPitchValue = document.getElementById("noteRepeaterPitchValue");
+		const webAudioVolume = document.getElementById("webAudioVolume");
+		const webAudioVolumeValue = document.getElementById("webAudioVolumeValue");
+		const webUtteranceVolume = document.getElementById("webUtteranceVolume");
+		const webUtteranceVolumeValue = document.getElementById("webUtteranceVolumeValue");
+
+		let initialized = false;
+		let utteranceSerial = 0;
+		let currentPhenotype = null;
+		let currentLabel = "Random swimbot";
+		let currentVoice = null;
+		let repeaterVoice = null;
+		let repeaterTimer = null;
+		let playbackTimers = [];
+
+		const synthControls = [
+			{ cc: 14, name: "Noise Mix", detail: "pitched" },
+			{ cc: 15, name: "Mouth", detail: "F1/F2/F3" },
+			{ cc: 16, name: "Size", detail: "treble" },
+			{ cc: 17, name: "Tone", detail: "hook" },
+			{ cc: 19, name: "F2 Res", detail: "Q" },
+			{ cc: 20, name: "F3 Gain", detail: "level" }
+		];
+
+		const knobByCC = new Map();
+
+		function bootAudio() {
+			if (!initialized) {
+				sound.initialize();
+				SwimbotSynth.setReverbWet(0.13);
+				initialized = true;
+			}
+
+			const ctx = SwimbotSynth.getAudioContext();
+			if (ctx && ctx.state === "suspended") {
+				ctx.resume();
+			}
+		}
+
+		function populatePresets() {
+			for (const name of PRESET_LIST) {
+				const option = document.createElement("option");
+				option.value = name;
+				option.textContent = name;
+				presetSelect.appendChild(option);
+			}
+		}
+
+		function buildKnobs() {
+			for (const control of synthControls) {
+				const wrap = document.createElement("div");
+				wrap.className = "knob";
+				wrap.innerHTML = `
+					<div class="dial" aria-hidden="true"></div>
+					<div class="knob-name">${control.name}</div>
+					<div class="knob-meta">CC ${control.cc} · ${control.detail}</div>
+					<input type="range" min="0" max="127" value="0" aria-label="${control.name}">
+					<div class="value">0</div>
+				`;
+
+				const range = wrap.querySelector("input");
+				range.addEventListener("input", () => {
+					setKnobValue(control.cc, Number(range.value), false);
+					if (currentVoice) currentVoice.handleCC(control.cc, Number(range.value));
+					if (repeaterVoice) repeaterVoice.handleCC(control.cc, Number(range.value));
+				});
+
+				knobsEl.appendChild(wrap);
+				knobByCC.set(control.cc, {
+					wrap,
+					dial: wrap.querySelector(".dial"),
+					range,
+					value: wrap.querySelector(".value"),
+					automationTimer: null
+				});
+				setKnobValue(control.cc, 0, false);
+			}
+		}
+
+		function noteName(note) {
+			const names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+			return `${names[note % 12]}${Math.floor(note / 12) - 1}`;
+		}
+
+		function updateRepeaterPitchReadout() {
+			const note = Number(noteRepeaterPitch.value);
+			noteRepeaterPitchValue.textContent = `${note} · ${noteName(note)}`;
+		}
+
+		function updateMixerReadouts() {
+			webAudioVolume.value = WEB_AUDIO_VOLUME.toFixed(2);
+			webUtteranceVolume.value = WEB_VOLUME_UTTERANCE.toFixed(2);
+			webAudioVolumeValue.textContent = WEB_AUDIO_VOLUME.toFixed(2);
+			webUtteranceVolumeValue.textContent = WEB_VOLUME_UTTERANCE.toFixed(2);
+		}
+
+		function setWebAudioVolume(value) {
+			WEB_AUDIO_VOLUME = Number(value);
+			updateMixerReadouts();
+		}
+
+		function setUtteranceVolume(value) {
+			WEB_VOLUME_UTTERANCE = Number(value);
+			updateMixerReadouts();
+		}
+
+		function applyCurrentKnobsToVoice(voice) {
+			for (const control of synthControls) {
+				const knob = knobByCC.get(control.cc);
+				if (knob) voice.handleCC(control.cc, Number(knob.range.value));
+			}
+		}
+
+		function triggerRepeaterNote() {
+			if (!repeaterVoice) return;
+			SwimbotSynth.playVoiceNote(repeaterVoice, Number(noteRepeaterPitch.value), 96, 140);
+		}
+
+		function startNoteRepeater() {
+			bootAudio();
+			stopNoteRepeater();
+			repeaterVoice = SwimbotSynth.createVoice(0, ++utteranceSerial);
+			if (!repeaterVoice) return;
+
+			applyCurrentKnobsToVoice(repeaterVoice);
+			triggerRepeaterNote();
+			repeaterTimer = setInterval(triggerRepeaterNote, 260);
+			statusEl.textContent = `Note Repeater on: ${noteRepeaterPitch.value} · ${noteName(Number(noteRepeaterPitch.value))}.`;
+		}
+
+		function stopNoteRepeater() {
+			if (repeaterTimer) {
+				clearInterval(repeaterTimer);
+				repeaterTimer = null;
+			}
+
+			if (repeaterVoice) {
+				repeaterVoice.dispose();
+				repeaterVoice = null;
+			}
+		}
+
+		function setKnobValue(cc, value, automated) {
+			const knob = knobByCC.get(cc);
+			if (!knob) return;
+
+			const clamped = Math.max(0, Math.min(127, Math.round(value)));
+			const rotation = -135 + (clamped / 127) * 270;
+			const arc = (clamped / 127) * 270;
+
+			knob.range.value = clamped;
+			knob.value.textContent = String(clamped);
+			knob.dial.style.setProperty("--rotation", `${rotation}deg`);
+			knob.dial.style.setProperty("--arc", `${arc}deg`);
+
+			if (automated) {
+				knob.wrap.classList.add("automated");
+				clearTimeout(knob.automationTimer);
+				knob.automationTimer = setTimeout(() => {
+					knob.wrap.classList.remove("automated");
+				}, 180);
+			}
+		}
+
+		function makeGenotype() {
+			const genotype = new Genotype();
+			const presetName = presetSelect.value;
+
+			if (presetName === "__random__") {
+				genotype.randomize();
+				return { genotype, label: "Random swimbot" };
+			}
+
+			genotype.setToPreset(PRESET_NAME_TO_INDEX[presetName]);
+			return { genotype, label: presetName };
+		}
+
+		function composeSelectedUtterance() {
+			const { genotype, label } = makeGenotype();
+			currentPhenotype = embryology.generatePhenotypeFromGenotype(genotype);
+			currentLabel = label;
+			summarizeSequence(currentPhenotype);
+
+			const initializedCCs = new Set();
+			for (const step of currentPhenotype.utterSequence) {
+				if (step.type === "cc" && !initializedCCs.has(step.cc)) {
+					setKnobValue(step.cc, step.value, false);
+					initializedCCs.add(step.cc);
+				}
+			}
+
+			statusEl.textContent = `${label} utterance ready.`;
+		}
+
+		function summarizeSequence(phenotype) {
+			const notes = phenotype.utterSequence.filter(step => step.type === "note");
+			const ccs = phenotype.utterSequence.filter(step => step.type === "cc");
+			const preview = phenotype.utterSequence.slice(0, 28).map(step => {
+				if (step.type === "note") {
+					return `${String(step.delay).padStart(4)}ms  note ${String(step.note).padStart(3)}  vel ${String(step.velocity).padStart(3)}  dur ${step.duration}`;
+				}
+				if (step.type === "cc") {
+					return `${String(step.delay).padStart(4)}ms  cc   ${String(step.cc).padStart(3)}  val ${String(step.value).padStart(3)}`;
+				}
+				return `${String(step.delay).padStart(4)}ms  done`;
+			});
+
+			noteCountEl.textContent = String(phenotype.utterNoteCount);
+			pitchClassesEl.textContent = phenotype.utterNotes.length ? phenotype.utterNotes.join(", ") : "-";
+			noteRangeEl.textContent = `${phenotype.utterLowNote}-${phenotype.utterHighNote}`;
+			sequenceEl.textContent = [
+				`sequence events: ${phenotype.utterSequence.length}`,
+				`notes: ${notes.length}, cc events: ${ccs.length}`,
+				"",
+				preview.join("\n"),
+				phenotype.utterSequence.length > preview.length ? "\n..." : ""
+			].join("\n");
+		}
+
+		function clearPlayback() {
+			for (const timer of playbackTimers) clearTimeout(timer);
+			playbackTimers = [];
+
+			if (currentVoice) {
+				currentVoice.dispose();
+				currentVoice = null;
+			}
+		}
+
+		function playCurrentUtterance() {
+			if (!currentPhenotype) composeSelectedUtterance();
+			bootAudio();
+			clearPlayback();
+
+			const swimbotID = ++utteranceSerial;
+			currentVoice = SwimbotSynth.createVoice(0, swimbotID);
+
+			UTTER_ATTENUATION = 0;
+			for (const step of currentPhenotype.utterSequence) {
+				const timer = setTimeout(() => {
+					if (step.type === "note") {
+						if (currentVoice) SwimbotSynth.playVoiceNote(currentVoice, step.note, step.velocity, step.duration);
+					} else if (step.type === "cc") {
+						setKnobValue(step.cc, step.value, true);
+						if (currentVoice) currentVoice.handleCC(step.cc, step.value);
+						if (repeaterVoice) repeaterVoice.handleCC(step.cc, step.value);
+					} else if (step.type === "done") {
+						if (currentVoice) currentVoice.dispose();
+						currentVoice = null;
+					}
+				}, step.delay);
+				playbackTimers.push(timer);
+			}
+
+			statusEl.textContent = `Playing ${currentLabel} utterance.`;
+		}
+
+		function selectAndPlay() {
+			composeSelectedUtterance();
+			playCurrentUtterance();
+		}
+
+		function makeNewRandomAndPlay() {
+			presetSelect.value = "__random__";
+			composeSelectedUtterance();
+			playCurrentUtterance();
+		}
+
+		populatePresets();
+		buildKnobs();
+		updateRepeaterPitchReadout();
+		updateMixerReadouts();
+		composeSelectedUtterance();
+		randomBtn.addEventListener("click", makeNewRandomAndPlay);
+		playBtn.addEventListener("click", playCurrentUtterance);
+		presetSelect.addEventListener("change", selectAndPlay);
+		noteRepeaterToggle.addEventListener("change", () => {
+			if (noteRepeaterToggle.checked) {
+				startNoteRepeater();
+			} else {
+				stopNoteRepeater();
+				statusEl.textContent = "Note Repeater off.";
+			}
+		});
+		noteRepeaterPitch.addEventListener("input", () => {
+			updateRepeaterPitchReadout();
+			if (repeaterVoice) {
+				statusEl.textContent = `Note Repeater on: ${noteRepeaterPitch.value} · ${noteName(Number(noteRepeaterPitch.value))}.`;
+			}
+		});
+		webAudioVolume.addEventListener("input", () => setWebAudioVolume(webAudioVolume.value));
+		webUtteranceVolume.addEventListener("input", () => setUtteranceVolume(webUtteranceVolume.value));
+	</script>
+</body>
+</html>

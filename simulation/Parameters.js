@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-15 WEB';
+const SWIMBOT_VERSION			= '2026-05-19d WEB';
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
@@ -26,14 +26,14 @@ const LEVEL_OF_DETAIL_THRESHOLD = 2700; // Impacts CPU when rendering lots of sw
 const LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING = 1500; // Slower CPUs stutter when we are actively zooming and trying to preserve curves. Try forcing a lower LOD when zooming.
 
 // Animation throttling to reduce simultaneous utterance *animations*
-const MAX_PARTICLES = 200; // global max ripples shared by ALL concurrent utterances
+const MAX_PARTICLES = 500; // global max ripples shared by ALL concurrent utterances
 const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reducing this
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 60; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 500; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
-const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
+const AUTOPILOT_VOLUME_REDUCTION = .55; // percentage decrease in volume when we enter autopilot
 
 const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)

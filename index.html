@@ -17,8 +17,13 @@
 		</title>
         <link rel="icon" href="https://cantonbecker.com/favicon.ico">
 
-        <link rel="stylesheet" type="text/css" href="css/genepool.css">                        
+        <link rel="stylesheet" type="text/css" href="css/genepool.css">
         <meta charset  = "utf-8"/>
+        <!-- Tell the browser not to cache this HTML (so the JS loader below always picks up a fresh APP_VERSION). -->
+        <!-- For reliable cache control across all browsers, also set Cache-Control headers server-side at w3code.com. -->
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
         <meta property = "og:title"         content = "Gene Pool Swimbots">
         <meta property = "og:description"   content = "Gene Pool is an artificial life simulation invented by Jeffrey Ventrella">
         <meta property = "og:url"           content = "http://www.swimbots.com/genepool/"/>
@@ -142,40 +147,51 @@
 		</script>        
 
 		<!-- ------------------------------------------------------------------------- -->
-		<!-- The Gene Pool simulation is loaded here...                                -->
+		<!-- Simulation + UI JS are loaded here, with ?v=${APP_VERSION} cache-busting   -->
+		<!-- so JS always loads fresh while audio files (loaded via fetch) keep         -->
+		<!-- caching normally. document.write() preserves load order and timing —       -->
+		<!-- each script is parsed and executed serially, exactly as if listed inline.  -->
 		<!-- ------------------------------------------------------------------------- -->
-        <script type = "text/javascript" src = "simulation/MathConstants.js"    ></script>
-        <script type = "text/javascript" src = "simulation/Parameters.js"       ></script>
-		<script type = "text/javascript" src = "simulation/Utility.js"          ></script>
-		<script type = "text/javascript" src = "simulation/Vector2D.js" 	    ></script>
-		<script type = "text/javascript" src = "simulation/Pool.js"             ></script>
-		<script type = "text/javascript" src = "simulation/Camera.js"           ></script>
-		<script type = "text/javascript" src = "simulation/FoodBit.js"          ></script>
-		<script type = "text/javascript" src = "simulation/SwimbotTypes.js"  	></script>
-		<script type = "text/javascript" src = "simulation/Genotype.js"  	    ></script>
-		<script type = "text/javascript" src = "simulation/Embryology.js"       ></script>
-		<script type = "text/javascript" src = "simulation/Brain.js"            ></script>
-		<script type = "text/javascript" src = "simulation/SwimbotRenderer.js"  ></script>
-		<script type = "text/javascript" src = "simulation/UtteranceRenderer.js"></script>
-		<script type = "text/javascript" src = "simulation/Swimbot.js"  	  	></script>
-		<script type = "text/javascript" src = "simulation/Touch.js"		    ></script>		
-		<script type = "text/javascript" src = "simulation/ViewTracking.js"     ></script>		
-		<script type = "text/javascript" src = "simulation/FamilyTree.js"       ></script>		
-		<script type = "text/javascript" src = "simulation/PhyloTree.js"        ></script>		
-		<script type = "text/javascript" src = "simulation/Obstacle.js"         ></script>		
-		<script type = "text/javascript" src = "synth/Synth.js"            ></script>
-		<script type = "text/javascript" src = "simulation/Sound.js"         	></script>
-		<script type = "text/javascript" src = "simulation/GenePool.js"         ></script> 
-		
-		<!-- ------------------------------------------------------------------------- -->
-		<!-- all the javascript files (other than the simulation) are loaded here...   -->
-		<!-- ------------------------------------------------------------------------- -->		
-		<script type = "text/javascript" src = "js/saveLoad.js"         ></script>
-		<script type = "text/javascript" src = "js/graph.js"            ></script>
-		<script type = "text/javascript" src = "js/info.js"             ></script>
-		<script type = "text/javascript" src = "js/ui.js"               ></script>
-		<script type = "text/javascript" src = "js/utteranceLogger.js"  ></script>
-		<script type = "text/javascript" src = "js/swimbotStats.js"      ></script>
+		<script>
+			(function() {
+				const APP_VERSION = Date.now(); // bust JS cache on every page load
+				const JS_FILES = [
+					// --- Simulation ---
+					'simulation/MathConstants.js',
+					'simulation/Parameters.js',
+					'simulation/Utility.js',
+					'simulation/Vector2D.js',
+					'simulation/Pool.js',
+					'simulation/Camera.js',
+					'simulation/FoodBit.js',
+					'simulation/SwimbotTypes.js',
+					'simulation/Genotype.js',
+					'simulation/Embryology.js',
+					'simulation/Brain.js',
+					'simulation/SwimbotRenderer.js',
+					'simulation/UtteranceRenderer.js',
+					'simulation/Swimbot.js',
+					'simulation/Touch.js',
+					'simulation/ViewTracking.js',
+					'simulation/FamilyTree.js',
+					'simulation/PhyloTree.js',
+					'simulation/Obstacle.js',
+					'synth/Synth.js',
+					'simulation/Sound.js',
+					'simulation/GenePool.js',
+					// --- UI / non-simulation ---
+					'js/saveLoad.js',
+					'js/graph.js',
+					'js/info.js',
+					'js/ui.js',
+					'js/utteranceLogger.js',
+					'js/swimbotStats.js',
+				];
+				JS_FILES.forEach(src => document.write(
+					'<script type="text/javascript" src="' + src + '?v=' + APP_VERSION + '"><\/script>'
+				));
+			})();
+		</script>
         
 
         <script>
