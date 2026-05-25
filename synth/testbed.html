@@ -264,10 +264,16 @@
 			aspect-ratio: 1;
 			border-radius: 50%;
 			position: relative;
+			cursor: grab;
+			touch-action: none;
 			background:
 				radial-gradient(circle at 50% 50%, #303932 0 45%, transparent 46%),
 				conic-gradient(from 225deg, #5fba80 0deg var(--arc, 0deg), rgba(255,255,255,0.14) var(--arc, 0deg) 270deg, transparent 270deg 360deg);
 			box-shadow: inset 0 0 0 2px rgba(255,255,255,0.08), 0 6px 18px rgba(0,0,0,0.25);
+		}
+
+		.dial.dragging {
+			cursor: grabbing;
 		}
 
 		.dial::after {
@@ -285,6 +291,11 @@
 
 		.knob.automated .dial {
 			box-shadow: inset 0 0 0 2px rgba(95,186,128,0.8), 0 0 24px rgba(95,186,128,0.22);
+		}
+
+		.knob.locked {
+			border-color: rgba(220, 170, 90, 0.6);
+			background: rgba(60, 44, 20, 0.35);
 		}
 
 		.knob-name {
@@ -467,7 +478,7 @@
 		function bootAudio() {
 			if (!initialized) {
 				sound.initialize();
-				SwimbotSynth.setReverbWet(0.13);
+				SwimbotSynth.setReverbWet(0.09);
 				initialized = true;
 			}
 
@@ -499,16 +510,53 @@
 				`;
 
 				const range = wrap.querySelector("input");
-				range.addEventListener("input", () => {
-					setKnobValue(control.cc, Number(range.value), false);
-					if (currentVoice) currentVoice.handleCC(control.cc, Number(range.value));
-					if (repeaterVoice) repeaterVoice.handleCC(control.cc, Number(range.value));
+				const dial = wrap.querySelector(".dial");
+
+				// Shared "user manipulated this knob" path: pins the value into the
+				// current sequence so subsequent playbacks honor it, marks the knob
+				// as locked, and pushes the change live to any active voices.
+				const onUserAdjust = (newVal) => {
+					newVal = Math.max(0, Math.min(127, Math.round(newVal)));
+					setKnobValue(control.cc, newVal, false);
+					wrap.classList.add("locked");
+					if (currentPhenotype) {
+						for (const step of currentPhenotype.utterSequence) {
+							if (step.type === "cc" && step.cc === control.cc) step.value = newVal;
+						}
+					}
+					if (currentVoice) currentVoice.handleCC(control.cc, newVal);
+					if (repeaterVoice) repeaterVoice.handleCC(control.cc, newVal);
+				};
+
+				range.addEventListener("input", () => onUserAdjust(Number(range.value)));
+
+				// Vertical-drag on the dial itself. ~1.5px per unit ⇒ full sweep in ~190px.
+				let dragStart = null;
+				const PIXELS_PER_UNIT = 1.5;
+				dial.addEventListener("pointerdown", (e) => {
+					dragStart = { y: e.clientY, val: Number(range.value) };
+					dial.classList.add("dragging");
+					dial.setPointerCapture(e.pointerId);
+					e.preventDefault();
 				});
+				dial.addEventListener("pointermove", (e) => {
+					if (!dragStart) return;
+					const dy = dragStart.y - e.clientY; // drag up ⇒ positive
+					onUserAdjust(dragStart.val + dy / PIXELS_PER_UNIT);
+				});
+				const endDrag = (e) => {
+					if (!dragStart) return;
+					dragStart = null;
+					dial.classList.remove("dragging");
+					try { dial.releasePointerCapture(e.pointerId); } catch (err) {}
+				};
+				dial.addEventListener("pointerup", endDrag);
+				dial.addEventListener("pointercancel", endDrag);
 
 				knobsEl.appendChild(wrap);
 				knobByCC.set(control.cc, {
 					wrap,
-					dial: wrap.querySelector(".dial"),
+					dial,
 					range,
 					value: wrap.querySelector(".value"),
 					automationTimer: null
@@ -616,6 +664,8 @@
 		}
 
 		function composeSelectedUtterance() {
+			for (const { wrap } of knobByCC.values()) wrap.classList.remove("locked");
+
 			const { genotype, label } = makeGenotype();
 			currentPhenotype = embryology.generatePhenotypeFromGenotype(genotype);
 			currentLabel = label;

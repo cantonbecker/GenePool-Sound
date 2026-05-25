@@ -448,6 +448,7 @@ var SwimbotSynth = (function () {
 
 		const ccState = {
 			noiseMix: 0,
+			oscMix: 0, // 0 = sawtooth, 1 = sine (equal-power crossfade in _playVoiceNote)
 			f2ResNorm: WA_FORMANT_BASE_RES[1],
 			f3GainNorm: 0.5
 		};
@@ -463,6 +464,9 @@ var SwimbotSynth = (function () {
 					break;
 				case 15: // Mouth → all three formant frequencies
 					_applyFormantFreqs(formantFilters, value);
+					break;
+				case 17: // Tone: pitched oscillator mix, 0=sawtooth, 127=sine
+					ccState.oscMix = Math.max(0, Math.min(127, value)) / 127;
 					break;
 				case 16: { // Size → treble boost (0–10 dB)
 					const norm    = (Math.max(32, value) - 32) / (127 - 32);
@@ -539,20 +543,40 @@ var SwimbotSynth = (function () {
 		const sawAmp = amp * Math.cos(noiseMix * Math.PI * 0.5);
 		const noiseAmp = amp * noiseMixResponse * noiseFormantDrive * (0.55 + ((voice.ccState ? voice.ccState.f3GainNorm : 0.5) * 0.9));
 
-		let osc = null;
-		let oscEnv = null;
-		if (sawAmp > 0.0001) {
-			osc = audioCtx.createOscillator();
-			osc.type = 'sawtooth';
-			osc.frequency.value = freq;
-			oscEnv = audioCtx.createGain();
-			oscEnv.gain.setValueAtTime(0, now);
-			oscEnv.gain.linearRampToValueAtTime(sawAmp, now + envA);
-			oscEnv.gain.setValueAtTime(sawAmp, now + durSec);
-			oscEnv.gain.linearRampToValueAtTime(0, now + durSec + envR);
-			osc.connect(oscEnv);
-			oscEnv.connect(voice.preEmphasis);
+		// Three-station equal-power crossfade: 0 = saw, 0.5 = triangle, 1 = sine.
+		// In each half only two adjacent oscillators are active.
+		const oscMix = voice.ccState ? Math.max(0, Math.min(1, voice.ccState.oscMix)) : 0;
+		let sawWaveAmp, triWaveAmp, sineWaveAmp;
+		if (oscMix <= 0.5) {
+			const t = oscMix * 2;
+			sawWaveAmp  = sawAmp * Math.cos(t * Math.PI * 0.5);
+			triWaveAmp  = sawAmp * Math.sin(t * Math.PI * 0.5);
+			sineWaveAmp = 0;
+		} else {
+			const t = (oscMix - 0.5) * 2;
+			sawWaveAmp  = 0;
+			triWaveAmp  = sawAmp * Math.cos(t * Math.PI * 0.5);
+			sineWaveAmp = sawAmp * Math.sin(t * Math.PI * 0.5);
 		}
+
+		const pitchedOscs = [];
+		function buildPitchedOsc(waveType, peakAmp) {
+			if (peakAmp <= 0.0001) return;
+			const o = audioCtx.createOscillator();
+			o.type = waveType;
+			o.frequency.value = freq;
+			const env = audioCtx.createGain();
+			env.gain.setValueAtTime(0, now);
+			env.gain.linearRampToValueAtTime(peakAmp, now + envA);
+			env.gain.setValueAtTime(peakAmp, now + durSec);
+			env.gain.linearRampToValueAtTime(0, now + durSec + envR);
+			o.connect(env);
+			env.connect(voice.preEmphasis);
+			pitchedOscs.push({ osc: o, env: env });
+		}
+		buildPitchedOsc('sawtooth', sawWaveAmp);
+		buildPitchedOsc('triangle', triWaveAmp);
+		buildPitchedOsc('sine',     sineWaveAmp);
 
 		let noiseSource = null;
 		let noiseFilter = null;
@@ -582,18 +606,16 @@ var SwimbotSynth = (function () {
 		}
 
 		const endTime = now + durSec + envR + 0.05;
-		if (osc) {
-			osc.start(now);
-			osc.stop(endTime);
+		for (const p of pitchedOscs) {
+			p.osc.start(now);
+			p.osc.stop(endTime);
+			p.osc.onended = () => {
+				try { p.env.disconnect(voice.preEmphasis); } catch (e) {}
+			};
 		}
 		if (noiseSource) {
 			noiseSource.start(now);
 			noiseSource.stop(now + noiseDurSec + noiseReleaseSec + 0.05);
-		}
-		if (osc) {
-			osc.onended = () => {
-				try { oscEnv.disconnect(voice.preEmphasis); } catch (e) {}
-			};
 		}
 		if (noiseSource) {
 			noiseSource.onended = () => {

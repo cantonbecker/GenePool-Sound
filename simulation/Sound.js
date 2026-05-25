@@ -605,7 +605,7 @@ mutationFactor = 1;
 		{ cc: 14, min: 0,	max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// "noise mix"
 		{ cc: 15, min: 0,		max: 127,	initialVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
 		{ cc: 16, min: 32,	max: 127,	initialVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
-		{ cc: 17, min: 0,		max: 1,		initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" -- UNUSED
+		{ cc: 17, min: 0,		max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" — pitched osc mix: 0=sawtooth, 127=sine
 		{ cc: 19, min: 32,		max: 64,		initialVal: 0,	variable: true,	variableWidth: 32,		lastVal: 0,	lastDir: 'up'  },	// "F3 resonance"
 		{ cc: 20, min: 20,		max: 100,	initialVal: 0,	variable: true,	variableWidth: 64,		lastVal: 0,	lastDir: 'up'  } 	// "F3 gain"
 	];
