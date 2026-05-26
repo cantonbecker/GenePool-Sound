@@ -202,7 +202,7 @@ var SwimbotSynth = (function () {
 		if (reverbConvolver) {
 			reverbConvolver.buffer = buf;
 			_currentIRName = name;
-			console.log(`SwimbotSynth: switched reverb IR to "${name}"`);
+			// console.log(`SwimbotSynth: switched reverb IR to "${name}"`);
 		}
 	}
 

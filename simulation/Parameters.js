@@ -6,9 +6,12 @@ const SWIMBOT_VERSION			= '2026-05-26 Persisting Autopilot';
 // lower food regeneration period for faster food drops
 // 9/21: 45000/400/450/20 always succeeds, very occasional rabbit foxing
 
+const MAX_UTTER_ATTENUATION = 20; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
+const LOUD_PRESET_ATTENUATION = 10; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+
 // Audio mixer defaults — adjust these to set the startup balance.
 // The Audio tab sliders will initialize from these values.
-var WEB_AUDIO_VOLUME     = 0.75; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
+var WEB_AUDIO_VOLUME     = 0.85; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
 var WEB_VOLUME_UTTERANCE = 0.95; // category mix: swimbot vocal utterances
 var WEB_VOLUME_BIRTH     = 0.65; // category mix: birth samples
 var WEB_VOLUME_SPAWN     = 0.75; // category mix: spawn (q*bert) samples
@@ -20,6 +23,7 @@ var WEB_MAXIMUM_VOICES   = 32; // max simultaneous utterance voices (1–64) IMP
 
 /*** CONSOLE CONTROLS ***/
 const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.75;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
+const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast
 
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots
@@ -38,23 +42,30 @@ const LOD_EMA_ALPHA               = 0.1;  // ~10-frame effective smoothing windo
 const LOD_RAISE_CONFIRM_FRAMES    = 30;   // consecutive sub-budget frames required to promote LOW → HIGH
 
 // Animation throttling to reduce simultaneous utterance *animations*
-const MAX_PARTICLES = 400; // global max ripples shared by ALL concurrent utterances
-const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reducing this
-var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
+const MAX_PARTICLES = 300; // global max ripples shared by ALL concurrent utterances
+const MAX_UTTERANCES_TO_RENDER = 50; // too many animations? try reducing this
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 60; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
-var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
-const AUTOPILOT_VOLUME_REDUCTION = .25; // percentage decrease in volume when we enter autopilot
-const AUTOPILOT_MIN_POPULATION   = 3;	// while AUTOPILOT_MODE, alive swimbots ≤ this triggers a reload from a random snapshot
-const AUTOPILOT_POP_CHECK_PERIOD = 60;	// ticks between population-collapse checks (~1s at 60fps)
+var AUTOPILOT_MODE = false; 					// Init until we're inactive
+const USER_INACTION_TIME_OUT	= 30; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
+const AUTOPILOT_VOLUME_REDUCTION = .25; 	// percentage decrease in volume when we enter autopilot
+const AUTOPILOT_MIN_POPULATION   = 3;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
 
-const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast
+// Autopilot camera roaming — picks a new zoom target periodically, choosing
+// between two bands: "close" (sit in among the action) and "wide" (pull back
+// for an overview). Each band has its own scale range and hold time.
+// Hold times are in ticks; ~60 ticks ≈ 1 second of real time.
+const AUTOPILOT_WIDE_VIEW_PROBABILITY	= 0.20;		// 0.0 = always close, 1.0 = always wide
+const AUTOPILOT_CLOSE_SCALE_MIN			= 400;		// tightest close-up zoom
+const AUTOPILOT_CLOSE_SCALE_MAX			= 2500;		// loosest close-up zoom
+const AUTOPILOT_CLOSE_HOLD_TICKS			= 520;		// ~8s — time spent at each close-band pick
+const AUTOPILOT_WIDE_SCALE_MIN			= 4000;		// least pulled-back overview
+const AUTOPILOT_WIDE_SCALE_MAX			= 7500;		// most pulled-back overview
+const AUTOPILOT_WIDE_HOLD_TICKS			= 2000;		// ~30s — longer so you get a chance to "just observe"
+
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
 const UI_UPDATE_PERIOD = 1000; // decrease when using graphs to debug
 
-const MAX_UTTER_ATTENUATION = 25; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets are really loud so, set *additionally* reduce them by this much 
 
 
 const DEFAULT_GARDEN_OF_EDEN_RADIUS 		= 2000; // normally 1750

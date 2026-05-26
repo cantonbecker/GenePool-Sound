@@ -177,6 +177,7 @@ function GenePool()
 	let _interactiveMode		= false;
 	let _autopilotSnapshot		= null;		// in-memory pool snapshot for autopilot continuity across preset switches
 	let _inAutopilotSession		= false;	// true from the moment autopilot loads a pool until the user picks a different preset (survives mouse/keyboard interaction in between)
+	let _autopilotPickCountdown	= AUTOPILOT_CLOSE_HOLD_TICKS;	// ticks until the next autopilot zoom pick (held > 0 so a freshly-loaded snapshot's camera scale gets some screen time before the picker overrides it)
 	let _numSwimbots 	        = 0;
     let _numNearbySwimbots      = 0;
 	let _numFoodBits 	        = 0;
@@ -353,6 +354,7 @@ function GenePool()
                 console.log( "autopilot resuming from in-memory snapshot" );
             }
             _inAutopilotSession = true;
+            _autopilotPickCountdown = AUTOPILOT_CLOSE_HOLD_TICKS;
             if ( snapshot )
             {
                 this.setPoolData( snapshot );
@@ -1593,10 +1595,33 @@ if ( mode === SimulationStartMode.SPECIES )
             //----------------------------------------------
  			if ( AUTOPILOT_MODE )
         	{
-        		if ( _clock % 520 === 0 )
+            // every so many ticks, roll a new zoom and go there
+        		//----------------------------------------------------
+        		// Pick a new zoom target. Most of the time stay in the
+        		// close-range band; occasionally pull way back to the
+        		// wide-overview band and linger there longer. All knobs
+        		// (probability, scale ranges, hold times) live in
+        		// Parameters.js as AUTOPILOT_*.
+        		//----------------------------------------------------
+        		_autopilotPickCountdown --;
+        		if ( _autopilotPickCountdown <= 0 )
         		{
-        			let scale = 400 + Math.random() * 2000;        			
-        			_camera.doScaleShift( scale, 520 );
+        			let scale, duration, band;
+        			if ( Math.random() < AUTOPILOT_WIDE_VIEW_PROBABILITY )
+        			{
+        				scale    = AUTOPILOT_WIDE_SCALE_MIN + Math.random() * ( AUTOPILOT_WIDE_SCALE_MAX - AUTOPILOT_WIDE_SCALE_MIN );
+        				duration = AUTOPILOT_WIDE_HOLD_TICKS;
+        				band     = "wide ";
+        			}
+        			else
+        			{
+        				scale    = AUTOPILOT_CLOSE_SCALE_MIN + Math.random() * ( AUTOPILOT_CLOSE_SCALE_MAX - AUTOPILOT_CLOSE_SCALE_MIN );
+        				duration = AUTOPILOT_CLOSE_HOLD_TICKS;
+        				band     = "close";
+        			}
+        			_camera.doScaleShift( scale, duration );
+        			_autopilotPickCountdown = duration;
+        			console.log( "[autopilot] zoom → " + band + "   scale=" + Math.round( scale ).toString().padStart( 4 ) + "   hold=" + duration + "t" );
         		}
         		
         		if ( _clock % 600 === 0 && _numSwimbots > 0 )
@@ -1633,6 +1658,7 @@ if ( mode === SimulationStartMode.SPECIES )
 					// Now shift to the chosenSwimbot...
 					//----------------------------------------------------
 					_camera.doPositionShift( _swimbots[ chosenSwimbot ].getPosition(), 600 );
+					console.log( "[autopilot] pan  → swimbot #" + chosenSwimbot );
         		}
 
         		//----------------------------------------------------
@@ -1641,8 +1667,9 @@ if ( mode === SimulationStartMode.SPECIES )
         		// snapshot so the kiosk never tours a barren pool.
         		// (Counted by iteration — _numSwimbots is the initial
         		// allocation count and is never decremented on death.)
+            // check every 50 _clocks
         		//----------------------------------------------------
-        		if ( _clock % AUTOPILOT_POP_CHECK_PERIOD === 0 )
+        		if ( _clock % 50 === 0 )
         		{
         			let aliveCount = 0;
         			for ( let s = 0; s < MAX_SWIMBOTS; s++ )

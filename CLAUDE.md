@@ -240,12 +240,20 @@ AUTOPILOT:        activates after 5 minutes of user inactivity
 - Population history chart uses **dual Y-axes**: left axis (red) is fixed 0–`MAX_SWIMBOTS`, right axis (green) is fixed 0–`MAX_FOODBITS`. Each line scales to its own axis independently.
 - Default auto-refresh is 2 seconds. Options: 0/2/5/30/60s.
 
-## TO DO
+## Performance — Adaptive LOD
 
-### Performance: camera zoom causes frame drops and audio hangs
-We built a Performance Debugging panel (`js/perfDebug.js`) with per-tick timing probes and toggles to disable individual subsystems (utterance audio, event samples, background loop, reverb, utterance rendering, swimbot rendering, food rendering, O(n²) mate scan, force LOW LOD). After systematic testing, **the only toggle that made a measurable difference was "Force LOW LOD"**. This means:
-- The O(n²) mate-detection scan is NOT the bottleneck (despite being 90K distance checks/tick)
-- Web Audio voice count is NOT the bottleneck
-- Sample playback, reverb, background loops — none of these matter
-- **The culprit is HIGH LOD swimbot rendering** — the full bezier spline rendering in `SwimbotRenderer.js` (lines ~164–299) which kicks in when camera scale drops below `LEVEL_OF_DETAIL_THRESHOLD = 3000`
-- The fix needs to happen in `SwimbotRenderer.js` — either optimize the HIGH LOD bezier path, add an intermediate LOD level, or raise the threshold so HIGH LOD only activates when very few swimbots are visible
+HIGH LOD bezier rendering in `SwimbotRenderer.js` (~164–298) is the dominant CPU cost: 300 swimbots × ~8 parts × ~7 canvas draw calls. Selection between HIGH and LOW is **fully adaptive**, driven by measured per-tick wall-clock time. Neither camera zoom nor swimbot count is part of the decision.
+
+`GenePool.js` `this.update()` wraps each tick in `performance.now()`, blends the duration into an EMA (`_emaTickMs`), then:
+- **Drop HIGH → LOW** the moment `_emaTickMs` exceeds `LOD_FRAME_BUDGET_DROP_MS` (default 14ms). Decision lives in the render block (one-frame reactive).
+- **Raise LOW → HIGH** only after `_emaTickMs` stays under `LOD_FRAME_BUDGET_RAISE_MS` (default 8ms) for `LOD_RAISE_CONFIRM_FRAMES` (default 30 ≈ ½ s) consecutive ticks. Decision lives at the end of `update()`.
+
+Asymmetric hysteresis (fast drop, slow raise) plus the 8–14ms dead zone are the structural guarantee against oscillation at the budget boundary. Self-tuning across hardware and population — a 2-swimbot pool on any machine stays at HIGH forever; a 300-swimbot pool on a slow machine settles at LOW.
+
+Tunables (all in `Parameters.js`): `LOD_FRAME_BUDGET_DROP_MS`, `LOD_FRAME_BUDGET_RAISE_MS`, `LOD_EMA_ALPHA`, `LOD_RAISE_CONFIRM_FRAMES`.
+
+Live readout in the pool-status panel: `Tick: X.Xms` (amber when over budget) + `Budget: 8–14ms`. Exposed via `genePool.getEmaTickMs()` and `genePool.getLevelOfDetail()`.
+
+`Camera.isZooming()` has a separate frame-by-frame chatter-resistant latch (`_scaleShift.active || |_scaleDelta| > ε`, with a 15-frame release grace). It is **no longer an input to LOD selection** but remains available for any other consumer.
+
+**Removed (2026-05-26):** the `LEVEL_OF_DETAIL_THRESHOLD` and `LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING` constants. The motion-aware zoom-threshold approach turned out to be the wrong signal — fixed thresholds were too coarse for low-population zoom and too strict for high-population idle. Adaptive frame-time replaces both.
