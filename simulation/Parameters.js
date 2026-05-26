@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-15 WEB';
+const SWIMBOT_VERSION			= '2026-05-26 WEB';
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
@@ -18,6 +18,8 @@ var WEB_VOLUME_LOOP      = 0.75; // category mix: background loop
 var WEB_VOLUME_UI        = 0.50; // category mix: UI sounds (preset launch)
 var WEB_MAXIMUM_VOICES   = 32; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
 
+/*** CONSOLE CONTROLS ***/
+const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.8;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
 
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots
@@ -31,7 +33,7 @@ const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reduci
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 5; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 20; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
 const AUTOPILOT_VOLUME_REDUCTION = .55; // percentage decrease in volume when we enter autopilot
 

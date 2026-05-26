@@ -18,7 +18,7 @@
 function Camera()
 {
 	const FRICTION   			=  8.0;
-	const BUTTON_FORCE          =  0.3;
+	const BUTTON_FORCE          =  0.3 * ZOOM_CONTROL_SPEED_ADJUSTMENT;
 	const DRAG_FORCE            =  0.03;
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
