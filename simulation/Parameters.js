@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-26 Save States';
+const SWIMBOT_VERSION			= '2026-05-26 Persisting Autopilot';
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
@@ -43,9 +43,9 @@ const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reduci
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 20; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 60; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
-const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
+const AUTOPILOT_VOLUME_REDUCTION = .25; // percentage decrease in volume when we enter autopilot
 const AUTOPILOT_MIN_POPULATION   = 3;	// while AUTOPILOT_MODE, alive swimbots ≤ this triggers a reload from a random snapshot
 const AUTOPILOT_POP_CHECK_PERIOD = 60;	// ticks between population-collapse checks (~1s at 60fps)
 

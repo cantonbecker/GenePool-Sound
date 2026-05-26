@@ -1639,14 +1639,23 @@ if ( mode === SimulationStartMode.SPECIES )
         		// Population safety net: if the autopilot world has
         		// collapsed, throw it away and roll up a fresh random
         		// snapshot so the kiosk never tours a barren pool.
+        		// (Counted by iteration — _numSwimbots is the initial
+        		// allocation count and is never decremented on death.)
         		//----------------------------------------------------
-        		if ( _clock % AUTOPILOT_POP_CHECK_PERIOD === 0
-        		  && _numSwimbots <= AUTOPILOT_MIN_POPULATION )
+        		if ( _clock % AUTOPILOT_POP_CHECK_PERIOD === 0 )
         		{
-        			console.log( "autopilot population collapsed (" + _numSwimbots + ") — reloading random snapshot" );
-        			_autopilotSnapshot = null;
-        			this.startSimulation( SimulationStartMode.AUTOPILOT );
-        			AUTOPILOT_MODE = true;
+        			let aliveCount = 0;
+        			for ( let s = 0; s < MAX_SWIMBOTS; s++ )
+        			{
+        				if ( _swimbots[ s ].getAlive() ) aliveCount++;
+        			}
+        			if ( aliveCount <= AUTOPILOT_MIN_POPULATION )
+        			{
+        				console.log( "autopilot population collapsed (" + aliveCount + ") — reloading random snapshot" );
+        				_autopilotSnapshot = null;
+        				this.startSimulation( SimulationStartMode.AUTOPILOT );
+        				AUTOPILOT_MODE = true;
+        			}
         		}
 			}
         
