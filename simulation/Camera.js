@@ -23,8 +23,8 @@ function Camera()
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
     const MINIMUM_SCALE 		=  500.0;
-    const ZOOM_MOTION_EPSILON   =  0.5;   // |_scaleDelta| below this is considered "not moving"
-    const ZOOM_RELEASE_FRAMES   =  5;    // grace-period frames before isZooming() drops to false (~250ms @ 60fps)
+    const ZOOM_MOTION_EPSILON   =  2.25;   // |_scaleDelta| below this is considered "not moving"
+    const ZOOM_RELEASE_FRAMES   =  2;    // grace-period frames before isZooming() drops to false
     
 	function ScaleShift()
 	{
@@ -148,6 +148,7 @@ function Camera()
 			_framesSinceZoomMotion++;
 		}
 		_isZooming = _framesSinceZoomMotion < ZOOM_RELEASE_FRAMES;
+		// console.log( `Δ=${_scaleDelta.toFixed(2)} shift=${_scaleShift.active} isZooming=${_isZooming}` );
 
 		//-----------------------------------
 		// update seconds

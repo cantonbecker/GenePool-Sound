@@ -9,23 +9,23 @@ const SWIMBOT_VERSION			= '2026-05-26 WEB';
 // Audio mixer defaults — adjust these to set the startup balance.
 // The Audio tab sliders will initialize from these values.
 var WEB_AUDIO_VOLUME     = 0.75; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
-var WEB_VOLUME_UTTERANCE = 0.80; // category mix: swimbot vocal utterances
-var WEB_VOLUME_BIRTH     = 0.75; // category mix: birth samples
+var WEB_VOLUME_UTTERANCE = 0.95; // category mix: swimbot vocal utterances
+var WEB_VOLUME_BIRTH     = 0.65; // category mix: birth samples
 var WEB_VOLUME_SPAWN     = 0.75; // category mix: spawn (q*bert) samples
-var WEB_VOLUME_DEATH     = 1.00; // category mix: death samples
-var WEB_VOLUME_EAT       = 0.50; // category mix: eating samples
-var WEB_VOLUME_LOOP      = 0.75; // category mix: background loop
-var WEB_VOLUME_UI        = 0.50; // category mix: UI sounds (preset launch)
+var WEB_VOLUME_DEATH     = 0.80; // category mix: death samples
+var WEB_VOLUME_EAT       = 0.40; // category mix: eating samples
+var WEB_VOLUME_LOOP      = 0.80; // category mix: background loop
+var WEB_VOLUME_UI        = 0.60; // category mix: UI sounds (preset launch)
 var WEB_MAXIMUM_VOICES   = 32; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
 
 /*** CONSOLE CONTROLS ***/
-const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.8;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
+const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.75;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
 
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots
 const MAX_SWIMBOTS = 300;	// 300 is a good number for our Mac Mini Intel live kiosk, big bang will create 85% this many to start with
-const LEVEL_OF_DETAIL_THRESHOLD = 2700; // Impacts CPU when rendering lots of swimbots. increase to preserve curves when zoomed out, decrease to lower CPU load.
-const LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING = 1500; // Slower CPUs stutter when we are actively zooming and trying to preserve curves. Try forcing a lower LOD when zooming.
+const LEVEL_OF_DETAIL_THRESHOLD = 2800; // Impacts CPU when rendering lots of swimbots. increase to preserve curves when zoomed out, decrease to lower CPU load.
+const LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING = 1750; // Slower CPUs stutter when we are actively zooming and trying to preserve curves. Try forcing a lower LOD when zooming.
 
 // Animation throttling to reduce simultaneous utterance *animations*
 const MAX_PARTICLES = 400; // global max ripples shared by ALL concurrent utterances
@@ -33,9 +33,9 @@ const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reduci
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 20; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 30; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
-const AUTOPILOT_VOLUME_REDUCTION = .55; // percentage decrease in volume when we enter autopilot
+const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
 
 const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)
