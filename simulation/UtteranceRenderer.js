@@ -24,10 +24,11 @@ function UtteranceRenderer()
 	const MIN_BRIGHTNESS	= 0.2;
 	const MAX_BRIGHTNESS	= 1.0;
 	const GROWTH_RATE 		= 4;
-	const PITCH_BRIGHTNESS_SCALAR = 12;
 
-	// Throttle ripple-making so a fast staccato burst doesn't make too many
+	// Throttle per-note ripples so a staccato burst doesn't flood our available MAX_PARTICLES
 	const MIN_CYCLES_BETWEEN_RIPPLES = 3;
+
+	const PITCH_BRIGHTNESS_SCALAR = 12;
 
 	function Particle()
 	{	
@@ -90,7 +91,7 @@ function UtteranceRenderer()
 			canvas.beginPath();
 
 			// resolution for 'bumps' in each ripple, 1000 = smooth, 100 = rough
-			let res = 300;
+			let res = 400;
 			
 			let min = 0.3;
 			
@@ -328,31 +329,31 @@ function UtteranceRenderer()
 				let green 	= _utterances[u].pitch;
 				let blue 	= ONE - _utterances[u].pitch;
 				let frac	= _utterances[u].clock / _utterances[u].duration;
-				let alpha 	= 0.4 - frac * 0.5;
+				let alpha 	= 0.4 - frac * 0.7;
 
-				if ( alpha < ZERO) { alpha = ZERO; } 
-
-				red 	= Math.floor( 100 + red		* 155 );
-				green 	= Math.floor( 100 + green 	* 155 );
-				blue 	= Math.floor( 100 + blue 	* 155 );
-
-				canvas.fillStyle = "rgba( " + red + ", " + green + ", " +  blue + ", " + alpha + " )";	
-				
-				let num = 7;
-				for (let i=0; i<num; i++)
+				if ( alpha > ZERO)
 				{
-					let radius = _utterances[u].clock * (i/num); 
+					red 	= Math.floor( 50 + red		* 205 );
+					green 	= Math.floor( 50 + green	* 205 );
+					blue 	= Math.floor( 50 + blue 	* 205 );
+
+					canvas.fillStyle = "rgba( " + red + ", " + green + ", " +  blue + ", " + alpha + " )";	
+				
+					let num = 7;
+					for (let i=0; i<num; i++)
+					{
+						let radius = _utterances[u].clock * (i/num); 
 	
-					canvas.beginPath();
-					canvas.arc( _utterances[u].startPosition.x, _utterances[u].startPosition.y, radius, 0, PI2, false );
-					canvas.fill();
-					canvas.closePath();
-				}
+						canvas.beginPath();
+						canvas.arc( _utterances[u].startPosition.x, _utterances[u].startPosition.y, radius, 0, PI2, false );
+						canvas.fill();
+						canvas.closePath();
+					}
+				}				
 				
 				// Ripples are now launched per-MIDI-note by emitNote(),
 				// which is called from Sound.js as each note actually fires.
 				// future option: phenotype.range could impact ripple radius?
-
 			}
 		}
 		

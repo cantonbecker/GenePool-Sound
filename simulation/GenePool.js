@@ -1494,7 +1494,7 @@ if ( mode === SimulationStartMode.SPECIES )
                 _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_DOT;
             }
             else
-            {
+     {
                 //---------------------------------------------------------------
                 // Performance optimization: while the camera is actively
                 // zooming, use a much lower LOD threshold so that swimbots
@@ -1520,8 +1520,7 @@ if ( mode === SimulationStartMode.SPECIES )
                 {
                     _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_HIGH;
                 }
-            }
-            
+            }            
             //---------------------------
             // update camera tracking...
             //---------------------------
@@ -1540,20 +1539,49 @@ if ( mode === SimulationStartMode.SPECIES )
             // update auto-pilot behavior
             //----------------------------------------------
  			if ( AUTOPILOT_MODE )
-        	{        
-        		if ( _clock % 640 === 0 )
+        	{
+        		if ( _clock % 520 === 0 )
         		{
-        			let scale = 500 + Math.random() * 2000;        			
-        			_camera.doScaleShift( scale, 500 );
+        			let scale = 400 + Math.random() * 2000;        			
+        			_camera.doScaleShift( scale, 520 );
         		}
+        		
+        		if ( _clock % 600 === 0 && _numSwimbots > 0 )
+        		{
+					//--------------------------------------------------------------
+					// let's try to find a random swimbot whose distance 
+					// from the current camera position is within a reasonable
+					// range, so that the shift is not too drastic. 
+					//--------------------------------------------------------------
+					let searching = true;
+					let numTries = 0;
+					let maxTries = 5;
+					let chosenSwimbot = Math.floor( Math.random() * _numSwimbots );
+					
+					while ( searching )
+					{
+						let testSwimbot	= Math.floor( Math.random() * _numSwimbots );
+						let testDistance = _camera.getPosition().getDistanceTo( _swimbots[ testSwimbot ].getPosition() );	
 
-        		if ( _clock % 700 === 0 && _numSwimbots > 0 )
-        		{
-					let s = Math.floor( Math.random() * _numSwimbots );
-					_camera.doPositionShift( _swimbots[s].getPosition(), 600 );
-        		}
+						if ( testDistance < _camera.getScale() )
+						{
+							chosenSwimbot = testSwimbot;
+							searching = false;
+						}
+						
+						numTries ++;
+						if ( numTries > maxTries )	
+						{
+							searching = false;
+						}			
+					}
+					
+					//----------------------------------------------------
+					// Now shift to the chosenSwimbot...
+					//----------------------------------------------------
+					_camera.doPositionShift( _swimbots[ chosenSwimbot ].getPosition(), 600 );
+        		}	        		
 			}            
-            
         
             //------------------------------
             // update camera navigation
