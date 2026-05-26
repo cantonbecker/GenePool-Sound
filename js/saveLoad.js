@@ -817,39 +817,70 @@ function printRawPoolData()
 
 
 //--------------------------
-// Loads a pool snapshot from save-states/<filename> and applies it via
-// genePool.setPoolData(). The file is expected to contain the raw JSON
-// output of genePool.getPoolData() (i.e. the same shape produced by
-// printRawPoolData above). Requires the page be served over HTTP — fetch()
-// will not work from a file:// URL.
+// Apply a bundled pool snapshot to the running simulation by name.
+// Snapshots live in window.POOL_SNAPSHOTS, populated by save-states/save-states.js
+// (regenerate with save-states/rebuild.sh).
 //--------------------------
-function loadTestPoolData( filename )
+function loadPoolByName( name )
 {
-    let url = "save-states/" + filename;
+    if ( ! window.POOL_SNAPSHOTS || ! window.POOL_SNAPSHOTS[ name ] )
+    {
+        console.error( "loadPoolByName: no snapshot named '" + name + "'" );
+        alert( "No pool snapshot named '" + name + "'.\nRun save-states/rebuild.sh after adding new .txt files." );
+        return;
+    }
 
-    fetch( url )
-        .then( function( response )
-        {
-            if ( ! response.ok )
-            {
-                throw new Error( "HTTP " + response.status + " loading " + url );
-            }
-            return response.text();
-        } )
-        .then( function( text )
-        {
-            let data = JSON.parse( text );
-            genePool.setPoolData( data );
-            let metaSummary = data._meta
-                ? " (preset: " + data._meta.presetName + " #" + data._meta.chosenPoolToLoad + ", saved " + data._meta.savedAt + ")"
-                : "";
-            console.log( "loadTestPoolData: applied " + url + metaSummary );
-        } )
-        .catch( function( err )
-        {
-            console.error( "loadTestPoolData failed:", err );
-            alert( "Could not load " + url + "\n\n" + err.message );
-        } );
+    let data = window.POOL_SNAPSHOTS[ name ];
+    genePool.setPoolData( data );
+
+    let metaSummary = data._meta
+        ? " (preset: " + data._meta.presetName + " #" + data._meta.chosenPoolToLoad + ", saved " + data._meta.savedAt + ")"
+        : "";
+    console.log( "loaded pool snapshot '" + name + "'" + metaSummary );
+}
+
+
+//--------------------------
+// Pick a random snapshot from window.POOL_SNAPSHOTS and apply it.
+//--------------------------
+function loadRandomPool()
+{
+    let names = window.POOL_SNAPSHOTS ? Object.keys( window.POOL_SNAPSHOTS ) : [];
+    if ( names.length === 0 )
+    {
+        console.warn( "loadRandomPool: no snapshots in window.POOL_SNAPSHOTS" );
+        alert( "No pool snapshots are bundled.\nAdd .txt files to save-states/ and run save-states/rebuild.sh." );
+        return;
+    }
+
+    let pick = names[ Math.floor( Math.random() * names.length ) ];
+    loadPoolByName( pick );
+}
+
+
+//--------------------------
+// Populate the "load specific pool..." <select> with one <option> per
+// snapshot in window.POOL_SNAPSHOTS. Safe to call before snapshots load
+// (it will just leave the placeholder in place) and safe to call repeatedly.
+//--------------------------
+function populatePoolSnapshotDropdown()
+{
+    let sel = document.getElementById( "poolSnapshotSelect" );
+    if ( ! sel ) return;
+
+    // strip existing snapshot options, keep the leading placeholder
+    while ( sel.options.length > 1 ) sel.remove( 1 );
+
+    if ( ! window.POOL_SNAPSHOTS ) return;
+
+    let names = Object.keys( window.POOL_SNAPSHOTS ).sort();
+    for ( let i = 0; i < names.length; i ++ )
+    {
+        let opt = document.createElement( "option" );
+        opt.value       = names[ i ];
+        opt.textContent = names[ i ];
+        sel.appendChild( opt );
+    }
 }
 
 
