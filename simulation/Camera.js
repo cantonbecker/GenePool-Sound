@@ -23,6 +23,8 @@ function Camera()
     const PAN_OVERSHOOT_PUSH 	=  0.7;
     const SCALE_OVERSHOOT_PUSH	=  0.7;
     const MINIMUM_SCALE 		=  500.0;
+    const ZOOM_MOTION_EPSILON   =  0.5;   // |_scaleDelta| below this is considered "not moving"
+    const ZOOM_RELEASE_FRAMES   =  5;    // grace-period frames before isZooming() drops to false (~250ms @ 60fps)
     
 	function ScaleShift()
 	{
@@ -52,7 +54,8 @@ function Camera()
 	let _scaleShift			= new ScaleShift();
 	let _scaleDelta 	    = ZERO;
 	let _scale      	    = ONE;
-	let _previousScale      = ONE;  // used by isZooming() to detect per-frame scale changes
+	let _isZooming             = false;
+	let _framesSinceZoomMotion = 9999;
     let _aspectRatio        = ONE;
 	let _left	    	    = ZERO;
 	let _right	    	    = ZERO;
@@ -64,15 +67,6 @@ function Camera()
 	//--------------------------------
 	this.update = function( seconds )
 	{
-        //-------------------------------------------
-        // Snapshot scale before any changes this frame. This is compared
-        // against _scale at the end of the frame by isZooming() to detect
-        // whether the camera zoomed during this update tick. We capture it
-        // here at the top so that all zoom sources are caught: user scroll,
-        // button/drag input, programmatic doScaleShift(), and view tracking.
-        //-------------------------------------------
-        _previousScale = _scale;
-
         //-------------------------------------------
         // friction
         //-------------------------------------------
@@ -140,6 +134,20 @@ function Camera()
 			}
 			// console.log(`Shift clock @ ${_scaleShift.clock} scale @ ${_scale}`);
 		}        
+
+		//-----------------------------------
+		// update isZooming latch — see comment at this.isZooming
+		//-----------------------------------
+		const zoomMoving = _scaleShift.active || Math.abs( _scaleDelta ) > ZOOM_MOTION_EPSILON;
+		if ( zoomMoving )
+		{
+			_framesSinceZoomMotion = 0;
+		}
+		else
+		{
+			_framesSinceZoomMotion++;
+		}
+		_isZooming = _framesSinceZoomMotion < ZOOM_RELEASE_FRAMES;
 
 		//-----------------------------------
 		// update seconds
@@ -379,22 +387,25 @@ function Camera()
 	}
 
 	//-----------------------------------------------------------------------
-	// isZooming: returns true if the camera scale changed meaningfully
-	// this frame. Used by GenePool to temporarily lower the LOD threshold
+	// isZooming: returns true if the camera is being actively driven to
+	// change scale. Used by GenePool to temporarily lower the LOD threshold
 	// during zoom, preventing expensive HIGH LOD bezier rendering from
 	// causing frame drops and audio hangs while the view is in motion.
 	//
-	// The "> 2.0" dead zone (out of a ~500–8000 scale range) is needed
-	// because Camera uses friction-based deceleration: after the user
-	// releases a zoom control, _scaleDelta decays gradually toward zero
-	// over several seconds, causing _scale to keep changing by tiny
-	// imperceptible sub-pixel amounts. Without this threshold, isZooming()
-	// would stay true for ~3 seconds after release, keeping the LOD
-	// artificially low long after the zoom motion is visually done.
+	// Implementation: rather than measuring _scale change after the fact
+	// (which is vulnerable to Math.round() quantization chatter during slow
+	// doScaleShift ramps and to per-frame noise during very slow button
+	// zooms), this.update() inspects the drivers directly each frame —
+	// _scaleShift.active for programmatic ramps and |_scaleDelta| for
+	// button/scroll velocity zoom — then latches the result for a brief
+	// grace period (ZOOM_RELEASE_FRAMES) so brief gaps during quantized or
+	// near-threshold motion don't cause LOD chatter at the frame rate.
+	//
+	// OLD METHOD: return Math.abs( _scale - _previousScale ) > 2.0;
 	//-----------------------------------------------------------------------
 	this.isZooming = function()
 	{
-        return Math.abs( _scale - _previousScale ) > 2.0;
+        return _isZooming;
 	}
 	
 	//---------------------------
