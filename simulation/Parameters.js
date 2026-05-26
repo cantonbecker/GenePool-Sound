@@ -24,8 +24,18 @@ const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.75;	// adjust the zoom joystick speed he
 /*** PERFORMANCE TWEAKERS ***/
 // don't allow user or any simulation to grow pool beyond this many living swimbots
 const MAX_SWIMBOTS = 300;	// 300 is a good number for our Mac Mini Intel live kiosk, big bang will create 85% this many to start with
-const LEVEL_OF_DETAIL_THRESHOLD = 2800; // Impacts CPU when rendering lots of swimbots. increase to preserve curves when zoomed out, decrease to lower CPU load.
-const LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING = 1750; // Slower CPUs stutter when we are actively zooming and trying to preserve curves. Try forcing a lower LOD when zooming.
+
+// Adaptive LOD: measure how long each simulation tick takes (sim + render) and
+// switch between HIGH and LOW swimbot detail based on actual cost, not a fixed
+// zoom threshold. The system reactively drops to LOW when work exceeds budget
+// and only promotes back to HIGH after sustained headroom — self-tuning across
+// machines and population sizes. Budget numbers are derived from a 60fps target
+// (~16.67ms/frame): drop at ~85% of budget, raise at ~50% (the band prevents
+// chatter at the boundary).
+const LOD_FRAME_BUDGET_DROP_MS    = 14;   // EMA tick > this  → drop HIGH → LOW immediately
+const LOD_FRAME_BUDGET_RAISE_MS   = 8;    // EMA tick < this  → start counting toward HIGH promotion
+const LOD_EMA_ALPHA               = 0.1;  // ~10-frame effective smoothing window
+const LOD_RAISE_CONFIRM_FRAMES    = 30;   // consecutive sub-budget frames required to promote LOW → HIGH
 
 // Animation throttling to reduce simultaneous utterance *animations*
 const MAX_PARTICLES = 400; // global max ripples shared by ALL concurrent utterances
@@ -33,7 +43,7 @@ const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reduci
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 30; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 60*5; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
 const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
 

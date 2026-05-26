@@ -768,6 +768,92 @@ function handleFiles()
 
 
 //--------------------------
+function printRawPoolData()
+{
+    let pool = genePool.getPoolData();
+    let json = JSON.stringify( pool, null, 2 );
+
+    // collapse arrays of primitives (numbers/strings) onto one line,
+    // leaving arrays of objects / nested arrays expanded.
+    json = json.replace
+    (
+        /\[\n\s+([^\[\]{}]*?)\n\s+\]/g,
+        function( match, inner )
+        {
+            return "[ " + inner.replace( /\s*\n\s*/g, " " ) + " ]";
+        }
+    );
+
+    let w = window.open
+    (
+        "",
+        "raw pool data",
+        "left           = 400, \
+         top            = 100, \
+         width          = 800, \
+         height         = 700, \
+         status         = 0, \
+         resizable      = 1, \
+         channelmode    = 0, \
+         menubar        = 0, \
+         toolbar        = 0, \
+         location       = 0, \
+         titlebar       = 0"
+    );
+
+    w.document.title = "Raw Pool Data (genePool.getPoolData())";
+    w.document.body.style.margin = "0";
+
+    let pre = w.document.createElement( "pre" );
+    pre.style.fontFamily = "monospace";
+    pre.style.fontSize   = "11px";
+    pre.style.whiteSpace = "pre-wrap";
+    pre.style.wordBreak  = "break-all";
+    pre.style.padding    = "10px";
+    pre.style.margin     = "0";
+    pre.textContent      = json;
+    w.document.body.appendChild( pre );
+}
+
+
+//--------------------------
+// Loads a pool snapshot from save-states/<filename> and applies it via
+// genePool.setPoolData(). The file is expected to contain the raw JSON
+// output of genePool.getPoolData() (i.e. the same shape produced by
+// printRawPoolData above). Requires the page be served over HTTP — fetch()
+// will not work from a file:// URL.
+//--------------------------
+function loadTestPoolData( filename )
+{
+    let url = "save-states/" + filename;
+
+    fetch( url )
+        .then( function( response )
+        {
+            if ( ! response.ok )
+            {
+                throw new Error( "HTTP " + response.status + " loading " + url );
+            }
+            return response.text();
+        } )
+        .then( function( text )
+        {
+            let data = JSON.parse( text );
+            genePool.setPoolData( data );
+            let metaSummary = data._meta
+                ? " (preset: " + data._meta.presetName + " #" + data._meta.chosenPoolToLoad + ", saved " + data._meta.savedAt + ")"
+                : "";
+            console.log( "loadTestPoolData: applied " + url + metaSummary );
+        } )
+        .catch( function( err )
+        {
+            console.error( "loadTestPoolData failed:", err );
+            alert( "Could not load " + url + "\n\n" + err.message );
+        } );
+}
+
+
+//--------------------------
 function printFamilyTree()
 {
 

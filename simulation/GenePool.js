@@ -116,8 +116,8 @@ function GenePool()
     const DEFAULT_MILLISECONDS_PER_UPDATE = 20;
     const DO_HIGHLIGHT_SELECTED_SWIMBOT = false; // draw a ring around the selected swimbot?
 
-    // LEVEL_OF_DETAIL_THRESHOLD moved to Parameters.js — it's the #1 performance tuning knob.
-    // Also see LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING for the dynamic zoom-time override.
+    // Adaptive LOD tuning lives in Parameters.js (LOD_FRAME_BUDGET_*, LOD_EMA_ALPHA, LOD_RAISE_CONFIRM_FRAMES).
+    // The decision logic lives in this.update() — drop side near the camera-update block, raise side at end of tick.
 
     const INITIAL_VIEW_SCALE                = POOL_WIDTH * 0.1;
     const RACE_VIEW_SCALE                   = POOL_WIDTH * 0.3;
@@ -187,7 +187,9 @@ function GenePool()
 	let _startTime		        = ZERO;
 	let _seconds		        = ZERO;
     let _gardenOfEdenRadius     = ZERO;
-	let _levelOfDetail	        = SWIMBOT_LEVEL_OF_DETAIL_LOW;
+	let _levelOfDetail	        = SWIMBOT_LEVEL_OF_DETAIL_HIGH;
+	let _emaTickMs              = ZERO;   // exponentially smoothed per-tick wall-clock cost (sim + render)
+	let _framesUnderBudget      = 0;      // consecutive frames with _emaTickMs < raise budget (used to promote LOW → HIGH)
 	let _previousTime           = ZERO;
 	let _frameRate              = ZERO;
 	let _debugTrail 		    = new Array( TRAIL_LENGTH ); 
@@ -1427,7 +1429,16 @@ if ( mode === SimulationStartMode.SPECIES )
 		
 	//------------------------
 	this.update = function()
-	{	
+	{
+		//-------------------------------------------------------------
+		// Adaptive LOD measurement: capture tick start so we can measure
+		// total wall-clock cost (sim + render) and use the EMA to decide
+		// whether to drop or promote _levelOfDetail. See end of update()
+		// for the EMA update and raise-side decision; the drop-side
+		// decision lives in the render block below.
+		//-------------------------------------------------------------
+		const tickStart = performance.now();
+
 		if ( _interactiveMode )
 		{
          // If controls haven't been touched in a while (and we're not frozen) switch to autopilot
@@ -1494,33 +1505,25 @@ if ( mode === SimulationStartMode.SPECIES )
                 _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_DOT;
             }
             else
-     {
+            {
                 //---------------------------------------------------------------
-                // Performance optimization: while the camera is actively
-                // zooming, use a much lower LOD threshold so that swimbots
-                // drop to cheap line-segment rendering (LOW LOD) sooner.
-                // HIGH LOD bezier spline rendering in SwimbotRenderer.js
-                // is the #1 CPU bottleneck — rendering 300 swimbots × ~8
-                // parts × ~7 canvas draw calls each causes frame drops
-                // and audio hangs during zoom. By using the zooming
-                // threshold (default 500 vs normal 2500), we keep HIGH
-                // LOD off unless the user is zoomed in very close. The
-                // moment zooming stops, the normal threshold is restored
-                // and full bezier detail comes back seamlessly.
+                // Adaptive LOD — drop side.
                 //
-                // See LEVEL_OF_DETAIL_THRESHOLD and
-                // LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING in Parameters.js.
+                // HIGH LOD bezier rendering in SwimbotRenderer.js is the #1 CPU
+                // bottleneck (300 swimbots × ~8 parts × ~7 canvas draw calls).
+                // Rather than guessing from camera zoom, we measure how long
+                // each tick actually takes (see end of update()) and reactively
+                // drop to LOW LOD as soon as the smoothed tick time exceeds
+                // LOD_FRAME_BUDGET_DROP_MS. The raise back to HIGH is deliberately
+                // slow and lives at the end of update() — see there for the
+                // hysteresis/confirmation rationale.
                 //---------------------------------------------------------------
-                let lodThreshold = _camera.isZooming() ? LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING : LEVEL_OF_DETAIL_THRESHOLD;
-                if ( _camera.getScale() > lodThreshold )
+                if ( _levelOfDetail === SWIMBOT_LEVEL_OF_DETAIL_HIGH && _emaTickMs > LOD_FRAME_BUDGET_DROP_MS )
                 {
-                    _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_LOW;
+                    _levelOfDetail     = SWIMBOT_LEVEL_OF_DETAIL_LOW;
+                    _framesUnderBudget = 0;
                 }
-                else
-                {
-                    _levelOfDetail = SWIMBOT_LEVEL_OF_DETAIL_HIGH;
-                }
-            }            
+            }
             //---------------------------
             // update camera tracking...
             //---------------------------
@@ -1608,12 +1611,43 @@ if ( mode === SimulationStartMode.SPECIES )
 		}
 		
         //-------------------------------------------------------------
-        // update touch state 
+        // update touch state
         // (important for generating state for touch velocity, etc.)
         // also, important to call this after updateCameraNavigation
         //-------------------------------------------------------------
         _touch.update();
-        
+
+        //-------------------------------------------------------------
+        // Adaptive LOD — measurement + raise side.
+        //
+        // Measure this tick's total cost, blend into the EMA, then if we're
+        // currently at LOW LOD and the smoothed cost has been comfortably
+        // under LOD_FRAME_BUDGET_RAISE_MS for LOD_RAISE_CONFIRM_FRAMES frames
+        // in a row, promote back to HIGH. Drop is one-frame (above); raise is
+        // sustained (here). The asymmetric hysteresis is what prevents the
+        // adaptive loop from oscillating at the budget boundary: re-promotion
+        // requires *proving* headroom, not just briefly observing it.
+        //-------------------------------------------------------------
+        const tickMs = performance.now() - tickStart;
+        _emaTickMs   = LOD_EMA_ALPHA * tickMs + ( 1 - LOD_EMA_ALPHA ) * _emaTickMs;
+
+        if ( _levelOfDetail === SWIMBOT_LEVEL_OF_DETAIL_LOW )
+        {
+            if ( _emaTickMs < LOD_FRAME_BUDGET_RAISE_MS )
+            {
+                _framesUnderBudget++;
+                if ( _framesUnderBudget >= LOD_RAISE_CONFIRM_FRAMES )
+                {
+                    _levelOfDetail     = SWIMBOT_LEVEL_OF_DETAIL_HIGH;
+                    _framesUnderBudget = 0;
+                }
+            }
+            else
+            {
+                _framesUnderBudget = 0;
+            }
+        }
+
 		//---------------------------
 		// trigger next update...
 		//---------------------------
@@ -2666,11 +2700,24 @@ if ( globalTweakers.numFoodTypes === 2 )
 
 
 	//--------------------------------
-    this.setPoolData = function( data )
+    this.setPoolData = function( wrappedData )
     {
         //console.log( "loading pool file:" );
-        //console.log( data );
-                
+        //console.log( wrappedData );
+
+        //-------------------------------------------------------------------
+        // Restore the simulation preset identity from _meta before unwrapping.
+        // _chosenPoolToLoad drives Sound.js's determineCurrentMusicParameters,
+        // which is re-evaluated on every sound tick — so simply assigning here
+        // is enough to bring back the saved preset's interval set, background
+        // loop, reverb IR, and other sonic configuration.
+        //-------------------------------------------------------------------
+        if ( wrappedData._meta && wrappedData._meta.chosenPoolToLoad !== undefined )
+        {
+            _chosenPoolToLoad = wrappedData._meta.chosenPoolToLoad;
+        }
+        let data = wrappedData.pool;
+
         //-------------------------------------------
         // frozen or running?
         //-------------------------------------------
@@ -3919,6 +3966,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 	this.getCameraScale         = function() { return _camera.getScale();      }
 	this.getCameraIsZooming     = function() { return _camera.isZooming();     }
 	this.getLevelOfDetail        = function() { return _levelOfDetail;          }
+	this.getEmaTickMs            = function() { return _emaTickMs;              }
 	this.getSelectedSwimbotID   = function() { return _selectedSwimbot;         }
 	this.getViewMode            = function() { return _viewTracking.getMode();  }
     this.getNumDeadSwimbots     = function() { return _numDeadSwimbots;         }   
@@ -4209,11 +4257,11 @@ for (let g=0; g<NUM_GENES; g++)
             }
         }
 	    
-        let poolData = 
-        { 
-            "simulationRunning"         : _simulationRunning, 
-            "numFoodBits"               : numFoodbits, 
-            "numSwimbots"               : numSwimbots, 
+        let poolData =
+        {
+            "simulationRunning"         : _simulationRunning,
+            "numFoodBits"               : numFoodbits,
+            "numSwimbots"               : numSwimbots,
             "foodBitArray"              : foodBitDataArray,
             "swimbotArray"              : swimbotDataArray,
             "cameraX"                   : _camera.getPosition().x,
@@ -4231,8 +4279,26 @@ for (let g=0; g<NUM_GENES; g++)
             "obstacleEnd2X"             : _obstacle.getEnd2Position().x,
             "obstacleEnd2Y"             : _obstacle.getEnd2Position().y
         }
-        
-        return poolData;
+
+        // reverse-lookup the human-readable preset name for the current sim
+        let presetName = "unknown";
+        for ( let key in SimulationStartMode )
+        {
+            if ( SimulationStartMode[ key ] === _chosenPoolToLoad )
+            {
+                presetName = key;
+                break;
+            }
+        }
+
+        return {
+            "_meta": {
+                "chosenPoolToLoad": _chosenPoolToLoad,
+                "presetName":       presetName,
+                "savedAt":          new Date().toISOString()
+            },
+            "pool": poolData
+        };
     }
 
     

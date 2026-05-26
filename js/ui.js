@@ -406,19 +406,19 @@ function updatePoolStatus() {
     // before the simulation has started and the camera exists)
     if (typeof genePool === 'undefined' || !genePool.getRendering()) return;
 
-    const scale = Math.round(genePool.getCameraScale());
-    const lod = genePool.getLevelOfDetail();
-    const zooming = genePool.getCameraIsZooming();
+    const scale     = Math.round(genePool.getCameraScale());
+    const lod       = genePool.getLevelOfDetail();
+    const emaMs     = genePool.getEmaTickMs();
 
-    const lodNames = ['dot', 'low', 'high'];
-    const lodName = lodNames[lod] || '?';
-    const lodThreshold = zooming ? LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING : LEVEL_OF_DETAIL_THRESHOLD;
+    const lodNames  = ['dot', 'low', 'high'];
+    const lodName   = lodNames[lod] || '?';
+    const overBudget = emaMs > LOD_FRAME_BUDGET_DROP_MS;
 
     el.innerHTML =
         `<b>Zoom:</b> ${scale}` +
         ` &nbsp; <b>LOD:</b> ${lodName}` +
-        (zooming ? ' <span style="color:#c80;">(zooming)</span>' : '') +
-        ` &nbsp; <b>Threshold:</b> ${lodThreshold}`;
+        ` &nbsp; <b>Tick:</b> <span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span>` +
+        ` &nbsp; <b>Budget:</b> ${LOD_FRAME_BUDGET_RAISE_MS}–${LOD_FRAME_BUDGET_DROP_MS}ms`;
 }
 
 //--------------------------

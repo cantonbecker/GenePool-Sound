@@ -580,6 +580,22 @@ body
     width: 100; 
 }
 
+#testLoadPoolButton
+{
+    position: absolute; 
+    left: 0;
+    bottom: 90;
+    width: 200; 
+}
+
+#rawPoolDataButton
+{
+    position: absolute; 
+    left: 0;
+    bottom: 50;
+    width: 200; 
+}
+
 #familyTreeButton
 {
     position: absolute; 
