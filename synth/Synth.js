@@ -177,7 +177,7 @@ var SwimbotSynth = (function () {
 				.then(audioBuffer => {
 					_irBuffers[name] = audioBuffer;
 					_irLoaded++;
-					console.log(`SwimbotSynth: IR preloaded "${name}" (${audioBuffer.duration.toFixed(2)}s, ${audioBuffer.numberOfChannels}ch) [${_irLoaded}/${_irTotal}]`);
+					// console.log(`SwimbotSynth: IR preloaded "${name}" (${audioBuffer.duration.toFixed(2)}s, ${audioBuffer.numberOfChannels}ch) [${_irLoaded}/${_irTotal}]`);
 					// Assign the default IR as soon as it arrives
 					if (name === WA_REVERB_DEFAULT && reverbConvolver && !_currentIRName) {
 						reverbConvolver.buffer = audioBuffer;

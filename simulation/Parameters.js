@@ -43,9 +43,11 @@ const MAX_UTTERANCES_TO_RENDER_DEFAULT = 150; // too many animations? try reduci
 var MAX_UTTERANCES_TO_RENDER = MAX_UTTERANCES_TO_RENDER_DEFAULT; // in case we want to adjust it dynamically
 
 // Autopilot controls
-const USER_INACTION_TIME_OUT	= 60*1; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 20; 	// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. set to 0 to disable.
 var AUTOPILOT_MODE = false; // Ideally, this should be incorporated into viewTracking, but this will do for now.
 const AUTOPILOT_VOLUME_REDUCTION = .85; // percentage decrease in volume when we enter autopilot
+const AUTOPILOT_MIN_POPULATION   = 3;	// while AUTOPILOT_MODE, alive swimbots ≤ this triggers a reload from a random snapshot
+const AUTOPILOT_POP_CHECK_PERIOD = 60;	// ticks between population-collapse checks (~1s at 60fps)
 
 const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast
 var CIRCULAR_BOUNCE_RADIUS		= 3750; // bounce swimbots this far away from the center (4000=max)

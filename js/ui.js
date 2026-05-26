@@ -844,6 +844,15 @@ function setViewMode( buttonID, viewMode )
 //-------------------------------
 function choosePoolToLoad( pool )
 {
+    // If we're transitioning out of an autopilot session, snapshot the current
+    // pool to in-memory storage BEFORE _chosenPoolToLoad gets overwritten — so
+    // the snapshot's _meta records the autopilot world's preset, not the one
+    // the user is switching to. No-op outside an autopilot session.
+    if ( typeof genePool !== 'undefined' && genePool.captureAutopilotSnapshot )
+    {
+        genePool.captureAutopilotSnapshot();
+    }
+
     _chosenPoolToLoad = pool;
 }
 

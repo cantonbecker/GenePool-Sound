@@ -175,6 +175,8 @@ function GenePool()
 	let _clock                  = 0;
 	let _lastUserActionTime		= ZERO;
 	let _interactiveMode		= false;
+	let _autopilotSnapshot		= null;		// in-memory pool snapshot for autopilot continuity across preset switches
+	let _inAutopilotSession		= false;	// true from the moment autopilot loads a pool until the user picks a different preset (survives mouse/keyboard interaction in between)
 	let _numSwimbots 	        = 0;
     let _numNearbySwimbots      = 0;
 	let _numFoodBits 	        = 0;
@@ -321,11 +323,48 @@ function GenePool()
    // START A SIMULATION!!!
    //***********************
 	this.startSimulation = function( mode )
-	{	
+	{
         // trigger the sound for this particular simulation, but wait a moment for the CPU to catch up
         setTimeout(() => {
             _sound.doSwimbotSoundEvent(SOUND_EVENT_TYPE_LAUNCH, mode);
-        }, 250);        
+        }, 250);
+
+        //--------------------------------------------------------------
+        // AUTOPILOT entry: resume from _autopilotSnapshot (last evolved
+        // autopilot world) if it exists, otherwise load a random pool
+        // from the bundle. Falls through to the random-spawn path below
+        // only when no snapshot source is available.
+        //--------------------------------------------------------------
+        if ( mode === SimulationStartMode.AUTOPILOT )
+        {
+            let snapshot = _autopilotSnapshot;
+            if ( ! snapshot && window.POOL_SNAPSHOTS )
+            {
+                let names = Object.keys( window.POOL_SNAPSHOTS );
+                if ( names.length > 0 )
+                {
+                    let pick = names[ Math.floor( Math.random() * names.length ) ];
+                    snapshot = window.POOL_SNAPSHOTS[ pick ];
+                    console.log( "autopilot loading random snapshot '" + pick + "'" );
+                }
+            }
+            else if ( snapshot )
+            {
+                console.log( "autopilot resuming from in-memory snapshot" );
+            }
+            _inAutopilotSession = true;
+            if ( snapshot )
+            {
+                this.setPoolData( snapshot );
+                return;
+            }
+            // no snapshots — fall through to the original random-spawn behavior
+        }
+        else
+        {
+            // Any non-AUTOPILOT startSimulation ends the current autopilot session.
+            _inAutopilotSession = false;
+        }
         
         
 //looks like numOffspring didn't get reset. fix this! (and any other related side effects
@@ -1444,13 +1483,24 @@ if ( mode === SimulationStartMode.SPECIES )
          // If controls haven't been touched in a while (and we're not frozen) switch to autopilot
 			if ( USER_INACTION_TIME_OUT && _seconds > _lastUserActionTime + USER_INACTION_TIME_OUT && this.getSimulationRunning() )
 			{
-				_interactiveMode = false; 				
+				_interactiveMode = false;
 
-				//console.log( "user non-action timed out!" );
-				this.startSimulation( SimulationStartMode.AUTOPILOT );
+				if ( _inAutopilotSession )
+				{
+					// Still inside the autopilot session (the user touched controls
+					// but never switched presets). Just resume the autopilot camera
+					// roaming and volume reduction — don't reload the pool.
+					console.log( "autopilot resuming (still in session, no reload)" );
+					AUTOPILOT_MODE = true;
+				}
+				else
+				{
+					//console.log( "user non-action timed out!" );
+					this.startSimulation( SimulationStartMode.AUTOPILOT );
 
-				// after the above...
-				AUTOPILOT_MODE = true;
+					// after the above...
+					AUTOPILOT_MODE = true;
+				}
 			}
 		}
 		
@@ -1583,8 +1633,22 @@ if ( mode === SimulationStartMode.SPECIES )
 					// Now shift to the chosenSwimbot...
 					//----------------------------------------------------
 					_camera.doPositionShift( _swimbots[ chosenSwimbot ].getPosition(), 600 );
-        		}	        		
-			}            
+        		}
+
+        		//----------------------------------------------------
+        		// Population safety net: if the autopilot world has
+        		// collapsed, throw it away and roll up a fresh random
+        		// snapshot so the kiosk never tours a barren pool.
+        		//----------------------------------------------------
+        		if ( _clock % AUTOPILOT_POP_CHECK_PERIOD === 0
+        		  && _numSwimbots <= AUTOPILOT_MIN_POPULATION )
+        		{
+        			console.log( "autopilot population collapsed (" + _numSwimbots + ") — reloading random snapshot" );
+        			_autopilotSnapshot = null;
+        			this.startSimulation( SimulationStartMode.AUTOPILOT );
+        			AUTOPILOT_MODE = true;
+        		}
+			}
         
             //------------------------------
             // update camera navigation
@@ -3807,11 +3871,45 @@ if ( globalTweakers.numFoodTypes === 2 )
 	this.notifyUserInteraction = function()
 	{
 		//console.log( "notifyUserInteraction" );
-	
+
 		_camera.stopShift();
 		AUTOPILOT_MODE 	 	= false;
 		_interactiveMode 	= true;
 		_lastUserActionTime = _seconds;
+	}
+
+	//---------------------------------------
+	// Called by choosePoolToLoad() right before the user switches to a different
+	// preset. If we're in an autopilot session (set by startSimulation when
+	// autopilot loaded a pool, persists through casual user interactions), this
+	// snapshots the current world — including any swimbots the user added or
+	// edited while the autopilot pool was on screen — so the next autopilot
+	// engagement can resume from this point.
+	//---------------------------------------
+	this.captureAutopilotSnapshot = function()
+	{
+		if ( ! _inAutopilotSession ) return;
+
+		let snap = this.getPoolData();
+
+		// Detach the snapshot's gene arrays from live Genotype._genes. Without
+		// this, ongoing reproduction would mutate the snapshot's arrays in
+		// place (setGeneValue writes to _genes in place), corrupting the saved
+		// world.
+		for ( let i = 0; i < snap.pool.swimbotArray.length; i++ )
+		{
+			snap.pool.swimbotArray[ i ].genes = snap.pool.swimbotArray[ i ].genes.slice();
+		}
+
+		_autopilotSnapshot  = snap;
+		_inAutopilotSession = false;
+		console.log( "captured autopilot pool snapshot (" + _numSwimbots + " swimbots) for resume" );
+	}
+
+	//---------------------------------------
+	this.isInAutopilotSession = function()
+	{
+		return _inAutopilotSession;
 	}
 	
 	//--------------------------------------------------

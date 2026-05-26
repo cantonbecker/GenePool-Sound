@@ -167,13 +167,16 @@ function Genotype()
  
     //-----------------------------------
     this.setGenes = function(g)
-	{ 
+	{
         for (let i=0; i<NUM_GENES; i++)
         {
             assertInteger( g[i], "Genotype:setGenes: assertInteger: g[i]" );
         }
 
-        _genes = g;
+        // Copy, not reference. setGeneValue() mutates _genes in place during
+        // reproduction; sharing the array with a saved-pool snapshot would
+        // silently corrupt the snapshot as the simulation runs.
+        _genes = g.slice();
     }
 
     //-----------------------------------
