@@ -3171,8 +3171,11 @@ if ( globalTweakers.numFoodTypes === 2 )
 
 	//-------------------------------
 	this.setRendering = function(r)
-	{	
+	{
         _rendering = r;
+        if ( !r && typeof SwimbotSynth !== 'undefined' && SwimbotSynth.isReady() ) {
+            SwimbotSynth.stopLoop();
+        }
     }
     
 	//-------------------------------------------
