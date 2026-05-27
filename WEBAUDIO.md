@@ -7,7 +7,8 @@ All audio in Darwin's Chorus is produced by the browser's Web Audio API. The `Sw
 - `simulation/Sound.js` — event dispatch; triggers voices and samples via `SwimbotSynth.*` calls
 - `simulation/GenePool.js` — computes stereo pan value before calling `doUtterance()`
 - `simulation/Parameters.js` — audio mixer defaults (`WEB_AUDIO_VOLUME`, `WEB_VOLUME_*`, `WEB_MAXIMUM_VOICES`)
-- `synth/demo.html` — standalone proof-of-concept; the original source for the formant design
+- `synth/demo.html` — original standalone proof-of-concept; pure formant synth in isolation, no swimbot/genome plumbing
+- `synth/testbed.html` — full utterance workbench. Loads the real simulation stack (`Genotype`, `Embryology`, `Sound.js`, `SwimbotSynth`), generates an utterance from a chosen preset genome (or random), plays it through a real formant voice, and exposes live mixer + CC knob controls plus a sustained-note repeater for tuning the synth without launching the full app
 
 ---
 
@@ -42,17 +43,33 @@ All samples and impulse responses are preloaded into memory at startup (`_preloa
 
 ### Signal chain (per utterance)
 
+Each note builds three pitched oscillators (saw / triangle / sine) blended via CC17 in an equal-power crossfade, plus an optional CC14-driven noise burst routed through a pitch-tracked bandpass. All paths converge at `preEmphasis` and share the same formant chain.
+
 ```
-OscillatorNode (sawtooth, noteNumber-12)
-  → envelope GainNode  (attack 200ms, release 50ms)
-    → preEmphasis  (highpass 60 Hz, Q=0.4)
-      → formantFilter[0] (bandpass) → formantGain[0]  ↘
-      → formantFilter[1] (bandpass) → formantGain[1]  → formantMixer
-      → formantFilter[2] (bandpass) → formantGain[2]  ↗
-          → trebleFilter (highshelf 3200 Hz, CC16-driven)
-              → StereoPannerNode  ──────────────→ masterGain → destination  (panned dry)
-              → reverbBus (shared) → reverbConvolver → reverbWetGain → destination  (centered wet)
+Pitched oscillators (3-station equal-power crossfade via CC17 / oscMix)
+  • saw     ┐
+  • triangle├─→ env GainNode (200ms attack, 50ms release) ─┐
+  • sine    ┘   amplitude derived from sawAmp = amp·cos(noiseMix·π/2)
+                                                            │
+Noise (only when CC14 / noiseMix > 0.001)                  │
+  BufferSource (looped white noise) → BandpassFilter        │
+    (freq = clamp(freq·4, 180, 6000), Q = 0.8 + 5·f2ResNorm)│
+    → noiseEnv (3ms attack, 18ms sustain, 8ms release)      │
+                                                            │
+                                                            ▼
+                                                preEmphasis (HPF 60 Hz, Q 0.4)
+                                                            │
+                          ┌─ formantFilter[0] (bandpass) → formantGain[0] ┐
+                          ├─ formantFilter[1] (bandpass) → formantGain[1] ├─→ formantMixer
+                          └─ formantFilter[2] (bandpass) → formantGain[2] ┘
+                                                            │
+                                       trebleFilter (highshelf 3200 Hz, CC16-driven)
+                                                            │
+                                                            ├─→ StereoPannerNode → masterGain → destination  (panned dry)
+                                                            └─→ reverbBus (shared) → reverbConvolver → reverbWetGain → destination  (centered wet)
 ```
+
+Practical implication: when CC14 noise mix is high, the sawtooth contribution drops (cos curve) and a short, percussive noise burst is added per note; when CC17 sweeps toward 127, the pitched output morphs from saw → triangle → sine via equal-power stations.
 
 ### Signal chain (one-shot samples)
 
@@ -95,12 +112,14 @@ Mix gains: F1=1.0, F2=0.55, F3=0.3.
 
 | CC | Name | Effect |
 |----|------|--------|
-| 15 | Mouth | Morphs all three formant frequencies through the breakpoint curves (15ms smoothing) |
-| 16 | Size | Treble boost: 0–10 dB highshelf above 3200 Hz (active above CC=95 midpoint) |
-| 19 | Lvl2Q | F2 filter resonance (Q=2–25) |
-| 20 | Level3 | F3 gain (0–2× base gain) |
+| 14 | Noise Mix | Crossfades a pitch-tracked white-noise burst into the formant chain (0 = pure pitched, 127 = pitched osc duck off, noise dominant). Stored in `ccState.noiseMix`; applied on each `_playVoiceNote` rather than as a live AudioParam. |
+| 15 | Mouth | Morphs all three formant frequencies through the breakpoint curves (15ms smoothing). |
+| 16 | Size | Treble boost: 0–10 dB highshelf above 3200 Hz. Input is clamped to ≥32, mapped to 0–1; boost activates above value 80 (the upper half of that mapped range). |
+| 17 | Tone | Pitched-oscillator mix: 0 = pure sawtooth, 64 ≈ triangle, 127 = pure sine. Equal-power crossfade across three stations. Stored in `ccState.oscMix`. |
+| 19 | F2 Resonance | F2 bandpass Q via `_resToQ` (Q=2 wide → Q=25 narrow). Value is clamped to ≤70 before normalising. |
+| 20 | F3 Gain | Scales `formantGains[2]` to `norm × WA_FORMANT_BASE_GAIN[2] × 2` (0 → silent F3, 127 → 2× the base mix). |
 
-Each utterance's voice has its own independent CC state — 20 simultaneous swimbots means 20 independent formant chains, so no voice clobbers another's vowel shape.
+Each utterance has its own independent CC state. With the default `WEB_MAXIMUM_VOICES = 32`, up to 32 swimbots can have independent formant chains simultaneously; beyond that, `createVoice()` returns `null` and the utterance plays silently (see Voice Throttling).
 
 ---
 
@@ -114,7 +133,9 @@ Each simulation preset selects its own IR in `determineCurrentMusicParameters()`
 
 ### Zoom-driven wet/dry
 
-`Sound.setGlobalParameters()` calls `SwimbotSynth.setReverbWet(level)` on every update. The level is computed from `minReverb`/`maxReverb` (0–127 range, mapped to 0–1), then **halved** internally so reverb depth stays subtle. The wet level is tracked in `_currentWetLevel` for amplitude compensation (see below).
+`Sound.setGlobalParameters()` maps camera zoom to a value between `minReverb` and `maxReverb` (0–127 range), divides by 127, and passes the resulting 0–1 level to `SwimbotSynth.setReverbWet(level)`. The synth stores it in `_currentWetLevel` and writes it directly to `reverbWetGain.gain` via `setTargetAtTime` — no internal halving. The tracked level is also read by `_playVoiceNote` to apply inverse wet/dry amplitude compensation (see below).
+
+Per-sample, `playSample({ reverb: true, reverbSend })` inserts a dedicated send gain (default 1.0) between the sample's gain node and the shared `reverbBus`, *multiplying* on top of the global zoom-driven wet level. e.g. eating sounds use `reverbSend: 3.0` so they remain wetter at any zoom than birth/death.
 
 ---
 
@@ -126,12 +147,14 @@ The **Audio** tab provides a master volume slider and per-category mix sliders. 
 
 | Global | Default | Controls |
 |--------|---------|----------|
-| `WEB_AUDIO_VOLUME` | 0.50 | Master volume (scaled ×0.75 by slider) |
-| `WEB_VOLUME_UTTERANCE` | 1.0 | Vocal formant synthesis level |
-| `WEB_VOLUME_BIRTH` | 1.0 | Birth/spawn sample level |
-| `WEB_VOLUME_DEATH` | 1.0 | Death sample level |
-| `WEB_VOLUME_EAT` | 0.5 | Eating sample level |
-| `WEB_VOLUME_LOOP` | 0.75 | Background loop level |
+| `WEB_AUDIO_VOLUME` | 0.85 | Master volume (scaled ×0.75 by slider) |
+| `WEB_VOLUME_UTTERANCE` | 0.95 | Vocal formant synthesis level |
+| `WEB_VOLUME_BIRTH` | 0.55 | Birth sample level |
+| `WEB_VOLUME_SPAWN` | 0.75 | Spawn (q*bert) sample level — separate channel from Birth |
+| `WEB_VOLUME_DEATH` | 0.80 | Death sample level |
+| `WEB_VOLUME_EAT` | 0.40 | Eating sample level |
+| `WEB_VOLUME_LOOP` | 0.80 | Background loop level |
+| `WEB_VOLUME_UI` | 0.60 | UI sounds (preset launch) |
 | `WEB_MAXIMUM_VOICES` | 32 | Max simultaneous formant chains |
 
 ### Per-note utterance amplitude
@@ -178,11 +201,11 @@ Pan is fixed for the lifetime of the voice (set at `createVoice()` time). A swim
 | `isReady()` | `Sound.*` | True if AudioContext exists |
 | `createVoice(panValue, swimbotID)` | `Sound.doUtterance()` | Builds one formant chain; returns voice object or null if capped |
 | `playVoiceNote(voice, note, vel, dur)` | `Sound.doUtterance()` | Plays one sawtooth note through voice's chain |
-| `playSample(name, options)` | `Sound.doSwimbotSoundEvent()` | Plays a one-shot sample (`{volume, rate, reverb}`) |
+| `playSample(name, options)` | `Sound.doSwimbotSoundEvent()` | Plays a one-shot sample. Options: `{volume, semitones, reverb, reverbSend}` — `semitones` shifts pitch via varispeed; `reverbSend` (default 1.0) multiplies the per-call wet send on top of the global zoom-driven wet level. |
 | `startLoop(name, options)` | `Sound.setGlobalParameters()` | Starts/updates a crossfade loop (`{volume, rate, reverb}`) |
-| `stopLoop()` | `Sound.setGlobalParameters()` | Fades out and stops the active loop |
+| `stopLoop()` | `Sound.setGlobalParameters()` / `GenePool.setRendering(false)` | Fades out and stops the active loop |
 | `stopAll()` | `GenePool.js` (on sim switch) | Stops loop, resets voice count |
-| `setReverbWet(level)` | `Sound.setGlobalParameters()` | Updates reverb wet gain (halved internally) |
+| `setReverbWet(level)` | `Sound.setGlobalParameters()` | Writes `level` (0–1) directly to `reverbWetGain.gain` with 0.1s smoothing; no internal scaling. |
 | `setReverbIR(name)` | `determineCurrentMusicParameters()` | Swaps convolver to a preloaded IR (no-op if already active) |
 | `getActiveVoices()` | UI status panel | Returns current voice count |
 | `getLoadingStatus()` | UI status panel | Returns IR/sample load progress, current IR, current loop, reverb wet level |
@@ -191,6 +214,7 @@ Pan is fixed for the lifetime of the voice (set at `createVoice()` time). A swim
 
 ## Tuning Notes
 
-- The oscillator is transposed down one octave (`noteNumber - 12`) because the formant breakpoint curves were calibrated for that frequency range in the original Reaktor patch design.
-- Envelope attack is 200ms and release 50ms — deliberately slow to create legato, vocal quality.
-- `synth/demo.html` is a fully self-contained test page; open it in a browser to hear the formant synth in isolation.
+- The pitched oscillators are transposed down one octave (`noteNumber - 12`) because the formant breakpoint curves were calibrated for that frequency range in the original Reaktor patch design.
+- Envelope attack is 200ms and release 50ms — deliberately slow to create legato, vocal quality. The noise envelope is much shorter (3ms attack / 18ms sustain / 8ms release) because it's a percussive grit burst, not a sustained tone.
+- `synth/demo.html` is the original self-contained formant-synth proof of concept — open in a browser to hear the formant chain in isolation, without any swimbot/genome plumbing.
+- `synth/testbed.html` is the *utterance* workbench. It loads the real simulation stack (`Genotype`, `Embryology`, `Sound.js`, `SwimbotSynth`), composes a real utterance from a chosen preset genome (or a fresh random swimbot), and plays it through an actual formant voice. Live mixer + CC knob sliders and a sustained-note repeater let you A/B synth tweaks without launching the full app. This is the page to open when you're iterating on formant DSP changes.

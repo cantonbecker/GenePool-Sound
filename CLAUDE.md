@@ -40,11 +40,14 @@ The concept: evolving digital creatures called **swimbots** live, eat, reproduce
 | File | Purpose |
 |------|---------|
 | `Synth.js` | **SwimbotSynth** module — Web Audio engine: vocal formant synthesis, sample playback, crossfade loops, reverb convolver (see `WEBAUDIO.md`) |
-| `demo.html` | Standalone proof-of-concept for the formant synth (open in browser to test in isolation) |
-| `sounds-birth/` | 16 one-shot WAV samples for birth events |
-| `sounds-death/` | 2 one-shot WAV samples for death events |
-| `sounds-eat/` | 3 one-shot WAV samples for eating events |
-| `sounds-loops/` | Background loop WAVs (bell drone, lake bacalar ambience) |
+| `demo.html` | Original self-contained formant-synth proof of concept; hear the formant chain in isolation, no swimbot plumbing |
+| `testbed.html` | **Utterance workbench** — loads the real simulation stack (Genotype, Embryology, Sound.js, SwimbotSynth), composes a real utterance from a chosen preset genome (or fresh random swimbot), and plays it through an actual formant voice. Live mixer + CC knob sliders and a sustained-note repeater. Use this for iterating on formant DSP without launching the full app. |
+| `sounds-birth/` | 3 one-shot WAV samples for birth events (`birth.wav`, `birth-filtered.wav`, `birth-phased.wav`) |
+| `sounds-death/` | 5 one-shot WAV samples for death events |
+| `sounds-eat/` | Pool of eat samples; the catalog currently preloads just `tuned-click.wav` (other WAVs in the folder are unreferenced spares for future variety) |
+| `sounds-spawn/` | 9 one-shot WAV samples used in the q*bert-style two-syllable spawn vocalization |
+| `sounds-presets/` | UI sounds: 5 preset-launch samples (`start-q/w/e/r/t`) + `pop-start.wav` |
+| `sounds-loops/` | 3 background loop WAVs: `bell-drone`, `reaktor-drone`, `sample-lake-bacalar` (all crossfade-looped) |
 | `impulse-responses/` | Convolution reverb IRs (EMT 140 variants, echo hall, tunnel) |
 
 ### UI Layer (`js/`)
@@ -90,17 +93,19 @@ preEmphasis(HPF~60Hz) → [F1 BPF→gain]                    │
 ```
 
 **Per-note** (`_playVoiceNote(voice, note, velocity, durationMs)` — internal; called via `playVoiceNote`):
-- Source: single `OscillatorNode` of type `'sawtooth'` (fixed — only waveform feeding the formant chain) → per-note `GainNode` envelope → `voice.preEmphasis`.
+- **Pitched sources**: three `OscillatorNode`s — sawtooth, triangle, sine — built per note and blended via CC17 in an equal-power three-station crossfade (0 = pure saw, 0.5 ≈ triangle, 1 = pure sine; only two adjacent stations are active at any value). Each routes through its own per-note `GainNode` envelope → `voice.preEmphasis`.
+- **Noise source** (only when CC14 noiseMix > 0.001): a shared white-noise `BufferSource` (looped, created once at init in `_noiseBuffer`) → per-note `BandpassFilter` (centre clamped to `freq × 4` between 180 Hz and 6 kHz, Q = 0.8 + 5 × `f2ResNorm`) → short envelope (3 ms attack / 18 ms sustain / 8 ms release) → `voice.preEmphasis`. The noise is pitch-tracked to the current note and threaded through the same formant chain as the pitched sources.
 - Frequency: `noteToFrequency(note - 12)`. The `-12` is intentional — formant curves are calibrated for that transposed range.
-- Envelope: 200 ms linear attack → sustain for `durationMs` → 50 ms linear release. Hard-coded in `_playVoiceNote`.
-- Amplitude: `(velocity/127) × WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE × 4.0 × wetComp` where `wetComp = 1.15 - _currentWetLevel`. The ×4.0 compensates for narrow bandpass attenuation; `wetComp` boosts dry / cuts wet so loudness stays stable across zoom-driven reverb changes.
+- Envelope (pitched): 200 ms linear attack → sustain for `durationMs` → 50 ms linear release. Hard-coded in `_playVoiceNote`.
+- Amplitude: master `amp = (velocity/127) × WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE × 4.0 × wetComp` where `wetComp = 1.15 - _currentWetLevel`. The ×4.0 compensates for narrow bandpass attenuation; `wetComp` boosts dry / cuts wet so loudness stays stable across zoom-driven reverb changes. `amp` is then split into pitched (`sawAmp = amp × cos(noiseMix × π/2)`) and noise (`amp × √noiseMix × 7.5 × (0.55 + 0.9 × f3GainNorm)`) energies.
 
 **CC routing** — `voice.handleCC(cc, value)`. Each handler closes over only this voice's nodes:
+- **CC 14 — Noise Mix**: crossfades a pitch-tracked white-noise burst into the formant chain. Stored as `ccState.noiseMix` (0–1); applied per note inside `_playVoiceNote` rather than as a live AudioParam. 0 = pitched only, 127 = noise dominant (sawtooth contribution ducks to zero via the cos curve).
 - **CC 15 — Mouth** (the main vowel control): drives all three formant frequencies through piecewise-linear curves (`WA_FORMANT_CURVES`, derived from a Reaktor *"swimbot Vowels.ens"* patch). 15 ms smoothing via `setTargetAtTime`.
 - **CC 16 — Size**: high-shelf treble boost at 3.2 kHz, 0–10 dB above value 80; below that, flat.
-- **CC 19 — F2 Resonance**: F2 bandpass Q via `resToQ` (Q=2 wide → Q=25 narrow).
+- **CC 17 — Tone**: pitched-oscillator mix — equal-power crossfade across saw → triangle → sine. Stored in `ccState.oscMix`; applied per note inside `_playVoiceNote`.
+- **CC 19 — F2 Resonance**: F2 bandpass Q via `resToQ` (Q=2 wide → Q=25 narrow). Input is clamped to ≤70 before normalising.
 - **CC 20 — F3 Gain**: scales the third formant's mix gain.
-- **CC 14 (wave)** and **CC 17 (tone)** are written into the sequence by `generateUtterancePhenotypes` but are *currently not handled* by the synth — open hooks for future synthesis work.
 
 `dispose()` disconnects every per-voice node and decrements `_activeVoices`. Always invoked at the `'done'` step.
 
@@ -117,7 +122,7 @@ preEmphasis(HPF~60Hz) → [F1 BPF→gain]                    │
 
 The dispatch layer. Connects simulation events to the synth engine and owns the utterance-sequence generator.
 
-- **`doSwimbotSoundEvent(type, eventIndex?)`** — plays one-shot samples for eat/birth/death/spawn/launch events, selecting randomly from the sample pool for each category, with note-shift varispeed pulled from the current interval set. Applies a zoom attenuation curve for births.
+- **`doSwimbotSoundEvent(type, eventIndex?)`** — plays one-shot samples for eat/birth/death/spawn/launch events, selecting randomly from the sample pool for each category, with note-shift varispeed (`semitones` option to `playSample`) drawn from the current `NOTE_INTERVAL_SET`. BIRTH applies a zoom-attenuation curve (0.90 zoomed in → 0.50 zoomed out). EAT uses `reverbSend: 3.0` so eating sounds sit much wetter than other events. SPAWN plays a quieter birth seed plus two back-to-back random spawn samples 220 ms apart.
 - **`doUtterance(utterVariablesObj, callerFunction)`** — the utterance playback engine. Steps:
   1. Creates one voice via `SwimbotSynth.createVoice(panValue, swimbotID)` (only if in-view + `SOUND_OUTPUT_UTTER`; otherwise `voice = null` and audio is skipped but stats still accumulate).
   2. Walks `utterVariablesObj.utterSequence` and schedules a `setTimeout(..., step.delay)` for each event. The whole sequence is queued up-front; timing is browser-`setTimeout`-driven (jitter visible under load — see *Bridging audio to visuals* below).
@@ -148,8 +153,8 @@ sequenceData = [
 - `note` is MIDI 0–127. Synth transposes `-12` internally.
 - `velocity` is 0–127. Synth divides by 127 then multiplies by mixer/master gains.
 - `duration` is **ms**, controls the gain-envelope sustain length (not the time until the next note).
-- `cc` values currently emitted: 14 (wave), 15 (mouth), 16 (size), 17 (tone), 19 (F2 res), 20 (F3 gain). Only 15/16/19/20 produce sound — see CC routing above.
-- The initial CC block (lines 600–640 of `Sound.js`) seeds the voice's tone *before* the first note. There's a re-roll guarantee that **CC15 + CC16 ≥ 100** so the formant chain isn't inaudibly thin.
+- `cc` values currently emitted: 14 (noise mix), 15 (mouth), 16 (size), 17 (tone), 19 (F2 res), 20 (F3 gain). All six are now routed through `voice.handleCC` and affect the sound — see CC routing above.
+- The initial CC block in `generateUtterancePhenotypes` seeds the voice's tone *before* the first note. After the random initial roll, three small "adjustment" blocks apply: (1) CC14 quantized into none/little/lot bins; (2) when CC17 < 60 the voice is forced to pure sawtooth with CC14 zeroed and a guaranteed `CC15 + CC16 ≥ 100` re-roll so the formant chain isn't inaudibly thin; (3) for non-sawtooth voices, no such CC15+CC16 floor is enforced — they may sometimes land thin.
 
 #### Bridging audio to visuals
 
@@ -170,15 +175,14 @@ Six utterance-related genes drive the composer:
 
 Per-sequence randomization on top of the above:
 - **Note length style** picked from `['legato', 'staccato', 'staccato', 'complex', 'complex', 'complex']` — controls whether each note's `duration` equals `shortestNoteMs`, fills the inter-onset gap, or varies.
-- **Modulation strength + chance**: every `MODULATION_SPEED_MS = 15ms` from the first note onward, an RNG roll may insert a `cc` event tweaking a `variable: true` control (currently CC15 mouth and CC16 size) by ±`modulationStrength` from its initial value, bouncing off `variableWidth` walls.
-- **Interval rotation**: the active interval set is rotated by `0..2` positions so swimbots don't all start on the same note. (Currently force-set to 0 — `numberOfIntervalRotations = 0` at line ~552 of Sound.js.)
-- **`mutationFactor = 1`** is force-set at line ~561, overriding the gene-derived value. (Both these overrides look like work-in-progress tuning knobs.)
+- **Modulation strength + chance**: every `MODULATION_SPEED_MS = 15ms` from the first note onward, an RNG roll may insert a `cc` event tweaking a `variable: true` control. With current settings, the modulated controls are CC15 (mouth), CC16 (size), CC19 (F2 resonance), and CC20 (F3 gain). Each twiddle is ±`modulationStrength` from the control's initial value, bouncing off `variableWidth` walls.
+- **Interval rotation**: the active interval set is rotated by `0..2` positions so swimbots don't all start on the same note. Both the previous force-set overrides (`numberOfIntervalRotations = 0` and `mutationFactor = 1`) are currently commented out in `generateUtterancePhenotypes` — the gene-derived values are now in effect.
 
 ### Audio Mixer (UI)
 
 The **Audio** tab in the developer panel provides:
 - Master volume slider
-- Per-category mix sliders: utterances, birth/spawn, death, eating, background loop
+- Per-category mix sliders: utterances, birth, spawn, death, eating, background loop (birth and spawn are separate channels)
 - Max simultaneous voices slider (1–64)
 - Live status: active voices, current reverb IR + wet level, active loop, sample/IR loading progress
 - Link to open the **Swimbot Statistics** overlay (detailed charts, pitch histogram, population history)
@@ -195,15 +199,17 @@ Mixer defaults are set in `Parameters.js` (`WEB_AUDIO_VOLUME`, `WEB_VOLUME_*`, `
 
 ### Sound Events
 - `SOUND_EVENT_TYPE_EAT`, `BIRTH`, `DEATH`, `SPAWN`, `LAUNCH`
-- Background loops: bell drone, Lake Bacalar ambience (crossfade-looped)
-- Each simulation preset can override reverb IR, loop selection, reverb range, interval set
+- BIRTH/DEATH/EAT all pitch-shift the chosen sample by a random interval drawn from the currently active `NOTE_INTERVAL_SET`; BIRTH additionally applies a zoom-attenuation curve (0.90 zoomed in → 0.50 zoomed out). EAT uses a high `reverbSend: 3.0` so eating sounds are noticeably wetter than other events.
+- SPAWN (only triggered by `makeNewRandomSwimbot()`) plays a quieter birth-sample seed followed 220 ms later by two different `spawn-*` samples back-to-back — a "q*bert" style two-syllable vocalization.
+- Background loops: `bell-drone`, `reaktor-drone`, `sample-lake-bacalar` (all crossfade-looped). The active loop stops immediately when `GenePool.setRendering(false)` is called, and resumes on the next sound-update tick when rendering is re-enabled.
+- Each simulation preset can override reverb IR, loop selection, reverb range, and interval set in `determineCurrentMusicParameters()`.
 
 ---
 
 ## Key Constants & Tuning (Parameters.js)
 
 ```
-Version:          2026-03-19 WEB
+Version:          (see SWIMBOT_VERSION in Parameters.js)
 MAX_SWIMBOTS:     300
 INITIAL_BOTS:     150
 INITIAL_FOOD:     450
@@ -257,3 +263,36 @@ Live readout in the pool-status panel: `Tick: X.Xms` (amber when over budget) + 
 `Camera.isZooming()` has a separate frame-by-frame chatter-resistant latch (`_scaleShift.active || |_scaleDelta| > ε`, with a 15-frame release grace). It is **no longer an input to LOD selection** but remains available for any other consumer.
 
 **Removed (2026-05-26):** the `LEVEL_OF_DETAIL_THRESHOLD` and `LEVEL_OF_DETAIL_THRESHOLD_WHILE_ZOOMING` constants. The motion-aware zoom-threshold approach turned out to be the wrong signal — fixed thresholds were too coarse for low-population zoom and too strict for high-population idle. Adaptive frame-time replaces both.
+
+## To Do
+
+### Expose CC17 "tone" as a phenotype for `getAttractiveness`
+
+Goal: let mate selection in `Swimbot.js getAttractiveness()` factor in the initial CC17 value (pitched-osc waveform: 0=sawtooth, 127=sine) chosen during `generateUtterancePhenotypes`. Because CC17 is RNG-derived from the utterance genes, it's effectively heritable — comparing it would let timbre-similar swimbots find each other (potential speciation by waveform).
+
+Three plumbing hooks:
+
+1. **`simulation/Sound.js` — `generateUtterancePhenotypes`:** after the Adjustment blocks settle `cc17Control.initialVal`, capture it and add to the returned object:
+   ```js
+   recordUtterTone: cc17Control.initialVal   // 0=pure sawtooth, 127=pure sine
+   ```
+
+2. **`simulation/Embryology.js` (~line 372):** copy onto the phenotype:
+   ```js
+   phenotype.utterTone = utterancePhenotypeObj.recordUtterTone;
+   ```
+
+3. **`simulation/SwimbotTypes.js` (~line 219):** declare the field:
+   ```js
+   this.utterTone = 0; // initial CC17: 0=sawtooth, 127=sine
+   ```
+
+Then in `getAttractiveness` (Swimbot.js), compute a similarity term and either fold it into the blended baseline or add a 4th `utterPreference` camp (e.g. `> .8` → "I like timbre-similar mates"):
+```js
+const toneSimilarity = 1 - Math.abs(_phenotype.utterTone - judge_phenotype.utterTone) / 127;
+```
+
+**Design notes:**
+- CC17 distribution is bimodal-ish — roughly half of voices land at 0 (sawtooth) due to the `<60 → 0` quantize, the rest spread 60–127. Comparing on raw value effectively splits the population into "sawtooth tribe" vs. "mixed-tone spread." For sharper tribes, quantize to buckets (saw / mid / sine) before comparing.
+- Same genome → same RNG seed → same CC17 roll, so timbre preference creates a real heritable feedback loop.
+

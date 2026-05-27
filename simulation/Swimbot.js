@@ -1791,7 +1791,7 @@ let partAccelerationY = -strokeForceY;
 // attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // DEBUG: FORCE ONLY ONE KIND OF ATTRACTIVENESS
          
          // And then add a little bit of everything (averaged), but not much
-         attractiveness = (utterNoteOverlap + noteCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 10;
+         attractiveness += (utterNoteOverlap + noteCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 10;
 
          // Make sure attractiveness stays within [0,1], some of the above can create hyper/hypo attractiveness numbers < 0 or > 1
          attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
