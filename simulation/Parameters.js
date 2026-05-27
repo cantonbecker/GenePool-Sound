@@ -13,7 +13,7 @@ const LOUD_PRESET_ATTENUATION = 10; // a couple of our presets can get really lo
 // The Audio tab sliders will initialize from these values.
 var WEB_AUDIO_VOLUME     = 0.85; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
 var WEB_VOLUME_UTTERANCE = 0.95; // category mix: swimbot vocal utterances
-var WEB_VOLUME_BIRTH     = 0.65; // category mix: birth samples
+var WEB_VOLUME_BIRTH     = 0.55; // category mix: birth samples
 var WEB_VOLUME_SPAWN     = 0.75; // category mix: spawn (q*bert) samples
 var WEB_VOLUME_DEATH     = 0.80; // category mix: death samples
 var WEB_VOLUME_EAT       = 0.40; // category mix: eating samples

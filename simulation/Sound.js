@@ -601,10 +601,11 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		{ cc: 15, min: 0,		max: 127,	initialVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
 		{ cc: 16, min: 32,	max: 127,	initialVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
 		{ cc: 17, min: 0,		max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" — pitched osc mix: 0=sawtooth, 127=sine
-		{ cc: 19, min: 32,		max: 64,		initialVal: 0,	variable: true,	variableWidth: 32,		lastVal: 0,	lastDir: 'up'  },	// "F3 resonance"
+		{ cc: 19, min: 32,		max: 64,		initialVal: 0,	variable: true,	variableWidth: 32,		lastVal: 0,	lastDir: 'up'  },	// "F2 resonance"
 		{ cc: 20, min: 20,		max: 100,	initialVal: 0,	variable: true,	variableWidth: 64,		lastVal: 0,	lastDir: 'up'  } 	// "F3 gain"
 	];
 	
+	// walk through myControls and pick an initial setting for each
 	for (let setting of myControls) {
 		const range = setting.max - setting.min + 1;
 		let myCCval = Math.floor((rng() * range) + setting.min);
@@ -612,31 +613,33 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		setting.lastVal = myCCval; // this will also be our last known position
 		if (rng() > .5) setting.lastDir = 'down'; // randomly override initial spin direction
 	}
-	
-	// Fine-tuning of initial controls:
-	let cc14, cc15, cc16;
+		
+	// Adjustment 1: Quantize CC14 noise mix, usually we don't want noise, but sometimes we like a LOT
 	const cc14Control = myControls.find(c => c.cc === 14);
-	const cc15Control = myControls.find(c => c.cc === 15);
-	const cc16Control = myControls.find(c => c.cc === 16);
-	
-	// 1. Quantize noise mix, either we want a lot or a little
-	if (cc14Control.initialVal < 48) {
+	if (cc14Control.initialVal < 90) { // any roll under gets no noise at all 
 		cc14Control.initialVal = 0;
-	} else if ( cc14Control.initialVal >= 48 && cc14Control.initialVal < 100) {
-		cc14Control.initialVal = 40;
-	} else {
+	} else if ( cc14Control.initialVal >= 90 && cc14Control.initialVal < 110) { // these get a little noise
+		cc14Control.initialVal = 45;
+	} else { // and rarely we apply a LOT
 		cc14Control.initialVal = 115;
 	}
 
-	// 2. Vocal synth is too quiet if CC15 plus CC16 don't add to much, so re-roll those values if necessary
-	do {
-		cc15 = Math.floor(rng() * (cc15Control.max - cc15Control.min + 1)) + cc15Control.min;
-		cc16 = Math.floor(rng() * (cc16Control.max - cc16Control.min + 1)) + cc16Control.min;
-	} while (cc15 + cc16 < 100);
-	
-	cc15Control.initialVal = cc15Control.lastVal = cc15;
-	cc16Control.initialVal = cc16Control.lastVal = cc16;	
-		
+	// Adjustment 2: Quantize CC17 tone mix leaning towards our original sawtooth voice style
+	const cc15Control = myControls.find(c => c.cc === 15); // mouth
+	const cc16Control = myControls.find(c => c.cc === 16); // size
+	const cc17Control = myControls.find(c => c.cc === 17); // tone
+	if (cc17Control.initialVal < 60) { // any roll under 60 gets a pure sawtooth, no other tones mixed in
+		cc17Control.initialVal = 0; // pure sawtooth
+		cc14Control.initialVal = 0; // also back out any noise we might have mixed in
+		// and in this case, also tweak our mouth and size
+		let cc15tweak, cc16tweak;
+		do {
+			cc15tweak = Math.floor(rng() * (cc15Control.max - cc15Control.min + 1)) + cc15Control.min;
+			cc16tweak = Math.floor(rng() * (cc16Control.max - cc16Control.min + 1)) + cc16Control.min;
+		} while (cc15tweak + cc16tweak < 100);
+		cc15Control.initialVal = cc15Control.lastVal = cc15tweak;
+		cc16Control.initialVal = cc16Control.lastVal = cc16tweak;	
+	}
 	
 
 	// Now that we picked our synth settings, queue them up in the sequence itself to initialize the synth
@@ -650,7 +653,6 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		});
 	}
 
-	
 	
 	sequenceTime += 10; // wait 10ms before composing main utterance
 	while (sequenceTime < utterSequenceLength) {
