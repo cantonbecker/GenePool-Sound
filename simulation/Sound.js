@@ -500,8 +500,6 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 
 	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter strangeness is " + utterStrangeness + ", so probability of jumping 5ths was " + (chanceOfJumpingFifths * 100).toFixed(2) + "% and mutating interval was " + (chanceOfUnusualInterval * 100).toFixed(2) + "%");
 
-
-
 	// USE UTTER FLAVOR GENE TO ADJUST OUR NOTE LENGTHS
 	idx = _geneNames.indexOf('utter flavor');
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter flavor' from genes")
@@ -517,9 +515,6 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 		mySequenceDurationStates[2].max = mySequenceDurationStates[2].min * 2;
 		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("-> Utter flavor rolled to increase sequence duration states (longer notes)");
 	}
-
-
-
 	
 	// USE UTTER SPIN GENE TO DETERMINE OUR OCTAVE
 	// what octave do we sing in? bell-curveish with fewer basses and sopranos
@@ -549,7 +544,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	var numberOfIntervalRotations = Math.floor(rng() * 3);
 
 
-numberOfIntervalRotations = 0;
+// numberOfIntervalRotations = 0;
 	
 	// IMPORTANT! To make sure everyone doesn't start on the same note, we randomly rotate the intervals
 	// for example, this:		[-10, -8, -5, -3, 0, +2, +4, +7, +9];
@@ -558,7 +553,7 @@ numberOfIntervalRotations = 0;
 		myNoteIntervalSet.unshift(myNoteIntervalSet.pop());
 	}
 	
-mutationFactor = 1;
+// mutationFactor = 1;
 
 	/*** Mutate our markov tables? if so how much? ***/
 	for (let i = 0; i < mutationFactor; i++) { // the more times we mutate it, the more we stray from the default bell-curve

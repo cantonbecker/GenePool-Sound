@@ -21,6 +21,7 @@ const DEFAULT_BASIC_BUTTON_BORDER_COLOR = "#7f7f77";
 const ACTIVE_BORDER_COLOR               = '#ffffff';   
 
 var DEVELOPER_MODE = true; // reflects how we launch into developer mode with the panel showing
+var _kioskStatsOn  = false; // third UI mode: kiosk + curved Tick/LOD/Budget readout overlay
 var DEMO_MODE = false; // used for unattended testing
 let _lastPresetRequestTS = 0;
 
@@ -338,7 +339,7 @@ function closeAllPanels()
     document.getElementById('infoPanel'    ).style.visibility = 'hidden';
     document.getElementById('audioMixer'   ).style.visibility = 'hidden';
     clearInterval(_audioStatusTimer);
-    clearInterval(_poolStatusTimer);
+    _stopStatusTimerIfUnused();
     
     document.getElementById('noSelectedSwimbotPanel' ).style.visibility = 'hidden';	
     document.getElementById('selectedSwimbotPanel'   ).style.visibility = 'hidden';	
@@ -389,19 +390,29 @@ function openPanel( buttonID )
 
 var _poolStatusTimer = null;
 
+// Start the 250ms readout timer if not already running. Used by the dev pool panel
+// AND the kiosk-stats overlay — whichever is shown first.
+function _ensureStatusTimer() {
+    if (_poolStatusTimer) return;
+    _poolStatusTimer = setInterval(updatePoolStatus, 250);
+}
+// Stop the timer only when neither consumer needs it.
+function _stopStatusTimerIfUnused() {
+    const poolPanelOpen = document.getElementById('poolPanel').style.visibility === 'visible';
+    if (poolPanelOpen || _kioskStatsOn) return;
+    if (_poolStatusTimer) { clearInterval(_poolStatusTimer); _poolStatusTimer = null; }
+}
+
 //--------------------------
 function openPoolPanel()
 {
     document.getElementById( 'poolPanel' ).style.visibility = 'visible';
     updatePoolStatus();
-    clearInterval(_poolStatusTimer);
-    _poolStatusTimer = setInterval(updatePoolStatus, 250);
+    _ensureStatusTimer();
 }
 
 //--------------------------
 function updatePoolStatus() {
-    const el = document.getElementById('poolStatusPanel');
-    if (!el) return;
     // genePool may not be initialized yet (this can be called at startup
     // before the simulation has started and the camera exists)
     if (typeof genePool === 'undefined' || !genePool.getRendering()) return;
@@ -409,16 +420,43 @@ function updatePoolStatus() {
     const scale     = Math.round(genePool.getCameraScale());
     const lod       = genePool.getLevelOfDetail();
     const emaMs     = genePool.getEmaTickMs();
+    const pop       = genePool.getNumSwimbots();
 
     const lodNames  = ['dot', 'low', 'high'];
     const lodName   = lodNames[lod] || '?';
     const overBudget = emaMs > LOD_FRAME_BUDGET_DROP_MS;
 
-    el.innerHTML =
-        `<b>Zoom:</b> ${scale}` +
-        ` &nbsp; <b>LOD:</b> ${lodName}` +
-        ` &nbsp; <b>Tick:</b> <span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span>` +
-        ` &nbsp; <b>Budget:</b> ${LOD_FRAME_BUDGET_RAISE_MS}–${LOD_FRAME_BUDGET_DROP_MS}ms`;
+    // Live countdown to autopilot. Resets when the user touches the UI.
+    // Once tripped, AUTOPILOT_MODE stays on until the next interaction.
+    const autopilotLabel = !USER_INACTION_TIME_OUT
+        ? 'off'
+        : (AUTOPILOT_MODE ? 'auto' : Math.ceil(genePool.getSecondsUntilAutopilot()) + 's');
+
+    const el = document.getElementById('poolStatusPanel');
+    if (el) {
+        el.innerHTML =
+            `<b>v</b>${SWIMBOT_VERSION}<br>` +
+            `<b>Pop:</b> ${pop}` +
+            ` &nbsp; <b>Autopilot:</b> ${autopilotLabel}` +
+            ` &nbsp; <b>Zoom:</b> ${scale}` +
+            ` &nbsp; <b>LOD:</b> ${lodName}` +
+            ` &nbsp; <b>Tick:</b> <span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span>` +
+            ` &nbsp; <b>Budget:</b> ${LOD_FRAME_BUDGET_RAISE_MS}–${LOD_FRAME_BUDGET_DROP_MS}ms`;
+    }
+
+    if (_kioskStatsOn) {
+        const tp = document.querySelector('#kioskStatsText textPath');
+        const t  = document.getElementById('kioskStatsText');
+        if (tp) tp.textContent =
+            `v${SWIMBOT_VERSION}` +
+            ` · Pop ${pop}` +
+            ` · Autopilot ${autopilotLabel}` +
+            ` · Zoom ${scale}` +
+            ` · LOD ${lodName}` +
+            ` · Tick ${emaMs.toFixed(1)}ms` +
+            ` · Budget ${LOD_FRAME_BUDGET_RAISE_MS}–${LOD_FRAME_BUDGET_DROP_MS}ms`;
+        if (t)  t.setAttribute('fill', overBudget ? 'rgba(255,180,0,0.75)' : 'rgba(255,255,255,0.55)');
+    }
 }
 
 //--------------------------
@@ -1290,6 +1328,27 @@ function resize()
     let holeDiameter = Math.max(0, height - HOLE_MARGIN);
     document.documentElement.style.setProperty('--mask-diameter', holeDiameter + 'px');
 
+    // Recompute the kiosk-stats arc (curved text just outside the top of the mask).
+    // Done here so it tracks viewport changes; updated even when overlay is hidden so
+    // that toggling it on shows the right shape immediately.
+    const arcPathEl = document.getElementById('kioskArcPath');
+    if (arcPathEl) {
+        const KIOSK_ARC_RADIUS_OFFSET  = 1;   // px outside the mask (negative = inside)
+        const KIOSK_ARC_HALF_ANGLE_DEG = 40;  // arc spans 2x this around 12 o'clock
+        const cx = window.innerWidth  / 2;
+        const cy = window.innerHeight / 2;
+        const r  = holeDiameter / 2 + KIOSK_ARC_RADIUS_OFFSET;
+        // 270° is the top of the circle in SVG coords (y grows downward).
+        const a1 = (270 - KIOSK_ARC_HALF_ANGLE_DEG) * Math.PI / 180; // upper-left
+        const a2 = (270 + KIOSK_ARC_HALF_ANGLE_DEG) * Math.PI / 180; // upper-right
+        const sx = cx + r * Math.cos(a1), sy = cy + r * Math.sin(a1);
+        const ex = cx + r * Math.cos(a2), ey = cy + r * Math.sin(a2);
+        // sweep-flag 1 = clockwise (increasing angle) → traverses through 12 o'clock,
+        // which keeps text reading left-to-right with letters right-side-up.
+        arcPathEl.setAttribute('d',
+            `M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${r} ${r} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`);
+    }
+
     // canvasID.width  = width;
     canvasID.width  = height; // for Kyoto style projection, always have a square canvas
     canvasID.height = height;
@@ -1605,22 +1664,43 @@ document.onkeyup = function(e)
 
 /* Hide / show developer panel and implement circular mask and engage/disengage pointerlock mode  */
 function doToggleDeveloperMode (showHint) {
-    const masterPanel = document.getElementById("masterPanel");
-    const masterDisplayStatus = window.getComputedStyle(masterPanel).display;
-
-    if (masterDisplayStatus === 'none') {
-      // SHOW developer UI -> exit pointer lock
-      masterPanel.style.display = 'block';
-      DEVELOPER_MODE = true;
-      exitPointerLock(); // <-- disengage
-    } else {
-      // HIDE developer UI -> enter pointer lock
-      genePool.deselectSwimbot();
-      if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
-      masterPanel.style.display = 'none';
-      DEVELOPER_MODE = false;
-      enterPointerLock(); // <-- engage
-    }
-    resize();
+    // 3-way cycle: DEV (masterPanel) -> KIOSK (clean) -> KIOSK + stats readout -> DEV ...
+    if (DEVELOPER_MODE)          _setUiMode('kiosk', showHint);
+    else if (!_kioskStatsOn)     _setUiMode('kioskStats', false);
+    else                         _setUiMode('dev', false);
     return false;
+}
+
+function _setUiMode(mode, showHint) {
+    const masterPanel = document.getElementById('masterPanel');
+    const overlay     = document.getElementById('kioskStatsOverlay');
+    const wasDev      = DEVELOPER_MODE;
+
+    if (mode === 'dev') {
+        masterPanel.style.display = 'block';
+        DEVELOPER_MODE = true;
+        if (overlay) overlay.style.display = 'none';
+        _kioskStatsOn = false;
+        exitPointerLock();
+    } else {
+        // 'kiosk' or 'kioskStats' — both hide masterPanel and engage pointer lock
+        masterPanel.style.display = 'none';
+        DEVELOPER_MODE = false;
+        if (wasDev) {
+            genePool.deselectSwimbot();
+            if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
+            enterPointerLock();
+        }
+        if (mode === 'kioskStats') {
+            if (overlay) overlay.style.display = 'block';
+            _kioskStatsOn = true;
+            _ensureStatusTimer();   // drives the curved readout
+            updatePoolStatus();     // paint immediately, don't wait 250ms
+        } else {
+            if (overlay) overlay.style.display = 'none';
+            _kioskStatsOn = false;
+        }
+    }
+    _stopStatusTimerIfUnused();
+    resize();
 }

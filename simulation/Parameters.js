@@ -47,7 +47,7 @@ const MAX_UTTERANCES_TO_RENDER = 50; // too many animations? try reducing this
 
 // Autopilot controls
 var AUTOPILOT_MODE = false; 					// Init until we're inactive
-const USER_INACTION_TIME_OUT	= 60*5; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 30; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
 const AUTOPILOT_VOLUME_REDUCTION = .25; 	// percentage decrease in volume when we enter autopilot
 const AUTOPILOT_MIN_POPULATION   = 3;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
 

@@ -4237,6 +4237,15 @@ if ( globalTweakers.numFoodTypes === 2 )
 	this.getClock = function() { return _clock; }
 
 	//------------------------------
+	// Seconds remaining until USER_INACTION_TIME_OUT fires the autopilot.
+	// Returns 0 when timeout disabled or already elapsed. Cheap — no iteration.
+	this.getSecondsUntilAutopilot = function() {
+		if ( !USER_INACTION_TIME_OUT ) return 0;
+		const remaining = USER_INACTION_TIME_OUT - ( _seconds - _lastUserActionTime );
+		return remaining > 0 ? remaining : 0;
+	}
+
+	//------------------------------
 	this.getNumSwimbots = function()
 	{       
         let num = 0;
