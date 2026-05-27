@@ -421,6 +421,8 @@ function updatePoolStatus() {
     const lod       = genePool.getLevelOfDetail();
     const emaMs     = genePool.getEmaTickMs();
     const pop       = genePool.getNumSwimbots();
+    const food      = genePool.getNumFoodBits();
+    const steps     = genePool.getTimeStep();
 
     const lodNames  = ['dot', 'low', 'high'];
     const lodName   = lodNames[lod] || '?';
@@ -435,26 +437,28 @@ function updatePoolStatus() {
     const el = document.getElementById('poolStatusPanel');
     if (el) {
         el.innerHTML =
-            `<b>v</b>${SWIMBOT_VERSION}<br>` +
-            `<b>Pop:</b> ${pop}` +
-            ` &nbsp; <b>Autopilot:</b> ${autopilotLabel}` +
-            ` &nbsp; <b>Zoom:</b> ${scale}` +
-            ` &nbsp; <b>LOD:</b> ${lodName}` +
-            ` &nbsp; <b>Tick:</b> <span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span>` +
-            ` &nbsp; <b>Budget:</b> ${LOD_FRAME_BUDGET_RAISE_MS}–${LOD_FRAME_BUDGET_DROP_MS}ms`;
+            `<b>Steps:</b>&nbsp;${steps} ` +
+            `<b>Pop:</b>&nbsp;${pop} ` +
+            `<b>Food:</b>&nbsp;${food} ` +
+            `<b>Auto:</b>&nbsp;${autopilotLabel} ` +
+            `<b>Zoom:</b>&nbsp;${scale} ` +
+            `<b>LOD:</b>&nbsp;${lodName} ` +
+            `<b>Targets:</b>&nbsp;${LOD_FRAME_BUDGET_RAISE_MS}/${LOD_FRAME_BUDGET_DROP_MS}ms ` +
+            `<b>CPU:</b>&nbsp;<span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span>`;
     }
 
     if (_kioskStatsOn) {
         const tp = document.querySelector('#kioskStatsText textPath');
         const t  = document.getElementById('kioskStatsText');
         if (tp) tp.textContent =
-            `v${SWIMBOT_VERSION}` +
+            `Steps ${steps}` +
             ` · Pop ${pop}` +
-            ` · Autopilot ${autopilotLabel}` +
+            ` · Food ${food}` +
+            ` · Auto ${autopilotLabel}` +
             ` · Zoom ${scale}` +
             ` · LOD ${lodName}` +
-            ` · Tick ${emaMs.toFixed(1)}ms` +
-            ` · Budget ${LOD_FRAME_BUDGET_RAISE_MS}–${LOD_FRAME_BUDGET_DROP_MS}ms`;
+            ` · Targets ${LOD_FRAME_BUDGET_RAISE_MS}/${LOD_FRAME_BUDGET_DROP_MS}ms` +
+            ` · CPU ${emaMs.toFixed(1)}ms`;
         if (t)  t.setAttribute('fill', overBudget ? 'rgba(255,180,0,0.75)' : 'rgba(255,255,255,0.55)');
     }
 }
@@ -1333,8 +1337,8 @@ function resize()
     // that toggling it on shows the right shape immediately.
     const arcPathEl = document.getElementById('kioskArcPath');
     if (arcPathEl) {
-        const KIOSK_ARC_RADIUS_OFFSET  = 1;   // px outside the mask (negative = inside)
-        const KIOSK_ARC_HALF_ANGLE_DEG = 40;  // arc spans 2x this around 12 o'clock
+        const KIOSK_ARC_RADIUS_OFFSET  = -10;   // px outside the mask (negative = inside)
+        const KIOSK_ARC_HALF_ANGLE_DEG = 50;  // arc spans 2x this around 12 o'clock
         const cx = window.innerWidth  / 2;
         const cy = window.innerHeight / 2;
         const r  = holeDiameter / 2 + KIOSK_ARC_RADIUS_OFFSET;
@@ -1538,8 +1542,14 @@ document.onkeydown = function(e)
     }
     
     if ( e.keyCode === 68 ) // D key to toggle dev/debug
-    { 
+    {
         doToggleDeveloperMode();
+    }
+
+    if ( e.keyCode === 65 ) // A key — engage autopilot immediately (bypasses USER_INACTION_TIME_OUT)
+    {
+        genePool.engageAutopilot();
+        flashNotice("Autopilot engaged.", 1200);
     }
 
 
@@ -1664,10 +1674,11 @@ document.onkeyup = function(e)
 
 /* Hide / show developer panel and implement circular mask and engage/disengage pointerlock mode  */
 function doToggleDeveloperMode (showHint) {
-    // 3-way cycle: DEV (masterPanel) -> KIOSK (clean) -> KIOSK + stats readout -> DEV ...
-    if (DEVELOPER_MODE)          _setUiMode('kiosk', showHint);
-    else if (!_kioskStatsOn)     _setUiMode('kioskStats', false);
-    else                         _setUiMode('dev', false);
+    // 4-way cycle: DEV (masterPanel) -> KIOSK -> KIOSK+stats -> KIOSK+stats+brainstates -> DEV ...
+    if (DEVELOPER_MODE)                                   _setUiMode('kiosk', showHint);
+    else if (!_kioskStatsOn)                              _setUiMode('kioskStats', false);
+    else if (!genePool.getRenderingGoals())               _setUiMode('kioskStatsBrains', false);
+    else                                                  _setUiMode('dev', false);
     return false;
 }
 
@@ -1683,7 +1694,7 @@ function _setUiMode(mode, showHint) {
         _kioskStatsOn = false;
         exitPointerLock();
     } else {
-        // 'kiosk' or 'kioskStats' — both hide masterPanel and engage pointer lock
+        // 'kiosk', 'kioskStats', 'kioskStatsBrains' — all hide masterPanel and engage pointer lock
         masterPanel.style.display = 'none';
         DEVELOPER_MODE = false;
         if (wasDev) {
@@ -1691,16 +1702,22 @@ function _setUiMode(mode, showHint) {
             if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
             enterPointerLock();
         }
-        if (mode === 'kioskStats') {
-            if (overlay) overlay.style.display = 'block';
-            _kioskStatsOn = true;
+        const wantStats = (mode === 'kioskStats' || mode === 'kioskStatsBrains');
+        if (overlay) overlay.style.display = wantStats ? 'block' : 'none';
+        _kioskStatsOn = wantStats;
+        if (wantStats) {
             _ensureStatusTimer();   // drives the curved readout
             updatePoolStatus();     // paint immediately, don't wait 250ms
-        } else {
-            if (overlay) overlay.style.display = 'none';
-            _kioskStatsOn = false;
         }
     }
+
+    // Brainstates overlay — only on in mode 'kioskStatsBrains'. genePool.toggleGoalOverlay()
+    // is a toggle (not a setter), so flip it only if current state doesn't match the target.
+    const wantBrains = (mode === 'kioskStatsBrains');
+    if (genePool.getRenderingGoals() !== wantBrains) {
+        toggleGoalOverlay(); // also updates the dev-panel button styling
+    }
+
     _stopStatusTimerIfUnused();
     resize();
 }

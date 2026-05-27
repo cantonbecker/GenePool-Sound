@@ -1485,24 +1485,7 @@ if ( mode === SimulationStartMode.SPECIES )
          // If controls haven't been touched in a while (and we're not frozen) switch to autopilot
 			if ( USER_INACTION_TIME_OUT && _seconds > _lastUserActionTime + USER_INACTION_TIME_OUT && this.getSimulationRunning() )
 			{
-				_interactiveMode = false;
-
-				if ( _inAutopilotSession )
-				{
-					// Still inside the autopilot session (the user touched controls
-					// but never switched presets). Just resume the autopilot camera
-					// roaming and volume reduction — don't reload the pool.
-					console.log( "autopilot resuming (still in session, no reload)" );
-					AUTOPILOT_MODE = true;
-				}
-				else
-				{
-					//console.log( "user non-action timed out!" );
-					this.startSimulation( SimulationStartMode.AUTOPILOT );
-
-					// after the above...
-					AUTOPILOT_MODE = true;
-				}
+				this.engageAutopilot();
 			}
 		}
 		
@@ -3298,16 +3281,19 @@ if ( globalTweakers.numFoodTypes === 2 )
                     _swimbots[s].render( _levelOfDetail );
 
                     // When the 'brainstates' overlay is on, also visualize each swimbot's
-                    // mating range as a color-coded circle (only while actively uttering).
-                    // Brightness encodes range: dim = short reach, bright = long reach.
+                    // mating range as a circle (only while actively uttering). The circle is
+                    // tinted by the swimbot's mass-weighted average body-part color, so it
+                    // visually associates with its owner — muddy when the phenotype itself is
+                    // muddy. Range is still implicitly conveyed by circle radius.
                     if ( _renderingGoals && _swimbots[s].getIsUttering() )
                     {
                         const utterRange = _swimbots[s].getUtterRange();
-                        // 0.0 = MIN_UTTER_RANGE (grey), 1.0 = MAX_UTTER_RANGE (white)
-                        const rangeFraction = ( utterRange - MIN_UTTER_RANGE ) / ( MAX_UTTER_RANGE - MIN_UTTER_RANGE );
-                        const brightness = Math.round( 100 + rangeFraction * 155 );  // 100 (grey) → 255 (white)
-                        canvas.lineWidth = 0.5 + 0.002 * _camera.getScale();
-                        canvas.strokeStyle = `rgba( ${brightness}, ${brightness}, ${brightness}, 0.55 )`;
+                        const avg = _swimbots[s].getAverageColor(); // r/g/b in 0..1
+                        const r = Math.round( avg.red   * 255 );
+                        const g = Math.round( avg.green * 255 );
+                        const b = Math.round( avg.blue  * 255 );
+                        canvas.lineWidth   = 0.2 + 0.002 * _camera.getScale();
+                        canvas.strokeStyle = `rgba( ${r}, ${g}, ${b}, 0.55 )`;
                         canvas.beginPath();
                         canvas.arc( _swimbots[s].getPosition().x, _swimbots[s].getPosition().y, utterRange, 0, PI2, false );
                         canvas.stroke();
@@ -3320,7 +3306,8 @@ if ( globalTweakers.numFoodTypes === 2 )
                         let label = null;
                         let color = '#ffffff';
                         if      ( brainState === BRAIN_STATE_LOOKING_FOR_MATE ) { label = s + ' 👀'; }
-                        else if ( brainState === BRAIN_STATE_PURSUING_FOOD    ) { label = s + ' 🍏'; }
+                        else if ( brainState === BRAIN_STATE_LOOKING_FOR_FOOD ) { label = s + ' 🍏'; }
+                        else if ( brainState === BRAIN_STATE_PURSUING_FOOD    ) { label = s + ' 🍎'; }
                         else if ( brainState === BRAIN_STATE_PURSUING_MATE    )
                         {
                             const mateIdx = _swimbots[s].getChosenMateIndex();
@@ -4243,6 +4230,23 @@ if ( globalTweakers.numFoodTypes === 2 )
 		if ( !USER_INACTION_TIME_OUT ) return 0;
 		const remaining = USER_INACTION_TIME_OUT - ( _seconds - _lastUserActionTime );
 		return remaining > 0 ? remaining : 0;
+	}
+
+	//------------------------------
+	// Engage autopilot immediately (used both by the inactivity timeout and by
+	// the 'A' key, which bypasses USER_INACTION_TIME_OUT). If we're still inside
+	// an autopilot session that the user briefly interrupted, just resume —
+	// don't reload the pool. Otherwise spin up a fresh AUTOPILOT preset.
+	this.engageAutopilot = function() {
+		if ( !this.getSimulationRunning() ) return;
+		_interactiveMode = false;
+		if ( _inAutopilotSession ) {
+			console.log( "autopilot resuming (still in session, no reload)" );
+			AUTOPILOT_MODE = true;
+		} else {
+			this.startSimulation( SimulationStartMode.AUTOPILOT );
+			AUTOPILOT_MODE = true;
+		}
 	}
 
 	//------------------------------

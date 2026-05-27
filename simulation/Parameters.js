@@ -36,10 +36,10 @@ const MAX_SWIMBOTS = 300;	// 300 is a good number for our Mac Mini Intel live ki
 // machines and population sizes. Budget numbers are derived from a 60fps target
 // (~16.67ms/frame): drop at ~85% of budget, raise at ~50% (the band prevents
 // chatter at the boundary).
-const LOD_FRAME_BUDGET_DROP_MS    = 14;   // EMA tick > this  → drop HIGH → LOW immediately
-const LOD_FRAME_BUDGET_RAISE_MS   = 8;    // EMA tick < this  → start counting toward HIGH promotion
-const LOD_EMA_ALPHA               = 0.1;  // ~10-frame effective smoothing window
-const LOD_RAISE_CONFIRM_FRAMES    = 30;   // consecutive sub-budget frames required to promote LOW → HIGH
+const LOD_FRAME_BUDGET_DROP_MS    = 20;	// EMA tick > this  → drop HIGH → LOW LOD immediately (20ms = 50FPS threshold)
+const LOD_FRAME_BUDGET_RAISE_MS   = 15;	// EMA tick < this  → start counting toward HIGH LOD promotion
+const LOD_EMA_ALPHA               = 0.1;	// ~10-frame effective smoothing window to prevent LOD thrashing
+const LOD_RAISE_CONFIRM_FRAMES    = 30;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
 
 // Animation throttling to reduce simultaneous utterance *animations*
 const MAX_PARTICLES = 300; // global max ripples shared by ALL concurrent utterances
@@ -47,7 +47,7 @@ const MAX_UTTERANCES_TO_RENDER = 50; // too many animations? try reducing this
 
 // Autopilot controls
 var AUTOPILOT_MODE = false; 					// Init until we're inactive
-const USER_INACTION_TIME_OUT	= 30; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
+const USER_INACTION_TIME_OUT	= 5*60; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
 const AUTOPILOT_VOLUME_REDUCTION = .25; 	// percentage decrease in volume when we enter autopilot
 const AUTOPILOT_MIN_POPULATION   = 3;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
 

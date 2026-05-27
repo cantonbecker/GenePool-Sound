@@ -508,6 +508,12 @@ body
     top: 0;
 }
 
+#poolStatusPanel {
+   font-family: monospace;
+   position: absolute; 
+   top: 810px;
+}
+
 #poolWebVolume
 {
     position: absolute; 

@@ -229,9 +229,10 @@ AUTOPILOT:        activates after 5 minutes of user inactivity
 - `gpRandom()` wraps `Math.random()` with a commented-out seeded PRNG (aleaPRNG) for future reproducibility
 
 ### Goal Overlay (toggled with `_renderingGoals`)
-- Labels above each swimbot show brain state: 👀 looking for mate, ❤️ pursuing mate, 🍏 pursuing food
+- Labels above each swimbot show brain state: 👀 looking for mate, ❤️ pursuing mate, 🍏 looking for food, 🍎 pursuing food. Resting / looking-for-prey / pursuing-prey / fleeing-predator states get no label (intentional — we only flag the goal-directed states we care to read at a glance).
 - Mate pursuit labels get a **pair-hashed color** so you can visually spot reciprocal pursuits: if swimbot 5 chases 10 AND swimbot 10 chases 5, both labels are the same color. If 5→10 but 10→15, they get different colors. The color comes from hashing the unordered pair `(min, max)` of the two IDs with two primes, mapped to HSL at full saturation / 75% lightness.
 - All goal labels render with a semi-transparent black backdrop for contrast against any swimbot color.
+- **Utterance-range circles** are drawn around any currently-uttering swimbot while the overlay is on. Radius = the bot's actual `getUtterRange()`. Stroke color = the bot's mass-weighted `getAverageColor()` (same accessor mate-attraction code uses) so each circle visually associates with its owner; muddy phenotypes get muddy circles.
 
 ### Swimbot Statistics Panel (`js/swimbotStats.js`)
 - Formerly called "Utterance Statistics" / `utteranceStats.js` — renamed March 2026 because the panel now covers more than just utterances (pitch activity, population history).
