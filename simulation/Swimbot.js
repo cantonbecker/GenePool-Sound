@@ -21,8 +21,6 @@ var    flopperY = 0;
 var    flopperXV = 0;
 var    flopperYV = 0;
 
-const PROTOTYPING_SOUND = true;
-
     //---------------------------------
     //  attraction 
     //---------------------------------
@@ -1718,147 +1716,102 @@ let partAccelerationY = -strokeForceY;
 	//-----------------------------------------------------------------------------
 	this.getAttractiveness = function( judge, judge_phenotype, judge_index )
 	{
-        let attractiveness = ZERO;
+     let attractiveness = ZERO; // not uttering? attractiveness will be zero
+	  if ( _uttering )
+	  {
+          console.log ("My _phenotype is ",_phenotype);
+         // console.log ("judge_phenotype is ",judge_phenotype);
 
-		if ( PROTOTYPING_SOUND )
-		{
-			if ( _uttering )
-			{
-            // console.log ("My _phenotype is ",_phenotype);
-            // console.log ("judge_phenotype is ",judge_phenotype);
+         /*** LET'S CALCULATE PHENOTYPICAL ATTRACTIVENESS BETWEEN THIS SWIMBOT AND OUR JUDGE SWIMBOT! ***/
+         // we might get more interesting results by narrowing what's considered attractive, for example
+         // only consider note overlap, or highest pitch / lowest pitch...
+         
+         /*
+         this.utterNotes		   // array of all the different note pitches used
+         this.utterHighNote		// highest pitch performed
+         this.utterLowNote		   // lowest pitch performed
+         this.utterNoteCount		// how many individual notes?
+         this.utterModCount		// how many control events (e.g. modwheel spins)?
+         this.utterPeriod		   // how often does it sing
+         this.utterDuration		// how long does it sing
+         */
+                                                                             
+                                     
+         // *** Figure out "utterNoteOverlap" 0-1 ***
+         // How similar are the two swimbot utterances, in terms of what note pitches they use? 
+         // Do their utterances use all the same pitches -- even if in a different order or rhythm)
+         // Or do their utterances use completely different notes?
+         // utterNoteOverlap is calculated from 1 (all note pitches are identical) to 0 (no shared note pitches at all)
+         
+         const notePoolA = new Set(_phenotype.utterNotes);
+         const notePoolB = new Set(judge_phenotype.utterNotes);
+         const intersection = [...notePoolA].filter(x => notePoolB.has(x));
+         const union = new Set([..._phenotype.utterNotes, ...judge_phenotype.utterNotes]);
+         const utterNoteOverlap = union.size === 0 ? 0 : intersection.length / union.size;
+                 
+         // *** Figure out "noteCountSimilarity" 0-1 ***
+         // How similar are the utterances in terms of complexity, i.e. how many individual notes were played?
+         let noteCountSimilarity;
+         const maxNoteCount = Math.max(_phenotype.utterNoteCount, judge_phenotype.utterNoteCount);
+         if (maxNoteCount === 0) {
+             noteCountSimilarity = 0;
+         } else {
+             noteCountSimilarity = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / maxNoteCount;
+         }
+         noteCountSimilarity = 1 - noteCountSimilarity; // invert so 0=least similar, 1=most similar
+         
+         // compare the highest note sung, 0-1
+         let highNoteSimilarity = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127; // assumes note range of 1-127
+         highNoteSimilarity = 1 - highNoteSimilarity; // invert so 0=least similar, 1=most similar
+         
+         // compare the lowest note sung, 0-1
+         let lowNoteSimilarity    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127; // assumes note range of 1-127
+         lowNoteSimilarity = 1 - lowNoteSimilarity; // invert so 0=least similar, 1=most similar           
 
-            /*** LET'S CALCULATE PHENOTYPICAL ATTRACTIVENESS BETWEEN THIS SWIMBOT AND OUR JUDGE SWIMBOT! ***/
-            // we might get more interesting results by narrowing what's considered attractive, for example
-            // only consider note overlap, or highest pitch / lowest pitch...
-            
-            /*
-            this.utterNotes		   // array of all the different note pitches used
-            this.utterHighNote		// highest pitch performed
-            this.utterLowNote		   // lowest pitch performed
-            this.utterNoteCount		// how many individual notes?
-            this.utterModCount		// how many control events (e.g. modwheel spins)?
-            this.utterPeriod		   // how often does it sing
-            this.utterDuration		// how long does it sing
-            */
-                                                                                
-                                        
-            // *** Figure out "utterNoteOverlap" 0-1 ***
-            // How similar are the two swimbot utterances, in terms of what note pitches they use? 
-            // Do their utterances use all the same pitches -- even if in a different order or rhythm)
-            // Or do their utterances use completely different notes?
-            // utterNoteOverlap is calculated from 1 (all note pitches are identical) to 0 (no shared note pitches at all)
-            
-            const notePoolA = new Set(_phenotype.utterNotes);
-            const notePoolB = new Set(judge_phenotype.utterNotes);
-            const intersection = [...notePoolA].filter(x => notePoolB.has(x));
-            const union = new Set([..._phenotype.utterNotes, ...judge_phenotype.utterNotes]);
-            const utterNoteOverlap = union.size === 0 ? 0 : intersection.length / union.size;
-                    
-            // *** Figure out "noteCountSimilarity" 0-1 ***
-            // How similar are the utterances in terms of complexity, i.e. how many individual notes were played?
-            let noteCountSimilarity;
-            const maxNoteCount = Math.max(_phenotype.utterNoteCount, judge_phenotype.utterNoteCount);
-            if (maxNoteCount === 0) {
-                noteCountSimilarity = 0;
-            } else {
-                noteCountSimilarity = Math.abs(_phenotype.utterNoteCount - judge_phenotype.utterNoteCount) / maxNoteCount;
-            }
-            noteCountSimilarity = 1 - noteCountSimilarity; // invert so 0=least similar, 1=most similar
-            
-            
-            // Compare how wiggly the utterances were in terms of how many mod wheel etc. control values were sent
-            let modCountSimilarity;
-            const maxModCount = Math.max(_phenotype.utterModCount, judge_phenotype.utterModCount);
-            if (maxModCount === 0) {
-                modCountSimilarity = 0;
-            } else {
-                modCountSimilarity = Math.abs(_phenotype.utterModCount - judge_phenotype.utterModCount) / maxModCount;
-            }
-            modCountSimilarity = 1 - modCountSimilarity; // invert so 0=least similar, 1=most similar
+         // *** Now that we have calculations for all swimbot/judge similarities, what do I actually find attractive? ***
+         const judgeUtterPreference = judge_phenotype.utterPreference; // it's in my genes! 0-1
 
-            // compare the highest note sung, 0-1
-            let highNoteSimilarity = Math.abs(_phenotype.utterHighNote - judge_phenotype.utterHighNote) / 127; // assumes note range of 1-127
-            highNoteSimilarity = 1 - highNoteSimilarity; // invert so 0=least similar, 1=most similar
-            
-            // compare the lowest note sung, 0-1
-            let lowNoteSimilarity    = Math.abs(_phenotype.utterLowNote - judge_phenotype.utterLowNote) / 127; // assumes note range of 1-127
-            lowNoteSimilarity = 1 - lowNoteSimilarity; // invert so 0=least similar, 1=most similar           
-
-            // *** Now that we have calculations for all swimbot/judge similarities, what do I actually find attractive? ***
-            const judgeUtterPreference = judge_phenotype.utterPreference; // it's in my genes! 0-1
-
-            // for now, there are three camps...
-            if (judgeUtterPreference < .3) {
-                /* I like swimbots who share my note range (I like them in tune with me) */
-                attractiveness = Math.min(.99, utterNoteOverlap * 1.5); // amplify the raw overlap because note overlap is REALLY sexy
-                if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("I'm (" + _index + ") attracted to note overlap, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
-                // console.log ("notePoolA ", notePoolA);
-                // console.log ("notePoolB ", notePoolB);
-            } else if (judgeUtterPreference >= .3 && judgeUtterPreference <= .6) {
-                /* I like swimbots that utter in the same frequency range as me */
-                attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // scale it down a bit because note frequency is not that uncommon
-                if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("I'm (" + _index + ") attracted to frequency, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
-            } else {
-                /* I like swimbots that are similarly busy/complicated with their utterances */
-                attractiveness = noteCountSimilarity;
-                if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("I'm (" + _index + ") attracted to note count similarity, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
-            }
-            
+         // for now, there are three camps...
+         if (judgeUtterPreference < .3) {
+             /* I like swimbots who share my note range (I like them in tune with me) */
+             attractiveness = Math.min(.99, utterNoteOverlap * 1.5); // amplify the raw overlap because note overlap is REALLY sexy
+             if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("I'm (" + _index + ") attracted to note overlap, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+             // console.log ("notePoolA ", notePoolA);
+             // console.log ("notePoolB ", notePoolB);
+         } else if (judgeUtterPreference >= .3 && judgeUtterPreference <= .6) {
+             /* I like swimbots that utter in the same frequency range as me */
+             attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // scale it down a bit because note frequency is not that uncommon
+             if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("I'm (" + _index + ") attracted to frequency, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+         } else {
+             /* I like swimbots that are similarly busy/complicated with their utterances */
+             attractiveness = noteCountSimilarity;
+             if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("I'm (" + _index + ") attracted to note count similarity, and my attraction to swimbot no. " + judge_index + " is " + attractiveness);
+         }
+         
 // attractiveness = (highNoteSimilarity + lowNoteSimilarity) / 3; // DEBUG: FORCE ONLY ONE KIND OF ATTRACTIVENESS
-            
-            // And then add a little bit of everything (averaged), but not much
-            attractiveness = (utterNoteOverlap + noteCountSimilarity + modCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 10;
- 
-            // Make sure attractiveness stays within [0,1], some of the above can create hyper/hypo attractiveness numbers < 0 or > 1
-            attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
+         
+         // And then add a little bit of everything (averaged), but not much
+         attractiveness = (utterNoteOverlap + noteCountSimilarity + highNoteSimilarity + lowNoteSimilarity) / 10;
+
+         // Make sure attractiveness stays within [0,1], some of the above can create hyper/hypo attractiveness numbers < 0 or > 1
+         attractiveness = ( Math.max(0, Math.min(1, attractiveness)));
 
 
-            
-            if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
-            // console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
-            // console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
-            // console.log ("noteCountSimilarity=" + noteCountSimilarity + ", modCountSimilarity=" + modCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
-            
-            
-            if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
-                console.log("ALERT: Setting attractiveness to zero because " + attractiveness + " was NaN or out of range 0-1 when comparing swimbot " + _index + " with judge " + judge_index);
-                console.log("_phenotype:", _phenotype);
-                console.log("judge_phenotype:", judge_phenotype);
-                attractiveness = 0;
-            }
-			}
+         
+         if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("When comparing this swimbot no. " + _index + " with judge swimbot no. " + judge_index + " my attractiveness is " + attractiveness);
+         // console.log ("E.g. utterNoteOverlap was calculated as " + utterNoteOverlap);
+         // console.log ("My utterNotes were: ", _phenotype.utterNotes, "Judge's utterNotes were:", judge_phenotype.utterNotes);
+         // console.log ("noteCountSimilarity=" + noteCountSimilarity + ", highNoteSimilarity=" + highNoteSimilarity + ", lowNoteSimilarity=" + lowNoteSimilarity);
+         
+         
+         if (Number.isNaN(attractiveness) || attractiveness < 0 || attractiveness > 1 ) {
+             console.log("ALERT: Setting attractiveness to zero because " + attractiveness + " was NaN or out of range 0-1 when comparing swimbot " + _index + " with judge " + judge_index);
+             console.log("_phenotype:", _phenotype);
+             console.log("judge_phenotype:", judge_phenotype);
+             attractiveness = 0;
+         }
 		}
-		else
-		{
-			attractiveness = gpRandom();
-		
-			let attractionCriterion = _brain.getAttractionCriterion();
-		
-			//console.log( "attractionCriterion = " + attractionCriterion );
-		
-			if ( attractionCriterion === ATTRACTION_COLORFUL        ) { attractiveness =        this.getColorSaturation         (); }
-			if ( attractionCriterion === ATTRACTION_BIG             ) { attractiveness =        this.getCurrentBodyBigness      (); }
-			if ( attractionCriterion === ATTRACTION_HYPER           ) { attractiveness =        this.getCurrentBodyHyperness    (); }
-			if ( attractionCriterion === ATTRACTION_LONG            ) { attractiveness =        this.getCurrentBodyLongness     (); }
-			if ( attractionCriterion === ATTRACTION_STRAIGHT        ) { attractiveness =        this.getCurrentBodyStraightness (); }
-		
-			if ( attractionCriterion === ATTRACTION_NO_COLOR        ) { attractiveness = ONE -  this.getColorSaturation         (); }
-			if ( attractionCriterion === ATTRACTION_SMALL           ) { attractiveness = ONE -  this.getCurrentBodyBigness      (); }
-			if ( attractionCriterion === ATTRACTION_STILL           ) { attractiveness = ONE -  this.getCurrentBodyHyperness    (); }
-			if ( attractionCriterion === ATTRACTION_SHORT           ) { attractiveness = ONE -  this.getCurrentBodyLongness     (); }
-			if ( attractionCriterion === ATTRACTION_CROOKED         ) { attractiveness = ONE -  this.getCurrentBodyStraightness (); }
-		
-			if ( attractionCriterion === ATTRACTION_SIMILAR_COLOR   ) { attractiveness =        this.getColorSimilarity         ( judge ); }
-			if ( attractionCriterion === ATTRACTION_SIMILAR_SIZE    ) { attractiveness =        this.getBignessSimilarity       ( judge ); }
-			if ( attractionCriterion === ATTRACTION_SIMILAR_HYPER   ) { attractiveness =        this.getHypernessSimilarity     ( judge ); }
-			if ( attractionCriterion === ATTRACTION_SIMILAR_LENGTH  ) { attractiveness =        this.getLengthSimilarity        ( judge ); }
-			if ( attractionCriterion === ATTRACTION_SIMILAR_STRAIGHT) { attractiveness =        this.getStraightessSimilarity   ( judge ); }
-		
-			if ( attractionCriterion === ATTRACTION_CLOSEST         ) { attractiveness =        this.getCloseness               ( judge ); }
-			if ( attractionCriterion === ATTRACTION_RANDOM          ) { attractiveness =        gpRandom(); }
-         if (DEBUGGING_NOISY_CONSOLE_MODE) console.log ("Non-uttering attractiveness between swimbot no. " + _index + ") and swimbot no. " + judge_index + " is " + attractiveness);
-		}
-      return attractiveness;
+     return attractiveness;
     }
 
 

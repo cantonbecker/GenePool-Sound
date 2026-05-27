@@ -225,7 +225,6 @@ AUTOPILOT:        activates after 5 minutes of user inactivity
 - `DEBUGGING_NOISY_CONSOLE_MODE = false` (set true for verbose logging)
 - Version string lives in `Parameters.js` as `SWIMBOT_VERSION`
 - Canton modified genotype preset system in Sept 2025 to auto-generate constants from `PRESET_LIST` array
-- The `PROTOTYPING_SOUND = true` flag exists in `Swimbot.js`
 - `gpRandom()` wraps `Math.random()` with a commented-out seeded PRNG (aleaPRNG) for future reproducibility
 
 ### Goal Overlay (toggled with `_renderingGoals`)

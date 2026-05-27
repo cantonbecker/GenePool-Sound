@@ -83,7 +83,7 @@ const MAX_FOOD_REGENERATION_PERIOD      	= 200;
 const MIN_UTTER_PERIOD 	 = 160;    // min time between utterances
 const MAX_UTTER_PERIOD 	 = MIN_UTTER_PERIOD * 4;   // max time between utterances
 const MIN_UTTER_DURATION = 60;  	 // min utter length — must be > BRAIN_SENSORY_UPDATE_PERIOD (50) to guarantee at least one scan catches each utterance window.
-const MAX_UTTER_DURATION = 130;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
+const MAX_UTTER_DURATION = 140;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
 
 //--------------------------------------------
 // perceiving (moved from Brain.js)
@@ -111,10 +111,10 @@ const BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS   = 20;  // caps how many candidates a
 // At the midpoint duty cycle, a swimbot gets ~375 range — close to the old
 // fixed SWIMBOT_VIEW_RADIUS of 300, so average behavior at generation 0 is similar.
 //
-// See: Embryology.js for how utterRange is computed at birth from genes 112-113.
+// See: Embryology.js for how utterRange is computed at birth from genes 112-113, especially computing inverseSqrtDuty which we could flatten
 //      GenePool.js giveSwimbotNearbyUtteringStimuli() for how it gates the mate scan.
-const MIN_UTTER_RANGE           = 150.0;  // mating range for the busiest utterer (duty cycle ~0.94)
-const MAX_UTTER_RANGE           = 500.0;  // mating range for the quietest utterer (duty cycle ~0.09)
+const MIN_UTTER_RANGE           = 250.0;  // mating range for the busiest utterer (penalize busy utterances) // May 27 used to be 150
+const MAX_UTTER_RANGE           = 400.0;  // mating range for the quietest utterer (reward infrequent chirpers) // May 27 used to be 500
 const SWIMBOT_VIEW_RADIUS	    = 300.0; // how far can a swimbot see FOOD? Range for finding swimbots to mate with depends on the UTTERER'S calculated range.
 
 
@@ -164,7 +164,7 @@ const NORENDER_UTTER_STIMULI_SCAN_INTERVAL = 2;
 
 /*** DEBUGGING STUFF ***/
 
-const DEBUGGING_NOISY_CONSOLE_MODE  = false; // show lots more messages
+const DEBUGGING_NOISY_CONSOLE_MODE  = true; // show lots more messages
 
 const USE_CIRCULAR_VIEW				= true;
 const GARDEN_OF_EDEN_RADIUS 		= DEFAULT_GARDEN_OF_EDEN_RADIUS;
