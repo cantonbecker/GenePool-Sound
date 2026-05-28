@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-27 A';
+const SWIMBOT_VERSION			= '2026-05-28 B';
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
@@ -36,8 +36,8 @@ const MAX_SWIMBOTS = 300;	// 300 is a good number for our Mac Mini Intel live ki
 // machines and population sizes. Budget numbers are derived from a 60fps target
 // (~16.67ms/frame): drop at ~85% of budget, raise at ~50% (the band prevents
 // chatter at the boundary).
-const LOD_FRAME_BUDGET_DROP_MS    = 20;	// EMA tick > this  → drop HIGH → LOW LOD immediately (20ms = 50FPS threshold)
-const LOD_FRAME_BUDGET_RAISE_MS   = 15;	// EMA tick < this  → start counting toward HIGH LOD promotion
+const LOD_FRAME_BUDGET_DROP_MS    = 14;	// EMA tick > this  → drop HIGH → LOW LOD immediately (20ms = 50FPS threshold)
+const LOD_FRAME_BUDGET_RAISE_MS   = 11;	// EMA tick < this  → start counting toward HIGH LOD promotion
 const LOD_EMA_ALPHA               = 0.1;	// ~10-frame effective smoothing window to prevent LOD thrashing
 const LOD_RAISE_CONFIRM_FRAMES    = 30;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
 

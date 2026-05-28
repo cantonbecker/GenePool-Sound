@@ -33,6 +33,11 @@ let _rate_lastTSms = 0;
 let _stepsPerSecond = 0;
 
 
+// ---- D-key tap vs. hold state ---------------------------------------------
+// Tap = cycle kiosk modes (doToggleDeveloperMode); hold 1500ms = act like X (doToggleFullscreen).
+let _dKeyHoldTimer = null;
+let _dKeyLongFired = false;
+
 // ---- Pointer Lock state/helpers -------------------------------------------
 let _pointerLocked = false;
 let _virtualX = 0, _virtualY = 0; // virtual cursor for infinite motion
@@ -440,7 +445,7 @@ function updatePoolStatus() {
             `<b>Steps:</b>&nbsp;${steps} ` +
             `<b>Pop:</b>&nbsp;${pop} ` +
             `<b>Food:</b>&nbsp;${food} ` +
-            `<b>Auto:</b>&nbsp;${autopilotLabel} ` +
+            `<b>Auto:</b>&nbsp;${autopilotLabel}<br />` +
             `<b>Zoom:</b>&nbsp;${scale} ` +
             `<b>LOD:</b>&nbsp;${lodName} ` +
             `<b>Targets:</b>&nbsp;${LOD_FRAME_BUDGET_RAISE_MS}/${LOD_FRAME_BUDGET_DROP_MS}ms ` +
@@ -1320,8 +1325,9 @@ function resize()
     const HOLE_MARGIN = 20; // total pixels to keep from top+bottom (≈2px each)
     let masterPanel = document.getElementById("masterPanel");
     let masterIsDisplayed = window.getComputedStyle(masterPanel).display;
-    let rightMargin = (masterIsDisplayed !== "none") ? 420 : 0;
-    let width  = window.innerWidth  - rightMargin;
+    // Canvas fills/centers across the full viewport in BOTH modes (dev panel floats on top).
+    // Fullscreen sizing + circle crop must stay pixel-identical, so width === innerWidth here too.
+    let width  = window.innerWidth;
     let height = window.innerHeight;
 
     // hide circle mask when master panel is shown; show otherwise
@@ -1541,9 +1547,21 @@ document.onkeydown = function(e)
         }
     }
     
-    if ( e.keyCode === 68 ) // D key to toggle dev/debug
+    if ( e.keyCode === 68 ) // D key — tap cycles kiosk modes; hold 1500ms acts like X
     {
-        doToggleDeveloperMode();
+        if (!e.repeat) {                       // genuine press, ignore auto-repeat
+            _dKeyLongFired = false;
+            clearTimeout(_dKeyHoldTimer);
+            _dKeyHoldTimer = setTimeout(function() {
+                _dKeyLongFired = true;
+                doToggleFullscreen();
+            }, 1500);
+        }
+    }
+
+    if ( e.keyCode === 88 ) // X key — toggle fullscreen kiosk <-> dev panel
+    {
+        doToggleFullscreen();
     }
 
     if ( e.keyCode === 65 ) // A key — engage autopilot immediately (bypasses USER_INACTION_TIME_OUT)
@@ -1662,23 +1680,42 @@ document.onkeydown = function(e)
 }
 
 //------------------------------
-document.onkeyup = function(e) 
+document.onkeyup = function(e)
 {
+    e = e || window.event;
+
+    if ( e.keyCode === 68 ) // D key release — short tap cycles kiosk modes (hold already acted like X)
+    {
+        clearTimeout(_dKeyHoldTimer);
+        if (!_dKeyLongFired) doToggleDeveloperMode();
+        _dKeyLongFired = false;
+    }
+
     genePool.stopCameraNavigation();
     genePool.stopCameraNavigation();
     genePool.stopCameraNavigation();
     genePool.stopCameraNavigation();
     genePool.stopCameraNavigation();
-    genePool.stopCameraNavigation();    
-};      
+    genePool.stopCameraNavigation();
+};
 
 /* Hide / show developer panel and implement circular mask and engage/disengage pointerlock mode  */
+// D key: 3-way cycle through the fullscreen kiosk modes only — never exits to the
+// dev panel. KIOSK -> KIOSK+stats -> KIOSK+stats+brainstates -> KIOSK ...
+// (Entering from the dev panel lands on plain KIOSK.) Use doToggleFullscreen (X) to
+// get back to the dev panel.
 function doToggleDeveloperMode (showHint) {
-    // 4-way cycle: DEV (masterPanel) -> KIOSK -> KIOSK+stats -> KIOSK+stats+brainstates -> DEV ...
     if (DEVELOPER_MODE)                                   _setUiMode('kiosk', showHint);
     else if (!_kioskStatsOn)                              _setUiMode('kioskStats', false);
     else if (!genePool.getRenderingGoals())               _setUiMode('kioskStatsBrains', false);
-    else                                                  _setUiMode('dev', false);
+    else                                                  _setUiMode('kiosk', false);
+    return false;
+}
+
+// X key: 2-way toggle between the dev panel and plain fullscreen kiosk mode.
+function doToggleFullscreen (showHint) {
+    if (DEVELOPER_MODE) _setUiMode('kiosk', showHint);
+    else                _setUiMode('dev', false);
     return false;
 }
 
@@ -1699,7 +1736,7 @@ function _setUiMode(mode, showHint) {
         DEVELOPER_MODE = false;
         if (wasDev) {
             genePool.deselectSwimbot();
-            if (showHint) flashNotice("Key 'D' toggles developer panel.", 1400);
+            if (showHint) flashNotice("Key 'X' toggles developer panel.", 1400);
             enterPointerLock();
         }
         const wantStats = (mode === 'kioskStats' || mode === 'kioskStatsBrains');

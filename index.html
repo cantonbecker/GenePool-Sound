@@ -103,6 +103,12 @@
                     Reverb and non-diagetic audio (spawn/birth/death/eat...) requires requesting index.html from a real web server. Instead of double-clicking, 
                     please access this page via <b>localhost</b> or over the network.
                 </div>
+
+                <div style="font-size:14px; color:#ccc; margin:5px 0 15px 0; line-height:1.6;">
+                    <b>'D'</b> key toggles HUD modes<br />
+                    <b>'X'</b> key toggles developer mode<br>
+                </div>
+
                 <button id="splashLaunchBtn" disabled onclick="launchSimulation();" style="
                     font-size:16px; font-weight:bold; padding:12px 36px;
                     background:#3A3; color:#fff; border:none; border-radius:6px;
@@ -155,6 +161,10 @@
                 var ctx = SwimbotSynth.getAudioContext();
                 if (ctx && ctx.state === 'suspended') ctx.resume();
                 document.getElementById('splashOverlay').style.display = 'none';
+                // Enter fullscreen / pointer-lock kiosk mode (same as the 'X' key).
+                // Must run synchronously inside the click so the user gesture is still
+                // valid for requestFullscreen()/requestPointerLock().
+                doToggleFullscreen();
                 setTimeout(function() {
                     genePool.initialize();
                     genePool.setShowingViewTrackingMode(true);
@@ -245,7 +255,7 @@
 		<!-- floating control panel for devs                                    -->
 		<!-- ------------------------------------------------------------------ -->
         <div id = "masterPanel">
-            <div id="closeMasterButton"><a href="" onClick="doToggleDeveloperMode(true); return(false);">X</a></div>
+            <div id="closeMasterButton"><a href="" onClick="doToggleFullscreen(true); return(false);">X</a></div>
             <div id = "mainTitle">
                 Initializing...
                 <!-- dynamically set in GenePool.js init -->
@@ -709,6 +719,10 @@
                     <button id = "rawPoolDataButton" class = "basicButton" onClick = "printRawPoolData();" >get raw pool data</button>
                     <button id = "familyTreeButton" class = "basicButton" onClick = "printFamilyTree( false );" >get raw swimbot data</button>
 
+                    <div id="poolStatusPanel">
+                        <!-- populated by updatePoolStatus() -->
+                    </div>
+
                 </div>  <!-- poolPanel -->
                 
                 <!-- ------------------------------------------------------------ -->
@@ -941,10 +955,6 @@
                 </div> <!-- audio mixer panel -->            
                                 
             </div> <!--main Panel-->
-
-                    <div id="poolStatusPanel" style="margin-top: 0 !important; padding:6px;  font-size:11px; color:#666; line-height:1.6; margin-top:8px;">
-                        <!-- populated by updatePoolStatus() -->
-                    </div>
 
 
                 <div id = "contactPanel" >
