@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-28 C';
+const SWIMBOT_VERSION			= '2026-05-28 D';
 
 // KYOTO 2025 VERSION (Mac Mini 2018 i9)
 // initial bots and food are concentrated in a smaller area to give them a better chance of finding each other
@@ -6,8 +6,8 @@ const SWIMBOT_VERSION			= '2026-05-28 C';
 // lower food regeneration period for faster food drops
 // 9/21: 45000/400/450/20 always succeeds, very occasional rabbit foxing
 
-const MAX_UTTER_ATTENUATION = 20; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 10; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const MAX_UTTER_ATTENUATION = 15; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
+const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 // Audio mixer defaults — adjust these to set the startup balance.
 // The Audio tab sliders will initialize from these values.
@@ -19,7 +19,7 @@ var WEB_VOLUME_DEATH     = 0.80; // category mix: death samples
 var WEB_VOLUME_EAT       = 0.40; // category mix: eating samples
 var WEB_VOLUME_LOOP      = 0.80; // category mix: background loop
 var WEB_VOLUME_UI        = 0.60; // category mix: UI sounds (preset launch)
-var WEB_MAXIMUM_VOICES   = 32; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
+var WEB_MAXIMUM_VOICES   = 30; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
 
 /*** CONSOLE CONTROLS ***/
 const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.75;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
@@ -42,8 +42,8 @@ const LOD_EMA_ALPHA               = 0.1;	// ~10-frame effective smoothing window
 const LOD_RAISE_CONFIRM_FRAMES    = 30;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
 
 // Animation throttling to reduce simultaneous utterance *animations*
-const MAX_PARTICLES = 300; // global max ripples shared by ALL concurrent utterances
-const MAX_UTTERANCES_TO_RENDER = 50; // too many animations? try reducing this
+const MAX_PARTICLES = 250; // global max ripples shared by ALL concurrent utterances
+const MAX_UTTERANCES_TO_RENDER = 40; // too many animations? try reducing this
 
 // Autopilot controls
 var AUTOPILOT_MODE = false; 					// Init until we're inactive
@@ -80,10 +80,10 @@ const MIN_FOOD_REGENERATION_PERIOD      	= 1; // for UI slider
 const MAX_FOOD_REGENERATION_PERIOD      	= 200;
 
 // Utter constants, all in clock time. To think of these in ms, multiply by APPROX_MS_PER_CLOCK (declared in Sound.js)
-const MIN_UTTER_PERIOD 	 = 160;    // min time between utterances
+const MIN_UTTER_PERIOD 	 = 170;    // min time between utterances
 const MAX_UTTER_PERIOD 	 = MIN_UTTER_PERIOD * 4;   // max time between utterances
 const MIN_UTTER_DURATION = 60;  	 // min utter length — must be > BRAIN_SENSORY_UPDATE_PERIOD (50) to guarantee at least one scan catches each utterance window.
-const MAX_UTTER_DURATION = 140;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
+const MAX_UTTER_DURATION = 160;    // max utter length (if > than MIN_UTTER_PERIOD you risk ceaseless uttering)
 
 //--------------------------------------------
 // perceiving (moved from Brain.js)
@@ -159,7 +159,7 @@ const SWIMBOT_VIEW_RADIUS	    = 300.0; // how far can a swimbot see FOOD? Range 
 //   s % INTERVAL === clock % INTERVAL), spreading CPU load evenly across ticks
 //   rather than bursting all 300 scans on the same tick every N ticks.
 // ------------------------------------------------------------------------------------
-const NORENDER_UTTER_STIMULI_SCAN_INTERVAL = 2;
+const NORENDER_UTTER_STIMULI_SCAN_INTERVAL = 3;
 
 
 /*** DEBUGGING STUFF ***/
