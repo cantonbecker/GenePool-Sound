@@ -68,8 +68,10 @@ var SOUND_OUTPUT_LAUNCH			= true;
 var UTTER_ATTENUATION = 0; // stores current attenuation level
 var CURRENT_ZOOM_PERCENTAGE = 0; // 0 = zoomed all the way in, 1 = zoomed all the way out. updated each tick in setGlobalParameters
 
-const MIN_REVERB_DEFAULT = 10; // 0-127
-const MAX_REVERB_DEFAULT = 50;
+const MINIMUM_UTTER_VELOCITY = 50 // 0-127 don't let any swimbot individual note go quieter than this
+const MAXIMUM_UTTER_VELOCITY = 125 // 0-127 don't let any swimbot individual note go quieter than this
+const MIN_REVERB_DEFAULT = 20; // 0-127
+const MAX_REVERB_DEFAULT = 80;
 
 
 // different simulations use different interval sets
@@ -101,18 +103,18 @@ function getNoteIntervalSetFor(name) {
 const SHORTEST_NOTE_MS_DEFAULT = 35;
 
 const DEFAULT_SEQUENCE_DURATION_STATES = [
-	{ name: 'short',  min: 60,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS_DEFAULT 
-	{ name: 'medium', min: 140, max: 210 },   // 120ms is an 8th note at 125 BPM
-	{ name: 'long',   min: 280, max: 420 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
+	{ name: 'short',  min: 50,  max: 80 }, 	// needs to be longer than SHORTEST_NOTE_MS_DEFAULT 
+	{ name: 'medium', min: 120, max: 160 },   // 120ms is an 8th note at 125 BPM
+	{ name: 'long',   min: 240, max: 320 }    // 240ms is a quarter note at 125 BPM, 480 is a half note at 125 BPM
 ];
 
 //	3 x 3 probability matrix of how likely it is we will transition from one state to another.
 //	Each set of numbers needs to add up to 1 (100%).
 
 const IOI_DURATION_PROBABILITY_MATRIX = [
-  [0.7, 0.2, 0.1],  		// currently short? chances of staying short | switching medium | switching long 
-  [0.5, 0.3, 0.2 ],		// currently medium? chances of switching short | staying medium | switching long
-  [0.1, 0.4, 0.5 ]		// currently long? chances of switching short | switching medium | staying long
+  [0.6, 0.3, 0.1],  		// currently short? chances of staying short | switching medium | switching long 
+  [0.2, 0.5, 0.3 ],		// currently medium? chances of switching short | staying medium | switching long
+  [0.1, 0.6, 0.3 ]		// currently long? chances of switching short | switching medium | staying long
 ];
 
 // 9 x 9 probability matrix which roughly favor small steps, with a chance to repeat (trill) or leap
@@ -220,7 +222,7 @@ function Sound()
 		CURRENT_ZOOM_PERCENTAGE = zoomPercentage; // expose to doSwimbotSoundEvent for per-event zoom-attenuation
 
 		// when you're zoomed out, swimbots are a little quieter
-		UTTER_ATTENUATION = Math.round(zoomPercentage * MAX_UTTER_ATTENUATION);
+		UTTER_ATTENUATION = Math.round(zoomPercentage * ZOOM_UTTER_ATTENUATION);
 		
 		// RADIAL and BIG_BANG swimbots can be crazy loud, attenuate them as well
 		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = UTTER_ATTENUATION + LOUD_PRESET_ATTENUATION;
@@ -366,9 +368,13 @@ function Sound()
 		for (const step of utterVariablesObj.utterSequence) {
 			setTimeout(() => {
 				if (step.type === 'note') {
-					if (UTTER_ATTENUATION) {
-						step.velocity = Math.max(20, step.velocity - UTTER_ATTENUATION);
-					}
+					// attenuate it, if zoom etc. is causing an attenuation
+					step.velocity = step.velocity - UTTER_ATTENUATION;
+					
+					// clamp it
+					step.velocity = Math.max(MINIMUM_UTTER_VELOCITY, step.velocity);
+					step.velocity = Math.min(MAXIMUM_UTTER_VELOCITY, step.velocity);
+
 					// Sound the note (synth)
 					if (voice) SwimbotSynth.playVoiceNote(voice, step.note, step.velocity, step.duration);
 					// Visualize the note (utterance ripple)
@@ -521,7 +527,9 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	idx = _geneNames.indexOf('utter spin');
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter spin' from genes")
 	const utterSpin = genes[idx]; // 0-255
-	const octaveShiftOptions = [0,12,12,12,24,24,24,24,24,24,36,36,36,36,48,48];
+	// const octaveShiftOptions = [12,12,12,24,24,24,24,24,24,36,36,36,36,48,48,48
+	const octaveShiftOptions = [	12,12,12,	24,24,24,24,	36,36,36,	48,48,	60];
+		
 	idx = Math.floor(utterSpin / 255 * (octaveShiftOptions.length - 1));
 	let myOctaveNoteShift = octaveShiftOptions[idx];
 	if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("utter spin is " + utterSpin + " which corresponds to octave +" + myOctaveNoteShift/12);
@@ -574,12 +582,13 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	let recordNotesUsed = [], recordHighNote = 0, recordLowNote = 127, recordNoteCount = 0, recordModCount = 0;
 		
 	// how long are our notes?
-	const noteLengthOptions = ['legato','staccato','staccato','complex','complex','complex']; // weighted towards favorites
+	const noteLengthOptions = ['staccato','legato','complex','complex']; // weighted towards favorites
 	let noteLengthStyle = noteLengthOptions[Math.floor(rng() * noteLengthOptions.length)];		
 		
 	// how strong should our mod wheel wiggling be, and how often should we do it?
 	const modulationStrength = Math.floor((rng() * 16) * 4); // how fast to twist knobs
-	const modChanceOptions = [0,0,.10,.10,.20,.20,.50,.50,.50,.50]; // weighed towards middle and high chance of wiggle
+	const modChanceOptions = [0,0,0.05,0.10,0.15,0.20,0.30]; // weighed towards some and lots of wiggle
+
 	let chanceOfModulation = modChanceOptions[Math.floor(rng() * modChanceOptions.length)];
 		
 	// Markov Chain time! Pick an initial Interval State (note)
@@ -597,12 +606,12 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	// 'variable' means yes our sequence may twiddle this knob as part of sequencing
 	// in which case the variableWidth is how much you can twiddle it
 	let myControls = [
-		{ cc: 14, min: 0,	max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// "noise mix"
+		{ cc: 14, min: 0,		max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up' }, 	// "noise mix"
 		{ cc: 15, min: 0,		max: 127,	initialVal: 0,	variable: true,	variableWidth: 127,	lastVal: 0,	lastDir: 'up' }, 	// "mouth"
-		{ cc: 16, min: 32,	max: 127,	initialVal: 0,	variable: true,	variableWidth: 96,	lastVal: 0,	lastDir: 'up'  }, // "size"
+		{ cc: 16, min: 40,	max: 100,	initialVal: 0,	variable: true,	variableWidth: 60,	lastVal: 0,	lastDir: 'up'  }, // "size"
 		{ cc: 17, min: 0,		max: 127,	initialVal: 0,	variable: false,	variableWidth: 0,		lastVal: 0,	lastDir: 'up'  }, // "tone" — pitched osc mix: 0=sawtooth, 127=sine
-		{ cc: 19, min: 32,		max: 64,		initialVal: 0,	variable: true,	variableWidth: 32,		lastVal: 0,	lastDir: 'up'  },	// "F2 resonance"
-		{ cc: 20, min: 20,		max: 100,	initialVal: 0,	variable: true,	variableWidth: 64,		lastVal: 0,	lastDir: 'up'  } 	// "F3 gain"
+		{ cc: 19, min: 32,	max: 64,		initialVal: 0,	variable: true,	variableWidth: 32,		lastVal: 0,	lastDir: 'up'  },	// "F2 resonance"
+		{ cc: 20, min: 20,	max: 100,	initialVal: 0,	variable: true,	variableWidth: 64,		lastVal: 0,	lastDir: 'up'  } 	// "F3 gain"
 	];
 	
 	// walk through myControls and pick an initial setting for each
@@ -898,6 +907,7 @@ function determineCurrentMusicParameters () {
 
 	/*** RADIAL ***/
 	} else if (_chosenPoolToLoad == 3) {
+		shortestNoteMs = 35; 							// shortest notes will be 90ms
 		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['sharp']); // evener note distribution
 		mySet = getNoteIntervalSetFor('12tone');
 		backgroundLoop = 'bg-reaktor-drone';

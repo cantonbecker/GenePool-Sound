@@ -460,8 +460,8 @@ function GenePool()
          let radialPreset2 = Math.floor( Math.random() * NUM_PRESET_GENOTYPES );
          
          // audio phenotype settings: pick parameters for a single song ALL the swimbots will sing...
-         let radialUtterPeriod = 20 + Math.floor(Math.random() * 130); // short to medium periods
-         let radialUtterDuration = 100 + Math.floor(Math.random() * 100); // medium length durations
+         let radialUtterPeriod = 40 + Math.floor(Math.random() * 160); // short to medium periods
+         let radialUtterDuration = 40 + Math.floor(Math.random() * 100); // medium length durations
          if (radialUtterPeriod < (radialUtterDuration + 20)) radialUtterPeriod = radialUtterDuration + 20; // don't let the period be too similar to the duration
          let radialUtterPreference = Math.floor(Math.random() * 255);
          let radialUtterSpin = Math.floor(Math.random() * 255);
@@ -471,10 +471,10 @@ function GenePool()
          let radialUtterGenesArray = [radialUtterPeriod, radialUtterDuration, radialUtterPreference, radialUtterSpin, radialUtterCharm, radialUtterStrangeness, radialUtterFlavor];
    
          // ... but divide the swimbots we spawn into 'cohorts' that will sing at offset times on account of their adjusted ages
-         let numCohorts = 6;
+         let numCohorts = 12;
          let initialCohortAge = MAX_MAXIMUM_AGE - 5000; // start our swimbots out quite old so they die and are replaced by their children
          let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
-
+         
 
         //---------------------------------------------------------------------
         // initialize various parameters according to simulation start mode
@@ -568,7 +568,7 @@ function GenePool()
             _numSwimbots = 160;         
         	   _camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
-            _camera.doScaleShift( 5000, 200 );
+            _camera.doScaleShift( 5000, 300 );
         }
         
         else if ( mode === SimulationStartMode.BARRIER )
@@ -849,7 +849,7 @@ function GenePool()
                let cohortSize = Math.floor(_numSwimbots/numCohorts);
                let thisCohortIndex = Math.floor(i/cohortSize); // will be 0 to numCohorts
                initialAge = initialCohortAge - (radialCohortDelay * thisCohortIndex); // radialCohortDelay was determined earlier on, it's how much we stagger each cohort's utterances
-               initialAge += Math.floor(Math.random() * 50);
+               initialAge = initialAge + 50 + Math.floor(Math.random() * 200); // stagger em
                initialAge = Math.ceil(Math.max(initialAge, 1)); // safety check: force to integer and never let initial age get below 1
                //console.log(`Cohort ${thisCohortIndex} age ${initialAge} / radialCohortDelay= ${radialCohortDelay}`);
 

@@ -1,11 +1,12 @@
-const SWIMBOT_VERSION			= '2026-05-28 M1';
+const SWIMBOT_VERSION			= '2026-05-28 P';
 
 
 /*************************/
 /*** CONSOLE CONTROLS  ***/
 /*************************/
-const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.75;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
+const ZOOM_CONTROL_SPEED_ADJUSTMENT = 0.80;	// adjust the zoom joystick speed here, e.g. 0.5 = half as fast as default, 1.5 = 1.5x as fast as default
 const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset loading buttons too fast
+const DEBUGGING_NOISY_CONSOLE_MODE  = false; // show lots more messages
 
 
 /****************************/
@@ -13,17 +14,17 @@ const PRESET_COOLDOWN_MS = 600; 	// prevent visitors from mashing on preset load
 /****************************/
 
 // The Audio tab sliders will initialize from these values.
-var WEB_AUDIO_VOLUME     = 0.85; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
-var WEB_VOLUME_UTTERANCE = 0.95; // category mix: swimbot vocal utterances
-var WEB_VOLUME_BIRTH     = 0.55; // category mix: birth samples
-var WEB_VOLUME_SPAWN     = 0.75; // category mix: spawn (q*bert) samples
-var WEB_VOLUME_DEATH     = 0.80; // category mix: death samples
-var WEB_VOLUME_EAT       = 0.40; // category mix: eating samples
-var WEB_VOLUME_LOOP      = 0.80; // category mix: background loop
-var WEB_VOLUME_UI        = 0.60; // category mix: UI sounds (preset launch)
+var WEB_AUDIO_VOLUME     = 0.90; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
+var WEB_VOLUME_UTTERANCE = 1.00; // category mix: swimbot vocal utterances
+var WEB_VOLUME_BIRTH     = 0.45; // category mix: birth samples
+var WEB_VOLUME_SPAWN     = 0.30; // category mix: spawn (q*bert) samples
+var WEB_VOLUME_DEATH     = 0.65; // category mix: death samples
+var WEB_VOLUME_EAT       = 0.30; // category mix: eating samples
+var WEB_VOLUME_LOOP      = 0.60; // category mix: background loop
+var WEB_VOLUME_UI        = 0.80; // category mix: UI sounds (preset launch)
 
-const MAX_UTTER_ATTENUATION = 15; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const ZOOM_UTTER_ATTENUATION = 60; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
+const LOUD_PRESET_ATTENUATION = 0; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 
 /****************************/
@@ -34,11 +35,11 @@ const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really lo
 const MAX_SWIMBOTS = 300;	// 300 is a good number for our Mac Mini Intel live kiosk, big bang will create 85% this many to start with
 
 // limit simultaneous AUDIBLE utterances
-var WEB_MAXIMUM_VOICES   = 30; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
+var WEB_MAXIMUM_VOICES   = 25; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
 
 // limit simultaneous VISIBLE utterances
-const MAX_UTTERANCES_TO_RENDER = 30; // too many animations? try reducing this
-const MAX_PARTICLES = 250; // global max ripples shared by ALL concurrent utterances
+const MAX_UTTERANCES_TO_RENDER = 50; // too many animations? try reducing this
+const MAX_PARTICLES = 300; // global max ripples shared by ALL concurrent utterances
 
 // adaptive Level of Depth (coarse vs. smooth swimbot bodies)
 // switch between HIGH and LOW swimbot detail based on how long a tick takes
@@ -50,7 +51,7 @@ const LOD_FRAME_BUDGET_RAISE_MS   = 12;	// EMA tick < this  → start counting t
 const LOD_EMA_ALPHA               = 0.1;	// smooths CPU snapshots to prevent LOD thrashing. smaller = more smoothing, bigger = more responsive, thrashy
 const LOD_RAISE_CONFIRM_FRAMES    = 60;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
 
-const UI_UPDATE_PERIOD = 1000; // decrease when using graphs to debug
+const UI_UPDATE_PERIOD = 2000; // decrease when using graphs to debug
 
 
 /*******************************/
@@ -59,20 +60,20 @@ const UI_UPDATE_PERIOD = 1000; // decrease when using graphs to debug
 
 var AUTOPILOT_MODE = false; 					// Init until we're inactive
 const USER_INACTION_TIME_OUT	= 5*60; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
-const AUTOPILOT_VOLUME_REDUCTION = .25; 	// percentage decrease in volume when we enter autopilot
-const AUTOPILOT_MIN_POPULATION   = 3;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
+const AUTOPILOT_VOLUME_REDUCTION = .35; 	// percentage decrease in volume when we enter autopilot
+const AUTOPILOT_MIN_POPULATION   = 5;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
 
 // Autopilot camera roaming — picks a new zoom target periodically, choosing
 // between two bands: "close" (sit in among the action) and "wide" (pull back
 // for an overview). Each band has its own scale range and hold time.
 // Hold times are in ticks; ~60 ticks ≈ 1 second of real time.
-const AUTOPILOT_WIDE_VIEW_PROBABILITY	= 0.20;		// 0.0 = always close, 1.0 = always wide
+const AUTOPILOT_WIDE_VIEW_PROBABILITY	= 0.15;		// 0.0 = always close, 1.0 = always wide
 const AUTOPILOT_CLOSE_SCALE_MIN			= 400;		// tightest close-up zoom
 const AUTOPILOT_CLOSE_SCALE_MAX			= 2500;		// loosest close-up zoom
-const AUTOPILOT_CLOSE_HOLD_TICKS			= 520;		// ~8s — time spent at each close-band pick
+const AUTOPILOT_CLOSE_HOLD_TICKS			= 700;		// time spent at each close-band pick
 const AUTOPILOT_WIDE_SCALE_MIN			= 4000;		// least pulled-back overview
 const AUTOPILOT_WIDE_SCALE_MAX			= 7500;		// most pulled-back overview
-const AUTOPILOT_WIDE_HOLD_TICKS			= 2000;		// ~30s — longer so you get a chance to "just observe"
+const AUTOPILOT_WIDE_HOLD_TICKS			= 3000;		// longer so you get a chance to "just observe"
 
 
 /***************************/
@@ -175,9 +176,6 @@ const BRAIN_MAX_PERCEIVED_NEARBY_SWIMBOTS   = 20;  // caps how many candidates a
 const NORENDER_UTTER_STIMULI_SCAN_INTERVAL = 3;
 
 
-/*** DEBUGGING STUFF ***/
-
-const DEBUGGING_NOISY_CONSOLE_MODE  = true; // show lots more messages
 
 const USE_CIRCULAR_VIEW				= true;
 const GARDEN_OF_EDEN_RADIUS 		= DEFAULT_GARDEN_OF_EDEN_RADIUS;

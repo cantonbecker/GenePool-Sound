@@ -1719,7 +1719,7 @@ let partAccelerationY = -strokeForceY;
      let attractiveness = ZERO; // not uttering? attractiveness will be zero
 	  if ( _uttering )
 	  {
-          console.log ("My _phenotype is ",_phenotype);
+          // console.log ("My _phenotype is ",_phenotype);
          // console.log ("judge_phenotype is ",judge_phenotype);
 
          /*** LET'S CALCULATE PHENOTYPICAL ATTRACTIVENESS BETWEEN THIS SWIMBOT AND OUR JUDGE SWIMBOT! ***/

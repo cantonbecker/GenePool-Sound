@@ -1673,7 +1673,7 @@ document.onkeydown = function(e)
               const idx = Math.floor(Math.random() * ROT.length);
               choosePoolToLoad(ROT[idx]);
               requestToLoadPoolFromPreset();
-              flashNotice("Demo #" + idx + ". Z to stop.", 2000, 0);
+              flashNotice("Demo mode no. " + idx + ". Z to stop.", 2000, 0);
 
           }, demoRotateMs);
       }
