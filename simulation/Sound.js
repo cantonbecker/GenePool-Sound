@@ -71,7 +71,7 @@ var CURRENT_ZOOM_PERCENTAGE = 0; // 0 = zoomed all the way in, 1 = zoomed all th
 const MINIMUM_UTTER_VELOCITY = 50 // 0-127 don't let any swimbot individual note go quieter than this
 const MAXIMUM_UTTER_VELOCITY = 125 // 0-127 don't let any swimbot individual note go quieter than this
 const MIN_REVERB_DEFAULT = 20; // 0-127
-const MAX_REVERB_DEFAULT = 80;
+const MAX_REVERB_DEFAULT = 70;
 
 
 // different simulations use different interval sets
@@ -218,12 +218,15 @@ function Sound()
 		_parameter_3 = p3; // camera zoom, ranges from about 500 to 8000
 
 		// grab camera zoom and use it for some globals
-		const zoomPercentage = Math.min(1, Math.max(0, (_parameter_3 - 500) / (8000 - 500)));
+		const zoomPercentage = Math.min(1, Math.max(0, (_parameter_3 - 500) / 7500));
 		CURRENT_ZOOM_PERCENTAGE = zoomPercentage; // expose to doSwimbotSoundEvent for per-event zoom-attenuation
-
-		// when you're zoomed out, swimbots are a little quieter
-		UTTER_ATTENUATION = Math.round(zoomPercentage * ZOOM_UTTER_ATTENUATION);
 		
+		// Apply the ease-out cubic formula: 1 - (1 - x)^3 so we lose volume quickly as we start zooming out
+		const easedZoom = 1 - Math.pow(1 - zoomPercentage, 3);
+		
+		// Calculate the final attenuation
+		UTTER_ATTENUATION = Math.round(easedZoom * ZOOM_UTTER_ATTENUATION);
+
 		// RADIAL and BIG_BANG swimbots can be crazy loud, attenuate them as well
 		if (_chosenPoolToLoad == 3 || _chosenPoolToLoad == 4) UTTER_ATTENUATION = UTTER_ATTENUATION + LOUD_PRESET_ATTENUATION;
 		
@@ -890,7 +893,7 @@ function determineCurrentMusicParameters () {
 	/*** INVASION ***/
 	} else if (_chosenPoolToLoad == 1) {
 		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
-		mySet = getNoteIntervalSetFor('minor pentatonic');
+		mySet = getNoteIntervalSetFor('octaves');
 		secBetweenUnivNoteShift = 10; 				// shorter shifts
 		shortestNoteMs = 90; 							// shortest notes will be 90ms
 		seqDurationStates[0].min = 100; 				// lengthen 'short' min to 100ms
