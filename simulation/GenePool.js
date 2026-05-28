@@ -3950,36 +3950,55 @@ if ( globalTweakers.numFoodTypes === 2 )
             _viewTracking.stopTracking();
 	    	_camera.stopShift();
             
-            //------------------------------------------
-            // has a swimmer been clicked?
-            //------------------------------------------
-            setSelectedSwimbot( this.indexOfClosestSwimbotToScreenPosition( x, y ) );
-        
-            //------------------------------------------
-            // a swimmer is clicked
-            //------------------------------------------
-            if ( _selectedSwimbot != NULL_INDEX )
+            //------------------------------------------------------------------
+            // Only allow swimbot / foodbit selection + dragging in developer
+            // mode. In fullscreen/pointerlock (kiosk) mode the entry touchDown
+            // sits at screen center, so it would otherwise grab whatever bit is
+            // there and trackball motion would drag it instead of panning.
+            //------------------------------------------------------------------
+            if ( DEVELOPER_MODE )
             {
-                _swimbotBeingDragged = true;
-                this.initializeDebugTrail( _selectedSwimbot );
-            }
+                //------------------------------------------
+                // has a swimmer been clicked?
+                //------------------------------------------
+                setSelectedSwimbot( this.indexOfClosestSwimbotToScreenPosition( x, y ) );
 
-            //--------------------------------------
-            // find out if a foodbit was clicked
-            //--------------------------------------
-            if ( _selectedSwimbot === NULL_INDEX )
-            {
-                _selectedFoodBit = this.indexOfClosestFoodBitToScreenPosition( x, y );
-                //console.log( _selectedFoodBit );
-            
-                if ( _selectedFoodBit != NULL_INDEX )
+                //------------------------------------------
+                // a swimmer is clicked
+                //------------------------------------------
+                if ( _selectedSwimbot != NULL_INDEX )
                 {
-                    _foodBitBeingDragged = true;
+                    _swimbotBeingDragged = true;
+                    this.initializeDebugTrail( _selectedSwimbot );
+                }
+
+                //--------------------------------------
+                // find out if a foodbit was clicked
+                //--------------------------------------
+                if ( _selectedSwimbot === NULL_INDEX )
+                {
+                    _selectedFoodBit = this.indexOfClosestFoodBitToScreenPosition( x, y );
+                    //console.log( _selectedFoodBit );
+
+                    if ( _selectedFoodBit != NULL_INDEX )
+                    {
+                        _foodBitBeingDragged = true;
+                    }
+                }
+                else
+                {
+                    _mousedOverFoodBit = NULL_INDEX;
                 }
             }
             else
             {
-                _mousedOverFoodBit = NULL_INDEX;
+                //--------------------------------------------------------------
+                // kiosk mode: clear any stale selection so nothing gets dragged
+                //--------------------------------------------------------------
+                setSelectedSwimbot( NULL_INDEX );
+                _selectedFoodBit     = NULL_INDEX;
+                _swimbotBeingDragged = false;
+                _foodBitBeingDragged = false;
             }
         
             //----------------------------------------

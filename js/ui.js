@@ -1503,14 +1503,18 @@ function updateUItitle() {
 //--------------------------------
 // key down / button presses
 //--------------------------------
-document.onkeydown = function(e) 
+document.onkeydown = function(e)
 {
     e = e || window.event;
-    
+
+    // genePool is assigned in an inline script in index.html; a keypress
+    // before that runs would otherwise throw "genePool is not defined".
+    if (typeof genePool === "undefined") return;
+
     //-----------------------------
     // keys for camera navigation
     //-----------------------------
-    let cameraNavAction = -1; 
+    let cameraNavAction = -1;
     
     if ( e.keyCode ===  37 ) // left arrow key
     { 
@@ -1683,6 +1687,10 @@ document.onkeydown = function(e)
 document.onkeyup = function(e)
 {
     e = e || window.event;
+
+    // genePool is assigned in an inline script in index.html; a key released
+    // before that runs would otherwise throw "genePool is not defined".
+    if (typeof genePool === "undefined") return;
 
     if ( e.keyCode === 68 ) // D key release — short tap cycles kiosk modes (hold already acted like X)
     {

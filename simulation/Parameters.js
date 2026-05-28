@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-28 K';
+const SWIMBOT_VERSION			= '2026-05-28 M1';
 
 
 /*************************/
@@ -34,10 +34,10 @@ const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really lo
 const MAX_SWIMBOTS = 300;	// 300 is a good number for our Mac Mini Intel live kiosk, big bang will create 85% this many to start with
 
 // limit simultaneous AUDIBLE utterances
-var WEB_MAXIMUM_VOICES   = 10; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
+var WEB_MAXIMUM_VOICES   = 30; // max simultaneous utterance voices (1–64) IMPACTS PERFORMANCE!
 
 // limit simultaneous VISIBLE utterances
-const MAX_UTTERANCES_TO_RENDER = 10; // too many animations? try reducing this
+const MAX_UTTERANCES_TO_RENDER = 30; // too many animations? try reducing this
 const MAX_PARTICLES = 250; // global max ripples shared by ALL concurrent utterances
 
 // adaptive Level of Depth (coarse vs. smooth swimbot bodies)
