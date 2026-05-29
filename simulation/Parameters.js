@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-29 Efficient Uttering, Fancy UI';
+const SWIMBOT_VERSION			= '2026-05-29 New LOD Tracking';
 
 
 /*************************/
@@ -23,8 +23,8 @@ var WEB_VOLUME_EAT       = 0.30; // category mix: eating samples
 var WEB_VOLUME_LOOP      = 0.60; // category mix: background loop
 var WEB_VOLUME_UI        = 0.80; // category mix: UI sounds (preset launch)
 
-const ZOOM_UTTER_ATTENUATION = 80; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const ZOOM_UTTER_ATTENUATION = 90; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
+const LOUD_PRESET_ATTENUATION = 40; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 
 /****************************/
@@ -41,15 +41,82 @@ var WEB_MAXIMUM_VOICES   = 25; // max simultaneous utterance voices (1–64) IMP
 const MAX_UTTERANCES_TO_RENDER = 50; // too many animations? try reducing this
 const MAX_PARTICLES = 300; // global max ripples shared by ALL concurrent utterances
 
-// adaptive Level of Depth (coarse vs. smooth swimbot bodies)
-// switch between HIGH and LOW swimbot detail based on how long a tick takes
-// The system reactively drops to LOW when work exceeds budget
-// and only promotes back to HIGH after sustained headroom to prevent "chatter"
+//------------------------------------------------------------------------------
+// 🤖 ADAPTIVE LEVEL OF DETAIL (LOD) — coarse vs. smooth swimbot bodies.
+//
+// The renderer draws each swimbot at HIGH (smooth bezier bodies) or LOW (coarse).
+// The choice is automatic, made every tick in GenePool.update() from two DIFFERENT
+// measurements — and it matters which is which:
+//
+//   CPU   (_emaTickMs)  — smoothed time of the SYNCHRONOUS tick body (sim + render).
+//                         This is the work LOD actually controls: dropping to LOW
+//                         cuts render compute, which lowers CPU. It is the clean
+//                         measure of headroom and the predictor of "can we afford
+//                         HIGH?".  → drives the continuous DROP and RAISE budget.
+//
+//   Frame (_emaFrameMs) — real wall-clock gap between consecutive tick starts.
+//                         Because the loop schedules the next tick AFTER the work,
+//                         Frame ≈ CPU + the ~20ms fixed timestep + any BETWEEN-tick
+//                         stall (the utterance setTimeout storm, GC, canvas paint).
+//                         Those stalls are INVISIBLE to CPU. Their cost arrives as
+//                         rare spikes that an EMA would smooth away, so Frame is used
+//                         as a RAW single-frame spike trigger, never as a budget.
+//
+// Division of labor: CPU = continuous budget (the headroom signal coupled to LOD's
+// lever). Frame = emergency spike-drop + a post-spike promotion lockout for the
+// class of stalls CPU can't see (the RADIAL preset was the motivating case: it
+// juddered ~250ms every few seconds while CPU still read a healthy ~11ms).
+//
+// Asymmetric hysteresis: DROP is instant (one tick over budget), RAISE is slow
+// (must prove sustained headroom). Fast-drop / slow-raise is what prevents the
+// detail level from chattering at the budget boundary.
+//------------------------------------------------------------------------------
 
-const LOD_FRAME_BUDGET_DROP_MS    = 14;	// EMA tick > this  → drop HIGH → LOW LOD immediately (20ms = 50FPS threshold)
-const LOD_FRAME_BUDGET_RAISE_MS   = 11;	// EMA tick < this  → start counting toward HIGH LOD promotion
-const LOD_EMA_ALPHA               = 0.1;	// smooths CPU snapshots to prevent LOD thrashing. smaller = more smoothing, bigger = more responsive, thrashy
-const LOD_RAISE_CONFIRM_FRAMES    = 30;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
+const LOD_FRAME_BUDGET_DROP_MS    = 14;	// CPU EMA over this → drop HIGH→LOW immediately. A COMPUTE budget (~70% of the 20ms timestep), NOT a frame-rate.
+const LOD_FRAME_BUDGET_RAISE_MS   = 11;	// CPU EMA under this → start counting toward HIGH. The DROP−RAISE gap is the dead zone that stops oscillation.
+const LOD_EMA_ALPHA               = 0.1;	// smoothing for BOTH EMAs (CPU and Frame). smaller = steadier/slower to react, bigger = twitchier/thrashier.
+const LOD_RAISE_CONFIRM_FRAMES    = 30;	// consecutive sub-budget ticks required to promote LOW→HIGH (~0.6s). Higher = stickier HIGH, less hunting.
+
+// 🤖 Frame-spike guard — catches BETWEEN-tick stalls that CPU cannot see (their cost
+// lands outside the synchronous tick body). A RAW single-frame test, not an EMA,
+// because a 250ms crest every few seconds barely moves an average. Frame's resting
+// value is ~20ms (timestep) + CPU, so this threshold sits well clear of that floor.
+const LOD_FRAME_SPIKE_DROP_MS       = 100;	// one real inter-tick gap over this → drop HIGH→LOW now
+const LOD_FRAME_SPIKE_IGNORE_MS     = 1000;	// gaps over this = tab backgrounded / throttled → ignore (not a CPU signal; dropping LOD wouldn't help)
+const LOD_FRAME_SPIKE_COOLDOWN_FRAMES = 300;	// after a spike, block LOW→HIGH promotion this many ticks (~6s). Re-testing HIGH risks re-freezing, so re-test rarely; if HIGH still spikes we just drop and stay LOW.
+
+// 🤖 Startup grace window. Every preset launch resets _clock to 0 and is followed by
+// ~1s of churn (allocation, voice setup, the auto-zoom transient). We keep MEASURING
+// during the window but act on NEITHER drop nor raise, so launch churn can't strand a
+// light preset at LOW or bounce a heavy one to HIGH mid-explosion. Counted in ticks
+// (≈20ms each), it self-extends through churn: when launch hitches slow the ticks, the
+// window naturally covers more wall-clock time.
+const LOD_STARTUP_GRACE_FRAMES    = 60;	// ~1.2s at the 20ms tick rate
+
+// 🤖 Initial-LOD prior. Before any frame is measured we must pick a starting detail
+// level. A preset launching with a large population (e.g. BIG_BANG: ~85% of
+// MAX_SWIMBOTS spawned at once, zoomed out so all are on-screen) is monstrous for its
+// first seconds, and the grace window would otherwise hold it at HIGH through exactly
+// that churn. So a launch pop ≥ this starts at LOW; lighter presets start at HIGH.
+// Only the pre-measurement guess — once grace ends the measured system takes over
+// (climbs to HIGH if headroom appears, stays LOW if it never does).
+const LOD_STARTUP_LOW_POP_THRESHOLD = 200;	// launch pop ≥ this → start at LOW (≈⅔ of MAX_SWIMBOTS)
+
+// 🤖 TUNING — if you hit performance trouble, first press K to open the kiosk readout
+// and watch CPU vs Frame: that tells you WHICH problem you have. Then adjust roughly
+// in this order:
+//   1. Raw load too high everywhere (CPU pinned high): the biggest levers are NOT here.
+//      Lower MAX_SWIMBOTS / WEB_MAXIMUM_VOICES / MAX_UTTERANCES_TO_RENDER / MAX_PARTICLES
+//      (above). LOD only trades body detail; it can't fix genuine overload.
+//   2. Too detailed / drops too late on a slow machine: lower LOD_FRAME_BUDGET_DROP_MS
+//      (drop sooner) and/or LOD_FRAME_BUDGET_RAISE_MS (re-promote more reluctantly).
+//   3. Periodic freezes while CPU looks fine (between-tick stalls, e.g. RADIAL): lower
+//      LOD_FRAME_SPIKE_DROP_MS to catch milder hitches; raise LOD_FRAME_SPIKE_COOLDOWN_FRAMES
+//      to stay LOW longer between crests.
+//   4. Detail level hunts/flickers in steady state: lower LOD_EMA_ALPHA (more smoothing)
+//      and/or raise LOD_RAISE_CONFIRM_FRAMES, and/or widen the DROP−RAISE gap.
+//   5. A heavy preset starts too detailed: lower LOD_STARTUP_LOW_POP_THRESHOLD. LOD
+//      flickers right after a launch: raise LOD_STARTUP_GRACE_FRAMES.
 
 const UI_UPDATE_PERIOD = 2000; // decrease when using graphs to debug
 

@@ -425,6 +425,7 @@ function updatePoolStatus() {
     const scale     = Math.round(genePool.getCameraScale());
     const lod       = genePool.getLevelOfDetail();
     const emaMs     = genePool.getEmaTickMs();
+    const frameMs   = genePool.getEmaFrameMs(); // real inter-tick gap
     const pop       = genePool.getNumSwimbots();
     const food      = genePool.getNumFoodBits();
     const steps     = genePool.getTimeStep();
@@ -432,6 +433,10 @@ function updatePoolStatus() {
     const lodNames  = ['dot', 'low', 'high'];
     const lodName   = lodNames[lod] || '?';
     const overBudget = emaMs > LOD_FRAME_BUDGET_DROP_MS;
+    // Frame goes amber when the SMOOTHED inter-tick gap is high — i.e. sustained
+    // between-tick stalls, not just one spike. CPU can read fine while this is bad
+    // (the RADIAL case). The actual spike-drop trips on a raw single frame, not this EMA.
+    const frameOver  = frameMs > LOD_FRAME_SPIKE_DROP_MS;
 
     // Live countdown to autopilot. Resets when the user touches the UI.
     // Once tripped, AUTOPILOT_MODE stays on until the next interaction.
@@ -449,21 +454,23 @@ function updatePoolStatus() {
             `<b>Zoom:</b>&nbsp;${scale} ` +
             `<b>LOD:</b>&nbsp;${lodName} ` +
             `<b>Targets:</b>&nbsp;${LOD_FRAME_BUDGET_RAISE_MS}/${LOD_FRAME_BUDGET_DROP_MS}ms ` +
-            `<b>CPU:</b>&nbsp;<span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span>`;
+            `<b>CPU:</b>&nbsp;<span style="color:${overBudget ? '#c80' : 'inherit'};">${emaMs.toFixed(1)}ms</span> ` +
+            `<b>Frame:</b>&nbsp;<span style="color:${frameOver ? '#c80' : 'inherit'};">${frameMs.toFixed(1)}ms</span>`; // real inter-tick gap
     }
 
     if (_kioskStatsOn) {
         const tp = document.querySelector('#kioskStatsText textPath');
         const t  = document.getElementById('kioskStatsText');
-        if (tp) tp.textContent =
-            `Steps ${steps}` +
-            ` · Pop ${pop}` +
-            ` · Food ${food}` +
-            ` · Auto ${autopilotLabel}` +
-            ` · Zoom ${scale}` +
-            ` · LOD ${lodName}` +
-            ` · Targets ${LOD_FRAME_BUDGET_RAISE_MS}/${LOD_FRAME_BUDGET_DROP_MS}ms` +
-            ` · CPU ${emaMs.toFixed(1)}ms`;
+        if (tp) {
+            // Built as separate nodes (not one string) so the LOD segment can be
+            // tinted red on its own when we've dropped to LOW detail.
+            const pre  = `Steps ${steps} · Pop ${pop} · Food ${food} · Auto ${autopilotLabel} · Zoom ${scale} · `;
+            const post = ` · Targets ${LOD_FRAME_BUDGET_RAISE_MS}/${LOD_FRAME_BUDGET_DROP_MS}ms · CPU ${emaMs.toFixed(1)}ms · Frame ${frameMs.toFixed(1)}ms`;
+            const lodSpan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
+            lodSpan.textContent = `LOD ${lodName}`;
+            if (lodName === 'low') lodSpan.setAttribute('fill', '#e55'); // only this span goes red at LOW detail
+            tp.replaceChildren(document.createTextNode(pre), lodSpan, document.createTextNode(post));
+        }
         if (t)  t.setAttribute('fill', overBudget ? 'rgba(255,180,0,0.75)' : 'rgba(255,255,255,0.55)');
     }
 }
@@ -1344,7 +1351,7 @@ function resize()
     const arcPathEl = document.getElementById('kioskArcPath');
     if (arcPathEl) {
         const KIOSK_ARC_RADIUS_OFFSET  = -10;   // px outside the mask (negative = inside)
-        const KIOSK_ARC_HALF_ANGLE_DEG = 50;  // arc spans 2x this around 12 o'clock
+        const KIOSK_ARC_HALF_ANGLE_DEG = 70;  // arc spans 2x this around 12 o'clock
         const cx = window.innerWidth  / 2;
         const cy = window.innerHeight / 2;
         const r  = holeDiameter / 2 + KIOSK_ARC_RADIUS_OFFSET;

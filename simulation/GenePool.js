@@ -191,8 +191,32 @@ function GenePool()
 	let _seconds		        = ZERO;
     let _gardenOfEdenRadius     = ZERO;
 	let _levelOfDetail	        = SWIMBOT_LEVEL_OF_DETAIL_HIGH;
-	let _emaTickMs              = ZERO;   // exponentially smoothed per-tick wall-clock cost (sim + render)
+	let _emaTickMs              = ZERO;   // "CPU" readout: smoothed SYNCHRONOUS tick body (sim + render). Drives the DROP/RAISE budget. See LOD header in Parameters.js.
 	let _framesUnderBudget      = 0;      // consecutive frames with _emaTickMs < raise budget (used to promote LOW → HIGH)
+	let _lastTickStart          = ZERO;   // 🤖 performance.now() at the previous tick's start, for the real inter-tick delta (see LOD_FRAME_SPIKE_* in Parameters.js)
+	let _emaFrameMs             = ZERO;   // "Frame" readout: smoothed REAL gap between ticks ≈ CPU + ~20ms timestep + between-tick stalls (timer storm, GC, paint). Spike-only signal.
+	let _spikeCooldown          = 0;      // frames remaining during which a real-frame spike blocks LOW → HIGH promotion
+
+	// 🤖 Called at every preset launch (each site that resets _clock to 0). Pick the
+	// starting detail level by population (see below) and wipe the previous preset's
+	// adaptive state so its history can't bias the fresh one. The grace window itself
+	// is read straight off _clock in update() (see LOD_STARTUP_GRACE_FRAMES), so it
+	// isn't reset here. _lastTickStart → ZERO makes update() skip the huge first delta
+	// across the load gap, so loading a preset never counts as a spike.
+	const _resetAdaptiveLOD = function () {
+		// 🤖 Pre-measurement prior: heavy-population launches (e.g. BIG_BANG) begin at
+		// LOW so the grace window doesn't pin them at HIGH through their monstrous
+		// opening; lighter presets begin at HIGH. The measured system corrects either
+		// way once grace ends. See LOD_STARTUP_LOW_POP_THRESHOLD.
+		_levelOfDetail     = ( _numSwimbots >= LOD_STARTUP_LOW_POP_THRESHOLD )
+		                     ? SWIMBOT_LEVEL_OF_DETAIL_LOW
+		                     : SWIMBOT_LEVEL_OF_DETAIL_HIGH;
+		_framesUnderBudget = 0;
+		_spikeCooldown     = 0;
+		_emaTickMs         = ZERO;
+		_emaFrameMs        = ZERO;
+		_lastTickStart     = ZERO;
+	};
 	let _previousTime           = ZERO;
 	let _frameRate              = ZERO;
 	let _debugTrail 		    = new Array( TRAIL_LENGTH ); 
@@ -565,7 +589,7 @@ function GenePool()
         else if ( mode === SimulationStartMode.RADIAL )
         {
             console.log (`radialUtterPeriod= ${radialUtterPeriod} radialUtterDuration= ${radialUtterDuration} radialBotStagger= ${radialBotStagger}`);
-            _numSwimbots = 100;         
+            _numSwimbots = 120;         
         	   _camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
             _camera.doScaleShift( 5000, 300 );
@@ -1027,7 +1051,8 @@ function GenePool()
 		// reset clock to 0
 		//---------------------------------
 		_clock = 0;
-	} // *** END START A SIMULATION ***	
+		_resetAdaptiveLOD(); // 🤖 fresh preset → pick start LOD by population + open the startup grace window
+	} // *** END START A SIMULATION ***
 	
 
 	//----------------------------------------
@@ -1468,13 +1493,49 @@ if ( mode === SimulationStartMode.SPECIES )
 	this.update = function()
 	{
 		//-------------------------------------------------------------
-		// Adaptive LOD measurement: capture tick start so we can measure
-		// total wall-clock cost (sim + render) and use the EMA to decide
-		// whether to drop or promote _levelOfDetail. See end of update()
-		// for the EMA update and raise-side decision; the drop-side
-		// decision lives in the render block below.
+		// Adaptive LOD measurement: capture tick start so we can time the
+		// SYNCHRONOUS tick body (sim + render) — the "CPU" signal _emaTickMs.
+		// Its EMA drives both the drop and raise budgets. See end of update()
+		// for the EMA update and raise-side decision; the drop-side decision
+		// lives in the render block below.
 		//-------------------------------------------------------------
 		const tickStart = performance.now();
+
+		//-------------------------------------------------------------
+		// 🤖 Real frame-delta measurement (see LOD_FRAME_SPIKE_* in Parameters.js).
+		// The tickStart→tickMs window at the bottom of update() only times the
+		// synchronous body of this function. It is blind to everything the browser
+		// does BETWEEN ticks — the setTimeout utterance-callback storm, GC pauses,
+		// canvas paint. That blind spot is exactly what let the RADIAL preset freeze
+		// for ~250ms every few seconds while _emaTickMs still read ~11ms, so LOD
+		// never dropped. Here we measure the TRUE wall-clock gap since the previous
+		// tick began (target ~20ms), which captures all of that main-thread work.
+		//-------------------------------------------------------------
+		let _frameSpiked = false;
+		// 🤖 Fresh-preset grace: act on NEITHER drop nor raise for the first
+		// LOD_STARTUP_GRACE_FRAMES ticks after _clock reset (launch churn isn't
+		// representative). We still measure below so the EMAs are warm when it closes.
+		const _inStartupGrace = _clock < LOD_STARTUP_GRACE_FRAMES;
+		if ( _lastTickStart !== ZERO )
+		{
+			const realDelta = tickStart - _lastTickStart;
+			// Ignore implausibly long gaps (tab backgrounded / throttled): not a
+			// CPU signal, and dropping LOD wouldn't help.
+			if ( realDelta < LOD_FRAME_SPIKE_IGNORE_MS )
+			{
+				_emaFrameMs = LOD_EMA_ALPHA * realDelta + ( 1 - LOD_EMA_ALPHA ) * _emaFrameMs;
+				// 🤖 A single overlong gap is enough to act on — a 250ms crest every
+				// few seconds barely nudges the smoothed EMA (alpha 0.1), so we trip
+				// on the raw spike, mirroring the existing one-frame fast-drop.
+				if ( realDelta > LOD_FRAME_SPIKE_DROP_MS && !_inStartupGrace ) _frameSpiked = true;
+			}
+		}
+		_lastTickStart = tickStart;
+		// 🤖 Arm / count down the post-spike promotion lockout. Any spike (even while
+		// already at LOW — meaning LOW didn't fully relieve it) re-arms the hold, so
+		// a persistently stuttering preset simply stays at LOW.
+		if ( _frameSpiked ) _spikeCooldown = LOD_FRAME_SPIKE_COOLDOWN_FRAMES;
+		else if ( _spikeCooldown > 0 ) _spikeCooldown--;
 
 		if ( _interactiveMode )
 		{
@@ -1549,7 +1610,13 @@ if ( mode === SimulationStartMode.SPECIES )
                 // slow and lives at the end of update() — see there for the
                 // hysteresis/confirmation rationale.
                 //---------------------------------------------------------------
-                if ( _levelOfDetail === SWIMBOT_LEVEL_OF_DETAIL_HIGH && _emaTickMs > LOD_FRAME_BUDGET_DROP_MS )
+                // 🤖 Two independent drop triggers: the original EMA of the synchronous
+                // tick body, OR a real-frame spike (_frameSpiked) that the EMA can't
+                // see because the cost landed BETWEEN ticks. The spike is what catches
+                // RADIAL. On a spike we also arm a long cooldown so we don't bounce
+                // straight back to HIGH and re-trigger the freeze (see raise side).
+                // Both triggers are muted during the startup grace window (_inStartupGrace).
+                if ( _levelOfDetail === SWIMBOT_LEVEL_OF_DETAIL_HIGH && !_inStartupGrace && ( _emaTickMs > LOD_FRAME_BUDGET_DROP_MS || _frameSpiked ) )
                 {
                     _levelOfDetail     = SWIMBOT_LEVEL_OF_DETAIL_LOW;
                     _framesUnderBudget = 0;
@@ -1699,20 +1766,28 @@ if ( mode === SimulationStartMode.SPECIES )
         //-------------------------------------------------------------
         // Adaptive LOD — measurement + raise side.
         //
-        // Measure this tick's total cost, blend into the EMA, then if we're
-        // currently at LOW LOD and the smoothed cost has been comfortably
-        // under LOD_FRAME_BUDGET_RAISE_MS for LOD_RAISE_CONFIRM_FRAMES frames
-        // in a row, promote back to HIGH. Drop is one-frame (above); raise is
-        // sustained (here). The asymmetric hysteresis is what prevents the
-        // adaptive loop from oscillating at the budget boundary: re-promotion
-        // requires *proving* headroom, not just briefly observing it.
+        // Measure this tick's synchronous-body cost (the "CPU" signal), blend it
+        // into _emaTickMs, then if we're currently at LOW LOD and that smoothed cost
+        // has been comfortably under LOD_FRAME_BUDGET_RAISE_MS for
+        // LOD_RAISE_CONFIRM_FRAMES frames in a row, promote back to HIGH. Drop is
+        // one-frame (above); raise is sustained (here). The asymmetric hysteresis is
+        // what prevents the adaptive loop from oscillating at the budget boundary:
+        // re-promotion requires *proving* headroom, not just briefly observing it.
         //-------------------------------------------------------------
         const tickMs = performance.now() - tickStart;
         _emaTickMs   = LOD_EMA_ALPHA * tickMs + ( 1 - LOD_EMA_ALPHA ) * _emaTickMs;
 
         if ( _levelOfDetail === SWIMBOT_LEVEL_OF_DETAIL_LOW )
         {
-            if ( _emaTickMs < LOD_FRAME_BUDGET_RAISE_MS )
+            // 🤖 Promote only when the synchronous tick body is cheap, we are not in a
+            // post-spike cooldown, and we are past the startup grace window. The cooldown
+            // gate stops between-tick stalls (RADIAL) from thrashing LOD: at LOW the body
+            // time quickly falls under budget, but raising back to HIGH would re-arm the
+            // ~250ms freeze, so we hold LOW until spikes have stayed away for
+            // LOD_FRAME_SPIKE_COOLDOWN_FRAMES. The grace gate keeps a heavy preset that
+            // started at LOW (e.g. BIG_BANG) from bouncing to HIGH while the EMA is still
+            // warming up from zero — grace means "measure but don't change LOD either way."
+            if ( _emaTickMs < LOD_FRAME_BUDGET_RAISE_MS && _spikeCooldown === 0 && !_inStartupGrace )
             {
                 _framesUnderBudget++;
                 if ( _framesUnderBudget >= LOD_RAISE_CONFIRM_FRAMES )
@@ -2957,6 +3032,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 		// set clock to 0
 		//---------------------------------
 		_clock = 0;
+		_resetAdaptiveLOD(); // 🤖 loaded pool → pick start LOD by population + open the startup grace window
     }
     
     //--------------------------------------
@@ -4106,6 +4182,7 @@ if ( globalTweakers.numFoodTypes === 2 )
 	this.getCameraIsZooming     = function() { return _camera.isZooming();     }
 	this.getLevelOfDetail        = function() { return _levelOfDetail;          }
 	this.getEmaTickMs            = function() { return _emaTickMs;              }
+	this.getEmaFrameMs           = function() { return _emaFrameMs;             } // smoothed REAL inter-tick gap (incl. between-tick work); diverges from getEmaTickMs() during between-tick stalls like RADIAL
 	this.getSelectedSwimbotID   = function() { return _selectedSwimbot;         }
 	this.getViewMode            = function() { return _viewTracking.getMode();  }
     this.getNumDeadSwimbots     = function() { return _numDeadSwimbots;         }   
