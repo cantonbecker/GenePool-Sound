@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-28 Q1';
+const SWIMBOT_VERSION			= '2026-05-28 Q2';
 
 
 /*************************/

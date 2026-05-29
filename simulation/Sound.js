@@ -356,8 +356,10 @@ function Sound()
 		if (DEBUGGING_NOISY_CONSOLE_MODE) console.log("doSwimbotSoundEvent type=" + type);
     }
 
+
 	// GenePool.js decides when a swimbot should utter, at which point
 	// doUtterance() is called with an object describing its utterance phenotypes
+	// this will ALSO trigger the visual ripples (eyecandy)
 	this.doUtterance = function (utterVariablesObj, callerFunction) {
 		if (!SwimbotSynth.isReady() || _runningFast) return;
 

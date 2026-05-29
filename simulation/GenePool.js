@@ -470,10 +470,10 @@ function GenePool()
          let radialUtterFlavor = Math.floor(Math.random() * 255);
          let radialUtterGenesArray = [radialUtterPeriod, radialUtterDuration, radialUtterPreference, radialUtterSpin, radialUtterCharm, radialUtterStrangeness, radialUtterFlavor];
    
-         // ... but divide the swimbots we spawn into 'cohorts' that will sing at offset times on account of their adjusted ages
-         let numCohorts = 12;
-         let initialCohortAge = MAX_MAXIMUM_AGE - 5000; // start our swimbots out quite old so they die and are replaced by their children
-         let radialCohortDelay = 10 + Math.floor(Math.random() * radialUtterPeriod * 1.5); // delay between cohort utterances, tied somewhat to utter period
+         // stagger each bot so consecutive bots along the spiral utter at offset phases ("round" effect)
+         // and deaths are distributed over ~3 minutes instead of a simultaneous die-off
+         let radialBotStagger = Math.ceil(11000 / (_numSwimbots - 1)); // ~57 ticks ≈ 1.1 sec between consecutive bots
+         let radialBaseAge    = MAX_MAXIMUM_AGE - 3000;               // first deaths ~60 sec after launch
          
 
         //---------------------------------------------------------------------
@@ -564,7 +564,7 @@ function GenePool()
         }
         else if ( mode === SimulationStartMode.RADIAL )
         {
-            console.log (`radialUtterPeriod= ${radialUtterPeriod} radialUtterDuration= ${radialUtterDuration} and radialCohortDelay= ${radialCohortDelay}`);
+            console.log (`radialUtterPeriod= ${radialUtterPeriod} radialUtterDuration= ${radialUtterDuration} radialBotStagger= ${radialBotStagger}`);
             _numSwimbots = 160;         
         	   _camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
@@ -845,13 +845,9 @@ function GenePool()
                _parent1Genotype.setToPreset( radialPreset1 );
                _parent2Genotype.setToPreset( radialPreset2 );
 
-               // in the radial preset, instead of having totally random initial ages, we create a few "cohorts" with common ages (encourages polyrhythms)
-               let cohortSize = Math.floor(_numSwimbots/numCohorts);
-               let thisCohortIndex = Math.floor(i/cohortSize); // will be 0 to numCohorts
-               initialAge = initialCohortAge - (radialCohortDelay * thisCohortIndex); // radialCohortDelay was determined earlier on, it's how much we stagger each cohort's utterances
-               initialAge = initialAge + 50 + Math.floor(Math.random() * 200); // stagger em
-               initialAge = Math.ceil(Math.max(initialAge, 1)); // safety check: force to integer and never let initial age get below 1
-               //console.log(`Cohort ${thisCohortIndex} age ${initialAge} / radialCohortDelay= ${radialCohortDelay}`);
+               // each bot is one step behind the previous in the round: bot i utters ~radialBotStagger ticks after bot i-1
+               initialAge = radialBaseAge - Math.floor(i * radialBotStagger) + Math.floor(Math.random() * 1000);
+               initialAge = Math.ceil(Math.max(initialAge, 1));
 
                // walk through each gene
             	for (let g=0; g<NUM_GENES; g++)
