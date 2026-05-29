@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-28 Q4';
+const SWIMBOT_VERSION			= '2026-05-28 Q5';
 
 
 /*************************/
@@ -46,10 +46,10 @@ const MAX_PARTICLES = 300; // global max ripples shared by ALL concurrent uttera
 // The system reactively drops to LOW when work exceeds budget
 // and only promotes back to HIGH after sustained headroom to prevent "chatter"
 
-const LOD_FRAME_BUDGET_DROP_MS    = 15;	// EMA tick > this  → drop HIGH → LOW LOD immediately (20ms = 50FPS threshold)
-const LOD_FRAME_BUDGET_RAISE_MS   = 12;	// EMA tick < this  → start counting toward HIGH LOD promotion
+const LOD_FRAME_BUDGET_DROP_MS    = 14;	// EMA tick > this  → drop HIGH → LOW LOD immediately (20ms = 50FPS threshold)
+const LOD_FRAME_BUDGET_RAISE_MS   = 11;	// EMA tick < this  → start counting toward HIGH LOD promotion
 const LOD_EMA_ALPHA               = 0.1;	// smooths CPU snapshots to prevent LOD thrashing. smaller = more smoothing, bigger = more responsive, thrashy
-const LOD_RAISE_CONFIRM_FRAMES    = 60;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
+const LOD_RAISE_CONFIRM_FRAMES    = 30;	// mandatory consecutive sub-budget frames required to promote LOW → HIGH
 
 const UI_UPDATE_PERIOD = 2000; // decrease when using graphs to debug
 

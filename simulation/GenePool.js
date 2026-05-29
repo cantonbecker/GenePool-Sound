@@ -565,7 +565,7 @@ function GenePool()
         else if ( mode === SimulationStartMode.RADIAL )
         {
             console.log (`radialUtterPeriod= ${radialUtterPeriod} radialUtterDuration= ${radialUtterDuration} radialBotStagger= ${radialBotStagger}`);
-            _numSwimbots = 160;         
+            _numSwimbots = 120;         
         	   _camera.setScale( 400 );
             this.randomizeNeighborhood(); // important
             _camera.doScaleShift( 5000, 300 );
