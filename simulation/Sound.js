@@ -373,15 +373,17 @@ function Sound()
 		for (const step of utterVariablesObj.utterSequence) {
 			setTimeout(() => {
 				if (step.type === 'note') {
-					// attenuate it, if zoom etc. is causing an attenuation
-					step.velocity = step.velocity - UTTER_ATTENUATION;
-					
+					// attenuate it (zoom etc.) into a LOCAL — step is shared by
+					// reference with the bot's stored song via getUtterSequence(),
+					// so writing back would permanently ratchet its velocities down
+					let velocity = step.velocity - UTTER_ATTENUATION;
+
 					// clamp it
-					step.velocity = Math.max(MINIMUM_UTTER_VELOCITY, step.velocity);
-					step.velocity = Math.min(MAXIMUM_UTTER_VELOCITY, step.velocity);
+					velocity = Math.max(MINIMUM_UTTER_VELOCITY, velocity);
+					velocity = Math.min(MAXIMUM_UTTER_VELOCITY, velocity);
 
 					// Sound the note (synth)
-					if (voice) SwimbotSynth.playVoiceNote(voice, step.note, step.velocity, step.duration);
+					if (voice) SwimbotSynth.playVoiceNote(voice, step.note, velocity, step.duration);
 					// Visualize the note (utterance ripple)
 					if (utterVariablesObj.onNoteEmit) utterVariablesObj.onNoteEmit(step.note);
 					NOTE_HISTOGRAM[step.note % 12]++;
@@ -398,10 +400,6 @@ function Sound()
 
 
 } // *** end class/object Sound () ***
-
-
-
-
 
 
 
