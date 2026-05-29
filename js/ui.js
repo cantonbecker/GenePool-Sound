@@ -1506,6 +1506,9 @@ function updateUItitle() {
 document.onkeydown = function(e)
 {
     e = e || window.event;
+    
+    // Ignore all keyboard shortcuts before the initial launch
+    if (!window._hasLaunched) return;
 
     // genePool is assigned in an inline script in index.html; a keypress
     // before that runs would otherwise throw "genePool is not defined".
@@ -1575,15 +1578,29 @@ document.onkeydown = function(e)
     }
 
 
-    /*
-    if ( e.keyCode === 75 ) // K key to kill a swimbot
-    { 
-        let selectedSwimbot = genePool.getSelectedSwimbotID();
-        if ( selectedSwimbot != -1 )
-        {
-            genePool.killSwimbot( selectedSwimbot ); 
-        } 
+    if ( e.keyCode === 75 ) // K key — toggle keyboard guide (splash screen)
+    {
+        e.preventDefault();
+        let splash = document.getElementById('splashOverlay');
+        if (splash) {
+            if (splash.style.display === 'none') {
+                splash.style.display = 'flex';
+                // Hide launch-related elements when showing guide post-launch
+                let btn = document.getElementById('splashLaunchBtn');
+                let status = document.getElementById('splashLoadingStatus');
+                let mWarn = document.getElementById('mobileWarning');
+                let fWarn = document.getElementById('splashFileWarning');
+                if (btn) btn.style.display = 'none';
+                if (status) status.style.display = 'none';
+                if (mWarn) mWarn.style.display = 'none';
+                if (fWarn) fWarn.style.display = 'none';
+            } else {
+                splash.style.display = 'none';
+            }
+        }
     }
+    
+    /*
     if ( e.keyCode === 67 ) // C key to clone a swimbot
     { 
         let selectedSwimbot = genePool.getSelectedSwimbotID();

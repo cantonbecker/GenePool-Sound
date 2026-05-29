@@ -87,32 +87,83 @@
         <!-- ------------------------------------------------------------------ -->
         <div id="splashOverlay" style="
             position:fixed; inset:0; z-index:10000;
-            background:rgba(0,0,0,0.88);
+            background:rgba(0,0,0,0.85);
             display:flex; align-items:center; justify-content:center;
-            font-family: arial, sans-serif; color:#ddd;
+            font-family: 'Inter', arial, sans-serif; color:#ddd;
         ">
-            <div style="text-align:center; max-width:420px; padding:32px;">
-                <div style="font-size:28px; font-weight:bold; color:#fff; margin-bottom:6px;">Darwin's Chorus</div>
-                <div style="font-size:13px; color:#aaa; margin-bottom:6px;">An artificial life simulation that evolves generative music</div>
-                <div id="splashVersion" style="font-size:14px; color:#6A6; margin-bottom:20px;"></div>
-                <table id="splashParamsTable" style="margin:0 auto 20px; font-size:12px; color:#999; border-collapse:collapse; text-align:left;">
-                    <!-- populated after Parameters.js loads (see populateSplashParams below) -->
+            <style>
+                .splash-circle {
+                    width: 650px; height: 650px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at center, #0f1c24 0%, #050a10 100%);
+                    border: 2px solid rgba(85, 170, 204, 0.4);
+                    box-shadow: 0 0 50px rgba(51, 153, 170, 0.2), inset 0 0 30px rgba(0,0,0,0.8);
+                    display: flex; flex-direction: column; align-items: center; justify-content: center;
+                    text-align: center; padding: 50px; box-sizing: border-box;
+                    position: relative;
+                }
+                .splash-title { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 4px; letter-spacing: 1px; text-transform: uppercase; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+                .splash-subtitle { font-size: 13px; color: #79a; margin-bottom: 8px; font-style: italic; }
+                .splash-kbd {
+                    background: linear-gradient(to bottom, #333, #222);
+                    border: 1px solid #444; border-bottom-color: #111;
+                    border-radius: 4px; box-shadow: 0 2px 0 #000, 0 3px 3px rgba(0,0,0,0.3);
+                    color: #fff; display: inline-block; font-family: monospace; font-size: 11px; font-weight: bold;
+                    padding: 3px 8px; margin: 0 2px;
+                }
+                .splash-guide {
+                    display: grid; grid-template-columns: auto 1fr; gap: 8px 15px; text-align: left;
+                    margin: 5px 0 15px 0; align-items: center; font-size: 13px; color: #ccc;
+                    background: rgba(0,0,0,0.3); padding: 16px 24px; border-radius: 16px;
+                }
+                .splash-guide-row { display: contents; }
+                .splash-guide-keys { text-align: right; }
+                .splash-small-keys { font-size: 12px; color: #777; margin: 5px 0 15px 0; line-height: 1.6; }
+                .splash-small-keys kbd { font-size: 11px; padding: 1px 4px; background: #222; border: 1px solid #333; border-radius: 3px; color: #aaa; box-shadow: 0 1px 0 #000; }
+                #splashLaunchBtn:not([disabled]):hover { background: #49b !important; transform: scale(1.05); }
+                @media (max-width: 650px), (max-height: 650px) {
+                    .splash-circle { width: 95vw; height: 95vh; border-radius: 20px; padding: 20px; overflow-y: auto; justify-content: flex-start; }
+                    #splashLaunchBtn { font-size: 11px !important; padding: 8px 16px !important; border-width: 1px !important; margin-top: 5px !important; letter-spacing: 0px !important; }
+                    #mobileWarning { display: block !important; font-size: 16px; color: #f55; font-weight: 900; margin: 15px 0 10px 0; background: rgba(50,0,0,0.8); padding: 16px; border: 2px solid #f33; border-radius: 8px; text-shadow: 0 1px 2px #000; line-height: 1.4; text-transform: uppercase; }
+                }
+            </style>
+            
+            <div class="splash-circle">
+                <div class="splash-title">Darwin's Chorus</div>
+                <div style="font-size: 12px; color: #69b; margin-bottom: 6px; font-weight: bold; letter-spacing: 0.5px;">by Canton Becker & Jeffrey Ventrella</div>
+                <div class="splash-subtitle">An artificial life simulation that evolves generative music</div>
+                <div id="splashVersion" style="font-size:11px; color:#59a; margin-bottom:10px; font-family: monospace;"></div>
+                
+                <table id="splashParamsTable" style="margin:0 auto 10px; font-size:10px; color:#777; border-collapse:collapse; text-align:left; line-height: 1.1;">
+                    <!-- populated dynamically -->
                 </table>
-                <div id="splashLoadingStatus" style="font-size:12px; color:#3A3; margin-bottom:16px; font-weight: bold;">Loading audio assets...</div>
-                <div id="splashFileWarning" style="display:none; margin-bottom:16px; padding:10px 14px; background:rgba(180,40,40,0.15); border:1px solid #a33; border-radius:5px; font-size:12px; color:#f88; line-height:1.5;">
-                    Reverb and non-diagetic audio (spawn/birth/death/eat...) requires requesting index.html from a real web server. Instead of double-clicking, 
-                    please access this page via <b>localhost</b> or over the network.
+
+                <div class="splash-guide">
+                    <div class="splash-guide-row"><div class="splash-guide-keys"><span class="splash-kbd">&minus;</span> / <span class="splash-kbd">+</span></div><div>Zoom view</div></div>
+                    <div class="splash-guide-row"><div class="splash-guide-keys"><span class="splash-kbd">Click</span></div><div>Spawn new swimbots</div></div>
+                    <div class="splash-guide-row"><div class="splash-guide-keys"><span class="splash-kbd">Mouse</span></div><div>Move around the pool</div></div>
+                    <div class="splash-guide-row"><div class="splash-guide-keys"><span class="splash-kbd">Q</span> <span class="splash-kbd">W</span> <span class="splash-kbd">E</span> <span class="splash-kbd">R</span> <span class="splash-kbd">T</span></div><div>Explore presets</div></div>
                 </div>
 
-                <div style="font-size:14px; color:#ccc; margin:5px 0 15px 0; line-height:1.6;">
-                    <b>'D'</b> key toggles HUD modes<br />
-                    <b>'X'</b> key toggles developer mode<br>
+                <div class="splash-small-keys">
+                    <kbd>ESC</kbd> exit full screen &nbsp;&bull;&nbsp; <kbd>D</kbd> display extra info &nbsp;&bull;&nbsp; <kbd>A</kbd> autopilot<br>
+                    <div style="margin-top: 8px;">
+                        <kbd>X</kbd> <strong>developer mode</strong> &nbsp;&bull;&nbsp; <kbd style="color: #fff; background: #c44; border-color: #e55;">K</kbd> <strong style="color: #e99;">toggle this guide</strong>
+                    </div>
                 </div>
+
+                <div id="splashLoadingStatus" style="font-size:12px; color:#49b; margin-bottom:10px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">Loading audio assets...</div>
+                
+                <div id="splashFileWarning" style="display:none; margin-bottom:10px; padding:8px 12px; background:rgba(180,40,40,0.2); border:1px solid #a33; border-radius:5px; font-size:10px; color:#f88; line-height:1.3; max-width: 80%;">
+                    Reverb & non-diagetic audio requires a web server. Please use <b>localhost</b>.
+                </div>
+
+                <div id="mobileWarning" style="display:none;">This is designed to work on full-size screens, enter at your own peril.</div>
 
                 <button id="splashLaunchBtn" disabled onclick="launchSimulation();" style="
-                    font-size:16px; font-weight:bold; padding:12px 36px;
-                    background:#3A3; color:#fff; border:none; border-radius:6px;
-                    cursor:pointer; opacity:0.4; transition: opacity 0.3s;
+                    font-size:18px; font-weight:900; padding:12px 40px; margin-top: 10px;
+                    background:#28a; color:#fff; border:2px solid #4bc; border-radius:25px;
+                    cursor:pointer; opacity:0.4; transition: all 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.5); letter-spacing: 1px;
                 ">LAUNCH</button>
             </div>
         </div>
@@ -158,6 +209,7 @@
 
             // Phase B: user gesture → resume AudioContext → start simulation
             function launchSimulation() {
+                window._hasLaunched = true;
                 var ctx = SwimbotSynth.getAudioContext();
                 if (ctx && ctx.state === 'suspended') ctx.resume();
                 document.getElementById('splashOverlay').style.display = 'none';

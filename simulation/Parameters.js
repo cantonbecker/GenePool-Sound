@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-28 Q5';
+const SWIMBOT_VERSION			= '2026-05-29 Efficient Uttering, Fancy UI';
 
 
 /*************************/
