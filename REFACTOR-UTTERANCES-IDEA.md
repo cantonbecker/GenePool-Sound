@@ -13,7 +13,7 @@ for (const step of utterVariablesObj.utterSequence) {
 
 A single song is typically a dozen-to-several-dozen steps (notes + a CC roughly
 every 15 ms + one `done`). So one swimbot uttering = tens of timers. The `RADIAL`
-preset deliberately makes ~30 bots utter at once → **hundreds to low-thousands of
+preset deliberately makes 200 bots utter in a short period → **hundreds to low-thousands of
 timers queued in a burst**, all firing their callbacks on the single main JS
 thread, interleaved with the simulation tick, canvas rendering, and input
 handling. That contention is what locks up the audio and visuals.
@@ -32,19 +32,6 @@ Two findings make this worse than it looks:
    off-screen utterance skips audio and ripples but *still* schedules its full
    timer sequence purely to bump stat counters inside each callback.
 
-### Latent bug to fix along the way
-
-`getUtterSequence()` (`Swimbot.js:1408`) returns `_phenotype.utterSequence` **by
-reference**, and `doUtterance` writes back into it:
-
-```js
-step.velocity = Math.max(20, step.velocity - UTTER_ATTENUATION);
-```
-
-This permanently mutates the bot's stored song — every utterance while zoomed out
-ratchets that bot's note velocities down toward 20 and they never recover. The
-refactor must compute the attenuated velocity into a local and never write back to
-the shared step.
 
 ---
 
@@ -271,14 +258,13 @@ last-wins (cheap, harmless). Start without this; add if clusters are audible.
 
 - **Bot dies mid-utterance.** Today the timers keep firing into the (eventually
   disposed) voice; `_utteranceRenderer.stop(s)` already runs on death. In the new
-  model the record finishes on its own. If we want hard cancellation on death, add
-  a `swimbotID` to the record and a `cancelUtterance(id)` the death path calls —
-  minor, optional.
+  model the record finishes on its own. This is fine, a tiny bit of noise from the
+  afterlife is totally acceptable.
 - **Restart while uttering.** `_markedForUtteringSound[s]` already prevents
   re-trigger until the bot stops uttering; the queue does not change that.
 - **Non-rendering mode.** When `_rendering` is false, `isInView` is always false →
   every utterance takes the stats-only fast path → the queue stays empty and the
-  pump is a no-op loop. Correct and cheap.
+  pump is a no-op loop. Correct and cheap, as long as we continue to gather stats.
 - **Pump cost feeding `_emaTickMs`.** Intentional — utterance work is real tick
   cost and should influence adaptive LOD.
 

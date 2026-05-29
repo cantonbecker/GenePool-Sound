@@ -24,7 +24,7 @@ var WEB_VOLUME_LOOP      = 0.60; // category mix: background loop
 var WEB_VOLUME_UI        = 0.80; // category mix: UI sounds (preset launch)
 
 const ZOOM_UTTER_ATTENUATION = 80; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 0; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 
 /****************************/
