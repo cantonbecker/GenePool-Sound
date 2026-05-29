@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-05-29 New LOD Tracking';
+const SWIMBOT_VERSION			= '2026-05-29 Current RC1';
 
 
 /*************************/

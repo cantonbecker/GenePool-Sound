@@ -1443,30 +1443,14 @@ document.addEventListener('mousemove', function(e) {
         const y = e.pageY - _canvasEl.offsetTop;
         genePool.touchMove(x, y);
     } else if (_pointerLocked && _draggingWithLock) { /*** TRACKBALL MODE! ***/
-        // pointer-lock mode: invert axes, accumulate virtual cursor, no edges
-        const dx = -(e.movementX || 0) * LOCK_GAIN; // invert axes as you do now
+        // pointer-lock mode: feed the raw relative trackball deltas straight into
+        // the velocity-based camera drag (inverted axes). No virtual cursor, no
+        // canvas-bounds clamp — so panning is unbounded in every direction at any
+        // zoom. (The old clamped-virtual-cursor approach saturated at an edge,
+        // which when zoomed in killed panning long before you'd moved far.)
+        const dx = -(e.movementX || 0) * LOCK_GAIN;
         const dy = -(e.movementY || 0) * LOCK_GAIN;
-      
-        // accumulate
-        let nextX = _virtualX + dx;
-        let nextY = _virtualY + dy;
-      
-        // keep the “virtual cursor” inside the drawable area
-        const EDGE_PAD = 2; // small padding avoids exact 0/width hits
-        const minX = EDGE_PAD, minY = EDGE_PAD;
-        const maxX = _canvasEl.width  - EDGE_PAD;
-        const maxY = _canvasEl.height - EDGE_PAD;
-      
-        // clamp (overflow is silently dropped so no “dead” reverse)
-        if (nextX < minX) nextX = minX;
-        else if (nextX > maxX) nextX = maxX;
-        if (nextY < minY) nextY = minY;
-        else if (nextY > maxY) nextY = maxY;
-      
-        _virtualX = nextX;
-        _virtualY = nextY;
-      
-        genePool.touchMove(_virtualX, _virtualY);
+        genePool.panByDelta(dx, dy);
     }
 });
 

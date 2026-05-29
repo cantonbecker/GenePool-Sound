@@ -68,10 +68,10 @@ var SOUND_OUTPUT_LAUNCH			= true;
 var UTTER_ATTENUATION = 0; // stores current attenuation level
 var CURRENT_ZOOM_PERCENTAGE = 0; // 0 = zoomed all the way in, 1 = zoomed all the way out. updated each tick in setGlobalParameters
 
-const MINIMUM_UTTER_VELOCITY = 50 // 0-127 don't let any swimbot individual note go quieter than this
+const MINIMUM_UTTER_VELOCITY = 30 // 0-127 don't let any swimbot individual note go quieter than this
 const MAXIMUM_UTTER_VELOCITY = 125 // 0-127 don't let any swimbot individual note go quieter than this
-const MIN_REVERB_DEFAULT = 20; // 0-127
-const MAX_REVERB_DEFAULT = 70;
+const MIN_REVERB_DEFAULT = 25; // 0-127
+const MAX_REVERB_DEFAULT = 80;
 
 
 // different simulations use different interval sets
@@ -396,9 +396,9 @@ function Sound()
 					// so writing back would permanently ratchet its velocities down
 					let velocity = step.velocity - UTTER_ATTENUATION;
 
-					// clamp it
-					velocity = Math.max(MINIMUM_UTTER_VELOCITY, velocity);
-					velocity = Math.min(MAXIMUM_UTTER_VELOCITY, velocity);
+					// clamp it within our min/max bounds
+					velocity = Math.max(MINIMUM_UTTER_VELOCITY, velocity); // not below the minimum
+					velocity = Math.min(MAXIMUM_UTTER_VELOCITY, velocity); // not above the maximum
 
 					// Sound the note (synth)
 					if (voice) SwimbotSynth.playVoiceNote(voice, step.note, velocity, step.duration);

@@ -3884,6 +3884,17 @@ if ( globalTweakers.numFoodTypes === 2 )
     }
 
 	//------------------------------------
+	// 🤖 Relative-delta pan for pointer-lock (kiosk trackball) mode. Feeds the
+	// trackball's movementX/Y straight into the velocity-based camera drag, so
+	// panning is unbounded in every direction (no virtual-cursor edge clamp).
+	this.panByDelta = function( dx, dy )
+	{
+        this.notifyUserInteraction();
+        this.clearViewMode();
+        _camera.drag( dx, dy );
+    }
+
+	//------------------------------------
 	this.touchTwoFingerMove = function(e)
 	{
         if (( e.x < _canvasWidth  )
