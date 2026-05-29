@@ -366,6 +366,24 @@ function Sound()
 		// Should we play this utterance?
 		const playAudio = utterVariablesObj.swimbotInView && SOUND_OUTPUT_UTTER;
 
+		// Is our swimbot off screen? If so, don't fill up our timer with
+		// loads of notes and ripples that will never actually play.
+		// Instead just log the stats of what *would* have played for our
+		// analysis purposes.
+		
+		if (!playAudio && !utterVariablesObj.onNoteEmit) {
+			for (const step of utterVariablesObj.utterSequence) {
+				if (step.type === 'note') {
+					NOTE_HISTOGRAM[step.note % 12]++;
+					NOTE_COUNT++;
+				} else if (step.type === 'cc') {
+					MOD_COUNT++;
+				}
+			}
+			return;
+		}
+
+		// If we got this far, then our intent is to really do it.
 		// Each utterance gets its own formant chain so simultaneous swimbots
 		// don't clobber each other's CC state.
 		const voice = playAudio ? SwimbotSynth.createVoice(utterVariablesObj.panValue, utterVariablesObj.swimbotID) : null;
