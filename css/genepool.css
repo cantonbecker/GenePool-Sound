@@ -196,8 +196,8 @@ body
     position: absolute; 
 }
 
-#closeMasterButton { float: right; width: 8px; margin-right: 10px; }
-#closeMasterButton a { font-size: 12px; text-decoration: none; padding: 3px 6px; background-color: #600; color: #FFF; font-family: sans-serif; font-weight: bold; }
+#closeMasterButton { float: right; margin-right: 10px; }
+#closeMasterButton a { font-size: 10px; text-decoration: none; padding: 3px 6px; background-color: #600; color: #FFF; font-family: sans-serif; font-weight: normal; }
 #closeMasterButton a:hover { color: #F00;}
 #masterPanel
 {
