@@ -38,6 +38,11 @@ let _stepsPerSecond = 0;
 let _dKeyHoldTimer = null;
 let _dKeyLongFired = false;
 
+// 🤖 Tracks currently-held keys so we can detect chord presses (e.g. Q+T).
+const _keysDown = new Set();
+// Drop stale keys if the window loses focus mid-press (prevents phantom chords).
+window.addEventListener('blur', () => _keysDown.clear());
+
 // ---- Pointer Lock state/helpers -------------------------------------------
 let _pointerLocked = false;
 let _virtualX = 0, _virtualY = 0; // virtual cursor for infinite motion
@@ -1505,6 +1510,8 @@ document.onkeydown = function(e)
     // before that runs would otherwise throw "genePool is not defined".
     if (typeof genePool === "undefined") return;
 
+    _keysDown.add(e.keyCode);
+
     //-----------------------------
     // keys for camera navigation
     //-----------------------------
@@ -1645,8 +1652,17 @@ document.onkeydown = function(e)
         requestToLoadPoolFromPreset();
         // flashNotice("Big Bang (" + INITIAL_NUM_SWIMBOTS + " Swimbots)", 3000, -10);
     }
+
+    // 🤖 Chord: R + T held together behaves exactly like pressing A (autopilot).
+    // Runs after the q/w/e/r/t launches so engageAutopilot's relaunch wins.
+    /*
+    if (!e.repeat && _keysDown.has(82) && _keysDown.has(84)) { // 82=R, 84=T
+        genePool.engageAutopilot();
+        console.log('Chorded keys R+T, engaging autopilothttp://127.0.0.1:8076/');
+    }
+    */
     
-        // Z -> DEMO / TEST MODE 
+        // Z -> DEMO / TEST MODE
     if (e.keyCode === 90) { // Z toggles DEMO_MODE on and off
       e.preventDefault();
   
@@ -1699,6 +1715,8 @@ document.onkeyup = function(e)
     // genePool is assigned in an inline script in index.html; a key released
     // before that runs would otherwise throw "genePool is not defined".
     if (typeof genePool === "undefined") return;
+
+    _keysDown.delete(e.keyCode);
 
     if ( e.keyCode === 68 ) // D key release — short tap cycles kiosk modes (hold already acted like X)
     {

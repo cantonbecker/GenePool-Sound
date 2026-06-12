@@ -549,7 +549,7 @@ function generateUtterancePhenotypes(genes, _geneNames, utterPeriod, utterDurati
 	if (idx === -1) throw new Error("generateUtterancePhenotypes unable to extract 'utter spin' from genes")
 	const utterSpin = genes[idx]; // 0-255
 	// const octaveShiftOptions = [12,12,12,24,24,24,24,24,24,36,36,36,36,48,48,48
-	const octaveShiftOptions = [	12,12,12,	24,24,24,24,	36,36,36,	48,48,	60];
+	const octaveShiftOptions = [	12,12,	24,24,24,	36,36,36,36,	48,48,	60];
 		
 	idx = Math.floor(utterSpin / 255 * (octaveShiftOptions.length - 1));
 	let myOctaveNoteShift = octaveShiftOptions[idx];
