@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-06-12.1';
+const SWIMBOT_VERSION			= '2026-06-13.1';
 
 
 /*************************/
@@ -17,14 +17,14 @@ const DEBUGGING_NOISY_CONSOLE_MODE  = false; // show lots more messages
 var WEB_AUDIO_VOLUME     = 0.90; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
 var WEB_VOLUME_UTTERANCE = 1.00; // category mix: swimbot vocal utterxqances
 var WEB_VOLUME_BIRTH     = 0.45; // category mix: birth samples
-var WEB_VOLUME_SPAWN     = 0.30; // category mix: spawn (q*bert) samples
+var WEB_VOLUME_SPAWN     = 0.35; // category mix: spawn (q*bert) samples
 var WEB_VOLUME_DEATH     = 0.45; // category mix: death samples
 var WEB_VOLUME_EAT       = 0.30; // category mix: eating samples
-var WEB_VOLUME_LOOP      = 0.60; // category mix: background loop
-var WEB_VOLUME_UI        = 0.80; // category mix: UI sounds (preset launch)
+var WEB_VOLUME_LOOP      = 0.55; // category mix: background loop
+var WEB_VOLUME_UI        = 0.70; // category mix: UI sounds (preset launch)
 
-const ZOOM_UTTER_ATTENUATION = 30; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 10; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const ZOOM_UTTER_ATTENUATION = 20; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
+const LOUD_PRESET_ATTENUATION = 30; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 
 /****************************/
@@ -127,14 +127,14 @@ const UI_UPDATE_PERIOD = 2000; // decrease when using graphs to debug
 
 var AUTOPILOT_MODE = false; 					// Init until we're inactive
 const USER_INACTION_TIME_OUT	= 5*60; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
-const AUTOPILOT_VOLUME_REDUCTION = .35; 	// percentage decrease in volume when we enter autopilot
-const AUTOPILOT_MIN_POPULATION   = 5;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
+const AUTOPILOT_VOLUME_REDUCTION = .40; 	// percentage decrease in volume when we enter autopilot
+const AUTOPILOT_MIN_POPULATION   = 8;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
 
 // Autopilot camera roaming — picks a new zoom target periodically, choosing
 // between two bands: "close" (sit in among the action) and "wide" (pull back
 // for an overview). Each band has its own scale range and hold time.
 // Hold times are in ticks; ~60 ticks ≈ 1 second of real time.
-const AUTOPILOT_WIDE_VIEW_PROBABILITY	= 0.15;		// 0.0 = always close, 1.0 = always wide
+const AUTOPILOT_WIDE_VIEW_PROBABILITY	= 0.20;		// 0.0 = always close, 1.0 = always wide
 const AUTOPILOT_CLOSE_SCALE_MIN			= 400;		// tightest close-up zoom
 const AUTOPILOT_CLOSE_SCALE_MAX			= 2500;		// loosest close-up zoom
 const AUTOPILOT_CLOSE_HOLD_TICKS			= 700;		// time spent at each close-band pick

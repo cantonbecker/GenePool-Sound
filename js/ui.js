@@ -38,10 +38,9 @@ let _stepsPerSecond = 0;
 let _dKeyHoldTimer = null;
 let _dKeyLongFired = false;
 
-// 🤖 Tracks currently-held keys so we can detect chord presses (e.g. Q+T).
-const _keysDown = new Set();
-// Drop stale keys if the window loses focus mid-press (prevents phantom chords).
-window.addEventListener('blur', () => _keysDown.clear());
+// 🤖 Fullscreen "hold the mouse button to engage autopilot" gesture.
+const _MOUSE_AUTOPILOT_HOLD_MS = 4000;
+let _mouseHoldTimer = null;
 
 // ---- Pointer Lock state/helpers -------------------------------------------
 let _pointerLocked = false;
@@ -97,6 +96,8 @@ document.addEventListener('pointerlockchange', () => {
             genePool.touchUp(_virtualX, _virtualY);
         }
         _draggingWithLock = false;
+        // 🤖 Lock lost mid-hold (e.g. Esc) — onmouseup may not fire, so cancel here too.
+        clearTimeout(_mouseHoldTimer);
     }
 });
 
@@ -1430,9 +1431,23 @@ _canvasEl.onmousedown = function(e) {
         // make a swimbot (true) means make it, but also trigger a spawn sound
         
         genePool.notifyUserInteraction();
-        
+
         // true,true means yes make a sound, yes murder a living swimbot to make room for a fresh one if necessary
         genePool.makeNewRandomSwimbot(true, true);
+
+        // 🤖 Hold for 4s to engage autopilot. The spawn above still happens — by design.
+        clearTimeout(_mouseHoldTimer);
+        _mouseHoldTimer = setTimeout(function() {
+            genePool.engageAutopilot();
+            // 🤖 Fuzzy cycles→time: ~20ms per cycle (APPROX_MS_PER_CLOCK).
+            let totalSec = Math.round(genePool.getAutopilotCycles() * APPROX_MS_PER_CLOCK / 1000);
+            let h = Math.floor(totalSec / 3600);
+            let m = Math.floor((totalSec % 3600) / 60);
+            let elapsed = h > 0 ? (h + "h " + m + "m")
+                        : m > 0 ? (m + "m")
+                        : (totalSec + "s");
+            flashNotice("Resuming evolution @ " + elapsed , 2000);
+        }, _MOUSE_AUTOPILOT_HOLD_MS);
     }
 
     notifyGeneTweakPanelMouseDown();
@@ -1462,6 +1477,10 @@ document.addEventListener('mousemove', function(e) {
 // Dev-mode drag end; in kiosk mode, ignore (lock session is continuous)
 _canvasEl.onmouseup = function(e) {
     if (typeof genePool === "undefined") return;
+
+    // 🤖 A quick release cancels the hold-to-autopilot timer; only a sustained 4s hold fires.
+    clearTimeout(_mouseHoldTimer);
+
     if (DEVELOPER_MODE) {
         const x = e.pageX - _canvasEl.offsetLeft;
         const y = e.pageY - _canvasEl.offsetTop;
@@ -1509,8 +1528,6 @@ document.onkeydown = function(e)
     // genePool is assigned in an inline script in index.html; a keypress
     // before that runs would otherwise throw "genePool is not defined".
     if (typeof genePool === "undefined") return;
-
-    _keysDown.add(e.keyCode);
 
     //-----------------------------
     // keys for camera navigation
@@ -1653,15 +1670,6 @@ document.onkeydown = function(e)
         // flashNotice("Big Bang (" + INITIAL_NUM_SWIMBOTS + " Swimbots)", 3000, -10);
     }
 
-    // 🤖 Chord: R + T held together behaves exactly like pressing A (autopilot).
-    // Runs after the q/w/e/r/t launches so engageAutopilot's relaunch wins.
-    /*
-    if (!e.repeat && _keysDown.has(82) && _keysDown.has(84)) { // 82=R, 84=T
-        genePool.engageAutopilot();
-        console.log('Chorded keys R+T, engaging autopilothttp://127.0.0.1:8076/');
-    }
-    */
-    
         // Z -> DEMO / TEST MODE
     if (e.keyCode === 90) { // Z toggles DEMO_MODE on and off
       e.preventDefault();
@@ -1715,8 +1723,6 @@ document.onkeyup = function(e)
     // genePool is assigned in an inline script in index.html; a key released
     // before that runs would otherwise throw "genePool is not defined".
     if (typeof genePool === "undefined") return;
-
-    _keysDown.delete(e.keyCode);
 
     if ( e.keyCode === 68 ) // D key release — short tap cycles kiosk modes (hold already acted like X)
     {

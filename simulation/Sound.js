@@ -70,8 +70,8 @@ var CURRENT_ZOOM_PERCENTAGE = 0; // 0 = zoomed all the way in, 1 = zoomed all th
 
 const MINIMUM_UTTER_VELOCITY = 30 // 0-127 don't let any swimbot individual note go quieter than this
 const MAXIMUM_UTTER_VELOCITY = 125 // 0-127 don't let any swimbot individual note go quieter than this
-const MIN_REVERB_DEFAULT = 25; // 0-127
-const MAX_REVERB_DEFAULT = 80;
+const MIN_REVERB_DEFAULT = 30; // 0-127
+const MAX_REVERB_DEFAULT = 90; 
 
 
 // different simulations use different interval sets
@@ -906,8 +906,8 @@ function determineCurrentMusicParameters () {
 		backgroundLoop = 'bg-lake-bacalar'; 							// no background loop
 		mySet = getNoteIntervalSetFor('minor pentatonic');
 		// mySet = getNoteIntervalSetFor('octaves');
-		SwimbotSynth.setReverbIR('tunnel');
-		// minReverb = maxReverb = 120;
+		SwimbotSynth.setReverbIR('bright4');
+		minReverb = Math.floor(MIN_REVERB_DEFAULT * 1.1); // a little more reverb
 	/*** INVASION ***/
 	} else if (_chosenPoolToLoad == 1) {
 		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
@@ -933,19 +933,19 @@ function determineCurrentMusicParameters () {
 		mySet = getNoteIntervalSetFor('12tone');
 		backgroundLoop = 'bg-reaktor-drone';
 		SwimbotSynth.setReverbIR('tunnel');
-
+		maxReverb = Math.floor(MIN_REVERB_DEFAULT * 1.25); // much less max reverb when zoomed out
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {
 		mySet = getNoteIntervalSetFor('pentatonic');
 		secBetweenUnivNoteShift = 60 * 2; 			// shorter shifts
 		SwimbotSynth.setReverbIR('bright4');
-		// maxReverb = Math.floor(MAX_REVERB_DEFAULT * .8); // less reverb
+		maxReverb = Math.floor(MAX_REVERB_DEFAULT * .8); // less reverb
 		
 	/*** AUTOPILOT ***/
 	} else if (_chosenPoolToLoad == 5) {
 		mySet = getNoteIntervalSetFor('octaves');
 		backgroundLoop = 'bg-lake-bacalar';
-		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .95); // loads of reverb
+		minReverb = Math.floor(MAX_REVERB_DEFAULT * .7); // loads of reverb
 		SwimbotSynth.setReverbIR('dark4');
 	}
 	

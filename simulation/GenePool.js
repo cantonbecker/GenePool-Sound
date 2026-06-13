@@ -177,6 +177,10 @@ function GenePool()
 	let _interactiveMode		= false;
 	let _autopilotSnapshot		= null;		// in-memory pool snapshot for autopilot continuity across preset switches
 	let _inAutopilotSession		= false;	// true from the moment autopilot loads a pool until the user picks a different preset (survives mouse/keyboard interaction in between)
+	// 🤖 Cumulative cycles the current autopilot lineage has evolved. Survives the snapshot
+	// save/restore (so a resumed world keeps counting), unlike _clock which resets on every
+	// pool load. Reset only when a fresh lineage starts (bundled snapshot / post-collapse).
+	let _autopilotCycles		= 0;
 	let _autopilotPickCountdown	= AUTOPILOT_CLOSE_HOLD_TICKS;	// ticks until the next autopilot zoom pick (held > 0 so a freshly-loaded snapshot's camera scale gets some screen time before the picker overrides it)
 	let _numSwimbots 	        = 0;
     let _numNearbySwimbots      = 0;
@@ -362,6 +366,10 @@ function GenePool()
         //--------------------------------------------------------------
         if ( mode === SimulationStartMode.AUTOPILOT )
         {
+            // 🤖 Fresh lineage (no in-memory snapshot to resume) → restart the cycle count.
+            // Resuming from _autopilotSnapshot keeps the accumulated count rolling.
+            if ( ! _autopilotSnapshot ) { _autopilotCycles = 0; }
+
             let snapshot = _autopilotSnapshot;
             if ( ! snapshot && window.POOL_SNAPSHOTS )
             {
@@ -1573,6 +1581,7 @@ if ( mode === SimulationStartMode.SPECIES )
             // advance clock...
             //--------------------
             _clock ++;
+            if ( _inAutopilotSession ) { _autopilotCycles ++; } // 🤖 cumulative evolution count (survives snapshot resumes)
 
             //----------------------
             // update swimbots...
@@ -4020,7 +4029,14 @@ if ( globalTweakers.numFoodTypes === 2 )
 	{
 		return _inAutopilotSession;
 	}
-	
+
+	//---------------------------------------
+	// 🤖 Cumulative cycles the current autopilot lineage has evolved (survives snapshot resumes).
+	this.getAutopilotCycles = function()
+	{
+		return _autopilotCycles;
+	}
+
 	//--------------------------------------------------
 	this.handleNonUITouchDownActions = function( x, y )
 	{
