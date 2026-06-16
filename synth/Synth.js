@@ -117,6 +117,9 @@ var SwimbotSynth = (function () {
 	let _sampleTotal     = Object.keys(WA_SAMPLE_CATALOG).length;
 	let _sampleLoaded    = 0;
 	let _noiseBuffer     = null;               // reusable white-noise source for CC14 noise mix
+	let _ceilingIn       = null;               // stable bus: masterGain + reverbWetGain feed this
+	let _ceilingChain    = [];                 // swappable processor node(s) between _ceilingIn and destination
+	let _ceilingMode     = null;               // 'limiter' (on) | 'off'
 
 	// ── Utility ──────────────────────────────────────────────────────────────
 
@@ -137,6 +140,89 @@ var SwimbotSynth = (function () {
 
 	function _resToQ(r) { return 2 + r * 23; } // 0 → Q=2 (wide), 1 → Q=25 (narrow)
 
+	// ── Feed-forward loudness estimation (Layer 1: replaces the blunt ×4.0 makeup) ──
+	// 🤖 The old fixed ×4.0 makeup gain assumed the formant bandpasses always attenuate the
+	// signal. When a note's harmonic lands on a formant center the harmonic passes near 0 dB,
+	// so ×4.0 became raw overdrive → piercing / clipped notes. Instead we estimate how loud THIS
+	// note will actually be through the CURRENT formant config and scale the gain to hit a
+	// constant perceived-loudness target. All closed-form math, a few dozen ops per note.
+
+	// Magnitude of a constant-0dB-peak bandpass (analog prototype, ≈ the Web Audio biquad below
+	// Nyquist): peaks at 1.0 when f === f0, narrower as Q rises.
+	function _bandpassMag(f, f0, Q) {
+		if (f <= 0 || f0 <= 0) return 0;
+		const r = f / f0 - f0 / f;
+		return 1 / Math.sqrt(1 + Q * Q * r * r);
+	}
+
+	// A-weighting rational R_A(f) — the linear (amplitude) part of the standard A-weighting curve.
+	function _raPow(f) {
+		const f2 = f * f;
+		const num = (12194 * 12194) * f2 * f2;
+		const den = (f2 + 20.6 * 20.6) * (f2 + 12194 * 12194)
+			* Math.sqrt((f2 + 107.7 * 107.7) * (f2 + 737.9 * 737.9));
+		return num / den;
+	}
+	const _RA_1K = _raPow(1000); // normalize so the weight is 1.0 at 1 kHz
+	// Perceptual POWER weight (squared amplitude weight) — emphasizes the ear's painful 2–4 kHz band.
+	function _loudnessWeight(f) {
+		const a = _raPow(f) / _RA_1K;
+		return a * a;
+	}
+
+	// Estimate this note's perceptually-weighted RMS through the current formant chain.
+	// Walks the source harmonics (saw/tri/sine blend per CC17), passes each through the summed
+	// formant magnitude response, A-weights, and accumulates power. Returns sqrt(power).
+	function _estimateNoteWeightedRMS(ccState, fundamental) {
+		if (!ccState || fundamental <= 0) return 1;
+
+		// Formant centers from the current mouth (CC15), Q from base/CC19, gains from base/CC20.
+		const t = Math.max(0, Math.min(127, ccState.mouthCC || 0)) / 127;
+		const cf = [
+			noteToFrequency(_ctrlShp2(WA_FORMANT_CURVES[0], t)),
+			noteToFrequency(_ctrlShp2(WA_FORMANT_CURVES[1], t)),
+			noteToFrequency(_ctrlShp2(WA_FORMANT_CURVES[2], t)),
+		];
+		const q = [
+			_resToQ(WA_FORMANT_BASE_RES[0]),
+			_resToQ(ccState.f2ResNorm),
+			_resToQ(WA_FORMANT_BASE_RES[2]),
+		];
+		const g = [
+			WA_FORMANT_BASE_GAIN[0],
+			WA_FORMANT_BASE_GAIN[1],
+			ccState.f3GainNorm * WA_FORMANT_BASE_GAIN[2] * 2, // matches CC20 handler
+		];
+
+		// Source harmonic profile: blend saw / triangle / sine using the same equal-power
+		// crossfade weights _playVoiceNote uses, so the estimate tracks the actual timbre.
+		const oscMix = Math.max(0, Math.min(1, ccState.oscMix));
+		let cSaw, cTri, cSine;
+		if (oscMix <= 0.5) {
+			const tt = oscMix * 2;
+			cSaw = Math.cos(tt * Math.PI * 0.5); cTri = Math.sin(tt * Math.PI * 0.5); cSine = 0;
+		} else {
+			const tt = (oscMix - 0.5) * 2;
+			cSaw = 0; cTri = Math.cos(tt * Math.PI * 0.5); cSine = Math.sin(tt * Math.PI * 0.5);
+		}
+
+		let power = 0;
+		for (let h = 1; h <= 16; h++) {
+			const fh = fundamental * h;
+			if (fh > 10000) break; // above the formant range / approaching inaudible
+			const saw  = 1 / h;
+			const tri  = (h % 2 === 1) ? 1 / (h * h) : 0;
+			const sine = (h === 1) ? 1 : 0;
+			const a = cSaw * saw + cTri * tri + cSine * sine;
+			if (a <= 0) continue;
+			let G = 0;
+			for (let i = 0; i < 3; i++) G += g[i] * _bandpassMag(fh, cf[i], q[i]);
+			const ampH = a * G;
+			power += ampH * ampH * _loudnessWeight(fh);
+		}
+		return Math.sqrt(power);
+	}
+
 	function _createNoiseBuffer() {
 		const length = audioCtx.sampleRate * 2;
 		const buffer = audioCtx.createBuffer(1, length, audioCtx.sampleRate);
@@ -154,13 +240,13 @@ var SwimbotSynth = (function () {
 		reverbConvolver.normalize = true; // let the browser normalize the IR to prevent clipping
 		reverbWetGain = audioCtx.createGain();
 		reverbWetGain.gain.value = WA_REVERB_WET_INIT;
-		// Dry path:  masterGain → destination (panned, already wired)
-		// Wet path:  reverbBus → convolver → wetGain → destination (pre-pan sum, always centered)
+		// Dry path:  masterGain → ceilingIn → ceiling → destination (panned, wired in initialize)
+		// Wet path:  reverbBus → convolver → wetGain → ceilingIn → ceiling → destination (centered)
 		reverbBus = audioCtx.createGain();
 		reverbBus.gain.value = 1.0;
 		reverbBus.connect(reverbConvolver);
 		reverbConvolver.connect(reverbWetGain);
-		reverbWetGain.connect(audioCtx.destination);
+		reverbWetGain.connect(_ceilingIn); // 🤖 wet feeds the shared output ceiling, not destination directly
 		_preloadAllIRs();
 	}
 
@@ -203,6 +289,39 @@ var SwimbotSynth = (function () {
 			reverbConvolver.buffer = buf;
 			_currentIRName = name;
 			// console.log(`SwimbotSynth: switched reverb IR to "${name}"`);
+		}
+	}
+
+	// ── Output-stage brickwall limiter (Layer 2: one shared node, both dry + wet feed it) ──
+	// 🤖 Final safety net catching anything per-note normalization misses (mid-note formant
+	// sweeps, stacked voices, sample peaks). _ceilingIn stays put while the processor between it
+	// and destination is swapped on/off, so the dry/wet sends never move.
+
+	// Tear down the current processor and (re)wire _ceilingIn → processor → destination for `mode`.
+	// mode: 'limiter' (brick wall on) | 'off' (straight through).
+	function _setCeilingMode(mode) {
+		if (!audioCtx || !_ceilingIn) return;
+		try { _ceilingIn.disconnect(); } catch (e) {}
+		for (const node of _ceilingChain) { try { node.disconnect(); } catch (e) {} }
+		_ceilingChain = [];
+		_ceilingMode = mode;
+
+		if (mode === 'limiter') {
+			const comp = audioCtx.createDynamicsCompressor();
+			comp.threshold.value = WEB_LIMITER_THRESHOLD_DB;
+			comp.knee.value      = 0;     // hard knee → brick wall
+			comp.ratio.value     = 20;    // effectively limiting
+			comp.attack.value    = 0.003; // fast grab
+			comp.release.value   = WEB_LIMITER_RELEASE;
+			const makeup = audioCtx.createGain();
+			makeup.gain.value = WEB_LIMITER_MAKEUP;
+			_ceilingIn.connect(comp);
+			comp.connect(makeup);
+			makeup.connect(audioCtx.destination);
+			_ceilingChain = [comp, makeup];
+		} else { // 'off' — straight through
+			_ceilingIn.connect(audioCtx.destination);
+			_ceilingMode = 'off';
 		}
 	}
 
@@ -449,6 +568,7 @@ var SwimbotSynth = (function () {
 		const ccState = {
 			noiseMix: 0,
 			oscMix: 0, // 0 = sawtooth, 1 = sine (equal-power crossfade in _playVoiceNote)
+			mouthCC: 0, // 🤖 current CC15 position — read by the per-note loudness estimator
 			f2ResNorm: WA_FORMANT_BASE_RES[1],
 			f3GainNorm: 0.5
 		};
@@ -463,6 +583,7 @@ var SwimbotSynth = (function () {
 					ccState.noiseMix = Math.max(0, Math.min(127, value)) / 127;
 					break;
 				case 15: // Mouth → all three formant frequencies
+					ccState.mouthCC = Math.max(0, Math.min(127, value));
 					_applyFormantFreqs(formantFilters, value);
 					break;
 				case 17: // Tone: pitched oscillator mix, 0=sawtooth, 127=sine
@@ -529,7 +650,13 @@ var SwimbotSynth = (function () {
 		// Inverse wet/dry compensation: dry signal gets a small boost, wet gets a small cut.
 		// At wet=0 → ×1.15, at wet≈0.15 → ×1.0, at wet≈0.3 → ×0.85  (±15% range)
 		const wetComp = 1.15 - _currentWetLevel;
-		const amp    = (velocity / 127) * WEB_AUDIO_VOLUME * WEB_VOLUME_UTTERANCE * 4.0 * wetComp; // compensates for narrow-BP formant filter attenuation
+		// 🤖 Feed-forward loudness makeup (Layer 1) — replaces the old fixed ×4.0. Estimate how
+		// loud this note will be through the current formant config and scale to a constant target,
+		// so harmonic↔formant coincidences no longer overdrive. Clamped both ways for safety.
+		const weightedRMS = _estimateNoteWeightedRMS(voice.ccState, freq);
+		let makeup = WEB_UTTER_LOUDNESS_TARGET / (weightedRMS > 1e-6 ? weightedRMS : 1e-6);
+		makeup = Math.max(WEB_UTTER_MAKEUP_MIN, Math.min(WEB_UTTER_MAKEUP_MAX, makeup));
+		const amp    = (velocity / 127) * WEB_AUDIO_VOLUME * WEB_VOLUME_UTTERANCE * makeup * wetComp;
 		const durSec = durationMs / 1000;
 		const envA   = 0.200;	// 200ms attack
 		const envR   = 0.050;	// 50ms release
@@ -637,9 +764,13 @@ var SwimbotSynth = (function () {
 				audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
 				masterGain = audioCtx.createGain();
 				masterGain.gain.value = 1.0; // per-note amplitude carries volume via WEB_AUDIO_VOLUME
-				masterGain.connect(audioCtx.destination);
+				// 🤖 Shared output ceiling: masterGain (dry) + reverbWetGain (wet) → _ceilingIn → processor → destination
+				_ceilingIn = audioCtx.createGain();
+				_ceilingIn.gain.value = 1.0;
+				masterGain.connect(_ceilingIn);
+				_setCeilingMode(WEB_OUTPUT_LIMITER_ACTIVE ? 'limiter' : 'off'); // wires _ceilingIn → processor → destination
 				_noiseBuffer = _createNoiseBuffer();
-				_initReverb();
+				_initReverb(); // wires reverbWetGain → _ceilingIn
 				_preloadAllSamples();
 				console.log("SwimbotSynth: Web Audio ready.");
 				return true;
@@ -673,6 +804,18 @@ var SwimbotSynth = (function () {
 
 		// Swap reverb to a preloaded IR by catalog name (e.g. 'bright4', 'dark4', 'medium4', 'bright5').
 		setReverbIR: function (name) { _setReverbIR(name); },
+
+		// 🤖 Brickwall limiter control (Layer 2). mode: 'limiter' (on) | 'off'.
+		// Updates the global and rebuilds the one shared processor node — safe to call live.
+		setCeilingMode: function (mode) {
+			WEB_OUTPUT_LIMITER_ACTIVE = (mode === 'limiter');
+			_setCeilingMode(mode);
+		},
+		// Rebuild the current limiter from the current Parameters globals (call after tweaking
+		// WEB_LIMITER_* so the change takes effect).
+		applyCeilingParams: function () { _setCeilingMode(_ceilingMode || (WEB_OUTPUT_LIMITER_ACTIVE ? 'limiter' : 'off')); },
+		// Current ceiling mode (for UI display).
+		getCeilingMode: function () { return _ceilingMode; },
 
 		// Play a one-shot sample. options: { volume: 0–1, semitones: pitch shift (varispeed), reverb: bool, reverbSend: per-call wet multiplier on top of global zoom level }
 		playSample: function (name, options) { _playSample(name, options); },

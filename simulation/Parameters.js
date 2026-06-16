@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-06-16.1';
+const SWIMBOT_VERSION			= '2026-06-16.2';
 
 
 /*************************/
@@ -15,7 +15,7 @@ const DEBUGGING_NOISY_CONSOLE_MODE  = false; // show lots more messages
 
 // The Audio tab sliders will initialize from these values.
 var WEB_AUDIO_VOLUME     = 0.90; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
-var WEB_VOLUME_UTTERANCE = 1.00; // category mix: swimbot vocal utterxqances
+var WEB_VOLUME_UTTERANCE = 0.90; // category mix: swimbot vocal utterances
 var WEB_VOLUME_BIRTH     = 0.45; // category mix: birth samples
 var WEB_VOLUME_SPAWN     = 0.35; // category mix: spawn (q*bert) samples
 var WEB_VOLUME_DEATH     = 0.45; // category mix: death samples
@@ -25,6 +25,26 @@ var WEB_VOLUME_UI        = 0.70; // category mix: UI sounds (preset launch)
 
 const ZOOM_UTTER_ATTENUATION = 20; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
 const LOUD_PRESET_ATTENUATION = 30; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+
+// 🤖 UTTERANCE LOUDNESS NORMALIZATION (Synth.js _playVoiceNote)
+// Each note's gain used to be a blunt fixed ×4.0 makeup. That overdrove whenever a note's
+// harmonic coincided with a formant filter (piercing / speaker-overloading notes). Instead we
+// now estimate the note's perceptually-weighted output energy through the CURRENT formant config
+// and aim for a constant target loudness: makeup = TARGET / sqrt(weightedPower), clamped.
+// Calibrate WEB_UTTER_LOUDNESS_TARGET so a neutral note's makeup lands near the old 4.0.
+var WEB_UTTER_LOUDNESS_TARGET = 0.65; // higher = louder utterances overall. ~0.65 lands a neutral note near the old ×4.0 makeup; recalibrate by ear.
+var WEB_UTTER_MAKEUP_MIN      = 0.3;  // floor — only bites on the LOUDEST (coincidence) notes; lower = more aggressive taming
+var WEB_UTTER_MAKEUP_MAX      = 5.0;  // ceiling — caps how much a thin/quiet note gets boosted
+
+// 🤖 OUTPUT-STAGE BRICKWALL LIMITER (Synth.js — one shared node both dry + wet feed before destination)
+// Final safety net catching anything the per-note normalization misses (mid-note sweeps,
+// stacked voices, sample peaks). A DynamicsCompressor configured as a brick wall.
+var WEB_OUTPUT_LIMITER_ACTIVE = true; // brickwall limiter on/off
+
+// Brickwall limiter brute controls
+var WEB_LIMITER_THRESHOLD_DB = -18.0; // dB where limiting starts
+var WEB_LIMITER_RELEASE      = 0.20;  // seconds — lower = snappier, higher = smoother (less pump)
+var WEB_LIMITER_MAKEUP       = 1.0;   // output gain after limiting
 
 
 /****************************/
