@@ -1439,8 +1439,9 @@ _canvasEl.onmousedown = function(e) {
         clearTimeout(_mouseHoldTimer);
         _mouseHoldTimer = setTimeout(function() {
             genePool.engageAutopilot();
-            // 🤖 Fuzzy cycles→time: ~20ms per cycle (APPROX_MS_PER_CLOCK).
-            let totalSec = Math.round(genePool.getAutopilotCycles() * APPROX_MS_PER_CLOCK / 1000);
+            // 🤖 Fuzzy cycles→time: ~20ms per cycle (APPROX_MS_PER_CLOCK), ×3 fudge to match
+            // observed real-world cadence (setTimeout ticks run slower than 20ms under load).
+            let totalSec = Math.round(genePool.getAutopilotCycles() * APPROX_MS_PER_CLOCK * 3 / 1000);
             let h = Math.floor(totalSec / 3600);
             let m = Math.floor((totalSec % 3600) / 60);
             let elapsed = h > 0 ? (h + "h " + m + "m")
