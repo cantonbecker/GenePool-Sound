@@ -16,8 +16,8 @@ const DEBUGGING_NOISY_CONSOLE_MODE  = false; // show lots more messages
 // The Audio tab sliders will initialize from these values.
 var WEB_AUDIO_VOLUME     = 0.90; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
 var WEB_VOLUME_UTTERANCE = 0.75; // category mix: swimbot vocal utterances
-var WEB_VOLUME_BIRTH     = 0.65; // category mix: birth samples
-var WEB_VOLUME_SPAWN     = 0.55; // category mix: spawn (q*bert) samples
+var WEB_VOLUME_BIRTH     = 0.45; // category mix: birth samples
+var WEB_VOLUME_SPAWN     = 0.50; // category mix: spawn (q*bert) samples
 var WEB_VOLUME_DEATH     = 0.65; // category mix: death samples
 var WEB_VOLUME_EAT       = 0.35; // category mix: eating samples
 var WEB_VOLUME_LOOP      = 0.95; // category mix: background loop
