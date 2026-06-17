@@ -39,12 +39,11 @@ var WEB_UTTER_MAKEUP_MAX      = 5.0;  // ceiling — caps how much a thin/quiet 
 // 🤖 OUTPUT-STAGE BRICKWALL LIMITER (Synth.js — one shared node both dry + wet feed before destination)
 // Final safety net catching anything the per-note normalization misses (mid-note sweeps,
 // stacked voices, sample peaks). A DynamicsCompressor configured as a brick wall.
-var WEB_OUTPUT_LIMITER_ACTIVE = true; // brickwall limiter on/off
 
-// Brickwall limiter brute controls
-var WEB_LIMITER_THRESHOLD_DB = -18.0; // dB where limiting starts
+var WEB_OUTPUT_LIMITER_ACTIVE = true; // brickwall limiter on/off
+var WEB_LIMITER_THRESHOLD_DB = -24.0; // dB where limiting starts
 var WEB_LIMITER_RELEASE      = 0.15;  // seconds — lower = snappier, higher = smoother (less pump)
-var WEB_LIMITER_MAKEUP       = 1.25;   // output gain after limiting
+var WEB_LIMITER_MAKEUP       = 1.50;   // output gain after limiting
 
 
 /****************************/

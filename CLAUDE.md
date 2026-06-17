@@ -41,7 +41,7 @@ The concept: evolving digital creatures called **swimbots** live, eat, reproduce
 |------|---------|
 | `Synth.js` | **SwimbotSynth** module — Web Audio engine: vocal formant synthesis, sample playback, crossfade loops, reverb convolver (see `WEBAUDIO.md`) |
 | `demo.html` | Original self-contained formant-synth proof of concept; hear the formant chain in isolation, no swimbot plumbing |
-| `testbed.html` | **Utterance workbench** — loads the real simulation stack (Genotype, Embryology, Sound.js, SwimbotSynth), composes a real utterance from a chosen preset genome (or fresh random swimbot), and plays it through an actual formant voice. Live mixer + CC knob sliders and a sustained-note repeater. Use this for iterating on formant DSP without launching the full app. |
+| `testbed.html` | **Utterance workbench** — loads the real simulation stack (Genotype, Embryology, Sound.js, SwimbotSynth), composes a real utterance from a chosen preset genome (or fresh random swimbot), and plays it through an actual formant voice. Live mixer + CC knob sliders, a sustained-note repeater, and the utterance brickwall-limiter controls. Use this for iterating on formant DSP without launching the full app. |
 | `sounds-birth/` | 3 one-shot WAV samples for birth events (`birth.wav`, `birth-filtered.wav`, `birth-phased.wav`) |
 | `sounds-death/` | 5 one-shot WAV samples for death events |
 | `sounds-eat/` | Pool of eat samples; the catalog currently preloads just `tuned-click.wav` (other WAVs in the folder are unreferenced spares for future variety) |
@@ -73,7 +73,8 @@ The audio engine. A self-contained IIFE module exposing the `SwimbotSynth` globa
 - **Vocal formant synthesis** — per-utterance filter chains (see *Formant Voice* below) driven by gene-generated note/CC sequences. Each simultaneous swimbot gets its own independent chain.
 - **Sample playback** — preloads all WAV samples at startup. `playSample(name, opts)` for overlapping one-shots (birth, death, eat, spawn, UI). Fire-and-forget `BufferSource` nodes that clean themselves up via `onended`.
 - **Crossfade loops** — background ambience via `startLoop()`. Since samples aren't seamless, copies overlap with 3-second crossfades (normalized 0→1→0 per-copy envelopes through a shared `mixGain` node for real-time volume control). One logical loop at a time.
-- **Convolution reverb** — shared `ConvolverNode` with all IRs preloaded into `_irBuffers`. Swappable per-simulation via `setReverbIR(name)` (instant — no fetch). Voices and samples feed the reverb pre-panner so the reverb image stays centered.
+- **Convolution reverb** — shared `ConvolverNode` with all IRs preloaded into `_irBuffers`. Swappable per-simulation via `setReverbIR(name)` (instant — no fetch). Samples feed the reverb directly; utterances feed it post-fader from `_utteranceVolume` (so their reverb is limited + faded like the dry signal).
+- **Utterance loudness control** — a two-layer system keeps utterances at roughly constant perceived loudness and stops piercing/overloading notes: (1) a per-note feed-forward `makeup` in `_playVoiceNote` (replaces the old fixed ×4.0), and (2) an optional brickwall limiter on the **utterances-only** submix (`_utteranceSum → limiter → _utteranceVolume`), so loops/samples are never ducked. See `WEBAUDIO.md` → *Loudness Normalization & Limiter*.
 - **Voice throttling** — `WEB_MAXIMUM_VOICES` caps simultaneous formant chains; excess `createVoice()` calls return `null` and the utterance plays silently. The Audio panel shows `active / max` with a red tint when throttling kicks in.
 
 Full signal-chain diagrams and public-API reference in **`WEBAUDIO.md`**.
@@ -85,19 +86,22 @@ Full signal-chain diagrams and public-API reference in **`WEBAUDIO.md`**.
 **Per-voice signal chain** (allocated by `_createVoice`):
 
 ```
-                                                         ┌─ panner ─→ masterGain  (panned dry out)
-preEmphasis(HPF~60Hz) → [F1 BPF→gain]                    │
-                      → [F2 BPF→gain] → formantMixer → trebleFilter(highshelf @3.2 kHz)
-                      → [F3 BPF→gain]                    │
-                                                         └─→ reverbBus  (pre-pan, centered wet send)
+preEmphasis(HPF~60Hz) → [F1 BPF→gain]
+                      → [F2 BPF→gain] → formantMixer → trebleFilter(highshelf @3.2 kHz) → panner
+                      → [F3 BPF→gain]                                                        │
+                                                                                             ▼
+   (all voices sum) →  _utteranceSum → [limiter, optional] → _utteranceVolume ─┬→ masterGain  (dry out)
+                                                                               └→ reverbBus   (wet send)
 ```
+
+`_utteranceVolume.gain = WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE` (both faders post-limiter, via `refreshUtteranceVolume()`).
 
 **Per-note** (`_playVoiceNote(voice, note, velocity, durationMs)` — internal; called via `playVoiceNote`):
 - **Pitched sources**: three `OscillatorNode`s — sawtooth, triangle, sine — built per note and blended via CC17 in an equal-power three-station crossfade (0 = pure saw, 0.5 ≈ triangle, 1 = pure sine; only two adjacent stations are active at any value). Each routes through its own per-note `GainNode` envelope → `voice.preEmphasis`.
 - **Noise source** (only when CC14 noiseMix > 0.001): a shared white-noise `BufferSource` (looped, created once at init in `_noiseBuffer`) → per-note `BandpassFilter` (centre clamped to `freq × 4` between 180 Hz and 6 kHz, Q = 0.8 + 5 × `f2ResNorm`) → short envelope (3 ms attack / 18 ms sustain / 8 ms release) → `voice.preEmphasis`. The noise is pitch-tracked to the current note and threaded through the same formant chain as the pitched sources.
 - Frequency: `noteToFrequency(note - 12)`. The `-12` is intentional — formant curves are calibrated for that transposed range.
 - Envelope (pitched): 200 ms linear attack → sustain for `durationMs` → 50 ms linear release. Hard-coded in `_playVoiceNote`.
-- Amplitude: master `amp = (velocity/127) × WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE × 4.0 × wetComp` where `wetComp = 1.15 - _currentWetLevel`. The ×4.0 compensates for narrow bandpass attenuation; `wetComp` boosts dry / cuts wet so loudness stays stable across zoom-driven reverb changes. `amp` is then split into pitched (`sawAmp = amp × cos(noiseMix × π/2)`) and noise (`amp × √noiseMix × 7.5 × (0.55 + 0.9 × f3GainNorm)`) energies.
+- Amplitude: per-note `amp = (velocity/127) × makeup × wetComp` where `wetComp = 1.15 - _currentWetLevel`. `makeup` is the per-note feed-forward loudness normalization (`_estimateNoteWeightedRMS` → `WEB_UTTER_LOUDNESS_TARGET / weightedRMS`, clamped), which replaced the old fixed ×4.0; `wetComp` boosts dry / cuts wet so loudness stays stable across zoom-driven reverb changes. **The user faders (`WEB_AUDIO_VOLUME`, `WEB_VOLUME_UTTERANCE`) are NOT here** — they're applied post-limiter on `_utteranceVolume`. `amp` is then split into pitched (`sawAmp = amp × cos(noiseMix × π/2)`) and noise (`amp × √noiseMix × 7.5 × (0.55 + 0.9 × f3GainNorm)`) energies.
 
 **CC routing** — `voice.handleCC(cc, value)`. Each handler closes over only this voice's nodes:
 - **CC 14 — Noise Mix**: crossfades a pitch-tracked white-noise burst into the formant chain. Stored as `ccState.noiseMix` (0–1); applied per note inside `_playVoiceNote` rather than as a live AudioParam. 0 = pitched only, 127 = noise dominant (sawtooth contribution ducks to zero via the cos curve).
@@ -183,11 +187,12 @@ Per-sequence randomization on top of the above:
 The **Audio** tab in the developer panel provides:
 - Master volume slider
 - Per-category mix sliders: utterances, birth, spawn, death, eating, background loop (birth and spawn are separate channels)
+- Brickwall limiter (utterances-only): on/off + threshold / release / makeup dropdowns
 - Max simultaneous voices slider (1–64)
 - Live status: active voices, current reverb IR + wet level, active loop, sample/IR loading progress
 - Link to open the **Swimbot Statistics** overlay (detailed charts, pitch histogram, population history)
 
-Mixer defaults are set in `Parameters.js` (`WEB_AUDIO_VOLUME`, `WEB_VOLUME_*`, `WEB_MAXIMUM_VOICES`).
+Mixer defaults are set in `Parameters.js` (`WEB_AUDIO_VOLUME`, `WEB_VOLUME_*`, `WEB_MAXIMUM_VOICES`, `WEB_UTTER_LOUDNESS_TARGET`, `WEB_OUTPUT_LIMITER_ACTIVE`, `WEB_LIMITER_*`).
 
 ### Tonal System
 - Base note: `BASE_NOTE = 41` (F2)

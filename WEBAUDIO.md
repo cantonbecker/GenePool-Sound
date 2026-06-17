@@ -35,7 +35,7 @@ All samples and impulse responses are preloaded into memory at startup (`_preloa
 
 | Scope | Nodes | Created | Released |
 |-------|-------|---------|---------|
-| Singleton | `AudioContext`, `masterGain`, `reverbBus`, `reverbConvolver`, `reverbWetGain` | `SwimbotSynth.initialize()` | App lifetime |
+| Singleton | `AudioContext`, `masterGain`, `reverbBus`, `reverbConvolver`, `reverbWetGain`, `_utteranceSum`, `_utteranceVolume`, utterance limiter (`DynamicsCompressor` + makeup gain) | `SwimbotSynth.initialize()` | App lifetime |
 | Per-utterance | `preEmphasis`, `formantFilters[3]`, `formantGains[3]`, `formantMixer`, `trebleFilter`, `StereoPannerNode` | `SwimbotSynth.createVoice()` | `voice.dispose()` on `'done'` step |
 | Per-note | `OscillatorNode`, envelope `GainNode` | `SwimbotSynth.playVoiceNote()` | `osc.onended` callback |
 | Per-sample | `BufferSource`, `GainNode` | `SwimbotSynth.playSample()` | `source.onended` callback |
@@ -65,11 +65,25 @@ Noise (only when CC14 / noiseMix > 0.001)                  │
                                                             │
                                        trebleFilter (highshelf 3200 Hz, CC16-driven)
                                                             │
-                                                            ├─→ StereoPannerNode → masterGain → destination  (panned dry)
-                                                            └─→ reverbBus (shared) → reverbConvolver → reverbWetGain → destination  (centered wet)
+                                                  StereoPannerNode (per-voice)
+                                                            │
+                                                            ▼
+                          _utteranceSum  ◀── (all live voices sum here)
+                                                            │
+                       ┌────────────────────────────────────┴───────────────────┐
+                       │ limiter ON                                  limiter OFF  │
+            DynamicsCompressor → makeup GainNode                    (direct)      │
+                       └────────────────────────────────────┬───────────────────┘
+                                                            ▼
+                                          _utteranceVolume  (= WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE)
+                                                            │
+                                                            ├─→ masterGain → destination          (panned dry)
+                                                            └─→ reverbBus (shared) → reverbConvolver → reverbWetGain → destination  (wet)
 ```
 
 Practical implication: when CC14 noise mix is high, the sawtooth contribution drops (cos curve) and a short, percussive noise burst is added per note; when CC17 sweeps toward 127, the pitched output morphs from saw → triangle → sine via equal-power stations.
+
+**Utterance submix (`_utteranceSum` → limiter → `_utteranceVolume`):** every live voice sums into `_utteranceSum`, which feeds an optional brickwall limiter and then `_utteranceVolume`. Two consequences: (1) the limiter only ever touches utterances — background loops and one-shot samples bypass it (they go straight to `masterGain`), so utterance bursts can't duck/"huff" the loop; (2) the master + utterance volume faders are applied *post-limiter* on `_utteranceVolume`, so they stay effective even while the limiter is compressing. See *Loudness Normalization & Limiter* below.
 
 ### Signal chain (one-shot samples)
 
@@ -87,8 +101,8 @@ BufferSource → fade GainNode (0→1→0 normalized) ─┤→ mixGain (adjusta
 ```
 
 **Key design decisions:**
-- The `StereoPannerNode` is after the formant chain but *before* `masterGain`, so each voice has independent stereo placement.
-- The reverb tap comes from `trebleFilter` *before* the panner, routed through the shared `reverbBus`. All voices are summed pre-pan before entering the reverb, so the reverb image is always centered.
+- The `StereoPannerNode` is after the formant chain but *before* `_utteranceSum`, so each voice has independent stereo placement.
+- The utterance reverb send is taken *post-fader* from `_utteranceVolume` (after the panner, limiter, and volume), so the reverb of an utterance is limited and faded exactly like its dry signal. (Historically the send was pre-pan from `trebleFilter` for a centered reverb image; that was changed when the limiter moved onto the utterance submix.)
 - Background loops use a crossfade strategy: since the WAV samples have natural fade-in/fade-out (not seamless zero-crossing loops), a new copy is launched before the current one ends, with 3-second overlapping fades. All copies route through a shared `mixGain` node so volume can be adjusted in real time.
 
 ---
@@ -119,7 +133,7 @@ Mix gains: F1=1.0, F2=0.55, F3=0.3.
 | 19 | F2 Resonance | F2 bandpass Q via `_resToQ` (Q=2 wide → Q=25 narrow). Value is clamped to ≤70 before normalising. |
 | 20 | F3 Gain | Scales `formantGains[2]` to `norm × WA_FORMANT_BASE_GAIN[2] × 2` (0 → silent F3, 127 → 2× the base mix). |
 
-Each utterance has its own independent CC state. With the default `WEB_MAXIMUM_VOICES = 32`, up to 32 swimbots can have independent formant chains simultaneously; beyond that, `createVoice()` returns `null` and the utterance plays silently (see Voice Throttling).
+Each utterance has its own independent CC state. With the default `WEB_MAXIMUM_VOICES = 25`, up to 25 swimbots can have independent formant chains simultaneously; beyond that, `createVoice()` returns `null` and the utterance plays silently (see Voice Throttling).
 
 ---
 
@@ -147,25 +161,48 @@ The **Audio** tab provides a master volume slider and per-category mix sliders. 
 
 | Global | Default | Controls |
 |--------|---------|----------|
-| `WEB_AUDIO_VOLUME` | 0.85 | Master volume (scaled ×0.75 by slider) |
-| `WEB_VOLUME_UTTERANCE` | 0.95 | Vocal formant synthesis level |
-| `WEB_VOLUME_BIRTH` | 0.55 | Birth sample level |
-| `WEB_VOLUME_SPAWN` | 0.75 | Spawn (q*bert) sample level — separate channel from Birth |
-| `WEB_VOLUME_DEATH` | 0.80 | Death sample level |
-| `WEB_VOLUME_EAT` | 0.40 | Eating sample level |
-| `WEB_VOLUME_LOOP` | 0.80 | Background loop level |
-| `WEB_VOLUME_UI` | 0.60 | UI sounds (preset launch) |
-| `WEB_MAXIMUM_VOICES` | 32 | Max simultaneous formant chains |
+| `WEB_AUDIO_VOLUME` | 0.90 | Master volume (scaled ×0.75 by slider) — applied post-limiter on `_utteranceVolume` for utterances, and at gain-node creation for samples/loops |
+| `WEB_VOLUME_UTTERANCE` | 0.90 | Vocal formant synthesis level (post-limiter, on `_utteranceVolume`) |
+| `WEB_VOLUME_BIRTH` | 0.45 | Birth sample level |
+| `WEB_VOLUME_SPAWN` | 0.35 | Spawn (q*bert) sample level — separate channel from Birth |
+| `WEB_VOLUME_DEATH` | 0.45 | Death sample level |
+| `WEB_VOLUME_EAT` | 0.30 | Eating sample level |
+| `WEB_VOLUME_LOOP` | 0.55 | Background loop level |
+| `WEB_VOLUME_UI` | 0.70 | UI sounds (preset launch) |
+| `WEB_MAXIMUM_VOICES` | 25 | Max simultaneous formant chains |
 
 ### Per-note utterance amplitude
 
-`(velocity / 127) × WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE × 4.0 × wetComp`
-- `4.0` compensates for the narrow-bandpass formant filter attenuation
-- `wetComp = 1.15 − _currentWetLevel` — inverse wet/dry compensation
+`(velocity / 127) × makeup × wetComp` — the per-note gain into the formant chain.
+- `makeup` is the Layer-1 feed-forward loudness normalization (see *Loudness Normalization & Limiter*), replacing the old fixed `×4.0`.
+- `wetComp = 1.15 − _currentWetLevel` — inverse wet/dry compensation.
+- **No user faders here.** `WEB_AUDIO_VOLUME` / `WEB_VOLUME_UTTERANCE` are applied later on `_utteranceVolume` (post-limiter), so the limiter sees a consistent, normalized level and the faders always work.
 
 ### Per-sample amplitude
 
-`categoryVolume × WEB_AUDIO_VOLUME` — applied at `BufferSource` gain node creation time.
+`categoryVolume × WEB_AUDIO_VOLUME` — applied at `BufferSource` gain node creation time. (Samples bypass the utterance limiter entirely.)
+
+---
+
+## Loudness Normalization & Limiter
+
+Two layers keep utterances at a roughly constant perceived loudness and stop the rare piercing / speaker-overloading note (caused by a note's harmonic coinciding with a formant filter's center frequency). Both are utterance-only and cost almost no CPU.
+
+### Layer 1 — per-note feed-forward normalization (`_playVoiceNote`)
+
+Before scheduling a note, `_estimateNoteWeightedRMS()` walks the note's first ~16 harmonics (blended saw/triangle/sine per CC17), passes each through the *current* formant magnitude response (`_bandpassMag` from the live center freqs / Q / gains), A-weights it (`_loudnessWeight`, emphasizing the ear's 2–4 kHz danger band), and sums to a weighted RMS. The per-note gain is then:
+
+`makeup = clamp(WEB_UTTER_LOUDNESS_TARGET / weightedRMS, WEB_UTTER_MAKEUP_MIN, WEB_UTTER_MAKEUP_MAX)`
+
+so a note aimed at a resonant coincidence (high weighted RMS) is turned *down*, and a thin note is turned up — every note targets the same loudness instead of sharing a fixed `×4.0`. To make this estimate possible, `ccState` stores the current mouth position (`mouthCC`) alongside `oscMix`, `f2ResNorm`, `f3GainNorm`. Tunables: `WEB_UTTER_LOUDNESS_TARGET`, `WEB_UTTER_MAKEUP_MIN/MAX` in `Parameters.js`.
+
+### Layer 2 — brickwall limiter on the utterance submix
+
+A single `DynamicsCompressorNode` (hard knee, ratio 20, 3 ms attack) sits *inside* the utterance submix: `_utteranceSum → comp → makeup gain → _utteranceVolume`. It catches whatever Layer 1 misses (mid-note formant sweeps, phase-summation error, voice stacking). Because it's on the utterance bus only, it never touches loops or samples.
+
+- Toggle: `WEB_OUTPUT_LIMITER_ACTIVE` (`true`/`false`). When off, `_utteranceSum` connects straight to `_utteranceVolume`.
+- Tunables: `WEB_LIMITER_THRESHOLD_DB`, `WEB_LIMITER_RELEASE`, `WEB_LIMITER_MAKEUP`.
+- Control surface: the Audio tab (on/off checkbox + threshold/release/makeup dropdowns) and `synth/testbed.html` (on/off toggle + sliders), both via `SwimbotSynth.setCeilingMode()` / `applyCeilingParams()`.
 
 ---
 
@@ -189,7 +226,7 @@ Pan is fixed for the lifetime of the voice (set at `createVoice()` time). A swim
 
 ## Voice Throttling
 
-`WEB_MAXIMUM_VOICES` (adjustable via Audio tab slider, default 32) caps how many simultaneous formant chains can exist. `_activeVoices` is incremented in `_createVoice()` and decremented in `dispose()`. If the cap is reached, `_createVoice()` returns `null` and the voice count display turns red.
+`WEB_MAXIMUM_VOICES` (adjustable via Audio tab slider, default 25) caps how many simultaneous formant chains can exist. `_activeVoices` is incremented in `_createVoice()` and decremented in `dispose()`. If the cap is reached, `_createVoice()` returns `null` and the voice count display turns red.
 
 ---
 
@@ -197,7 +234,7 @@ Pan is fixed for the lifetime of the voice (set at `createVoice()` time). A swim
 
 | Method | Called from | Purpose |
 |--------|-------------|---------|
-| `initialize()` | `Sound.initialize()` | Creates AudioContext, masterGain, reverb; preloads all IRs and samples; returns bool |
+| `initialize()` | `Sound.initialize()` | Creates AudioContext, masterGain, reverb, the utterance submix (`_utteranceSum`/`_utteranceVolume`) + limiter; preloads all IRs and samples; returns bool |
 | `isReady()` | `Sound.*` | True if AudioContext exists |
 | `createVoice(panValue, swimbotID)` | `Sound.doUtterance()` | Builds one formant chain; returns voice object or null if capped |
 | `playVoiceNote(voice, note, vel, dur)` | `Sound.doUtterance()` | Plays one sawtooth note through voice's chain |
@@ -207,6 +244,10 @@ Pan is fixed for the lifetime of the voice (set at `createVoice()` time). A swim
 | `stopAll()` | `GenePool.js` (on sim switch) | Stops loop, resets voice count |
 | `setReverbWet(level)` | `Sound.setGlobalParameters()` | Writes `level` (0–1) directly to `reverbWetGain.gain` with 0.1s smoothing; no internal scaling. |
 | `setReverbIR(name)` | `determineCurrentMusicParameters()` | Swaps convolver to a preloaded IR (no-op if already active) |
+| `setCeilingMode(mode)` | Audio tab / testbed toggle | `'limiter'` (on) or `'off'` — rebuilds the limiter inside the utterance submix; updates `WEB_OUTPUT_LIMITER_ACTIVE` |
+| `applyCeilingParams()` | Audio tab / testbed sliders | Rebuilds the limiter from the current `WEB_LIMITER_*` globals |
+| `getCeilingMode()` | UI | Current limiter mode (`'limiter'`/`'off'`) |
+| `refreshUtteranceVolume()` | Master/utterance sliders, autopilot | Recomputes `_utteranceVolume.gain` = `WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE` (post-limiter), so both faders take effect live |
 | `getActiveVoices()` | UI status panel | Returns current voice count |
 | `getLoadingStatus()` | UI status panel | Returns IR/sample load progress, current IR, current loop, reverb wet level |
 
