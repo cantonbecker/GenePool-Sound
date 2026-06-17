@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-06-17.1';
+const SWIMBOT_VERSION			= '2026-06-17.2';
 
 
 /*************************/
@@ -20,11 +20,11 @@ var WEB_VOLUME_BIRTH     = 0.75; // category mix: birth samples
 var WEB_VOLUME_SPAWN     = 0.55; // category mix: spawn (q*bert) samples
 var WEB_VOLUME_DEATH     = 0.65; // category mix: death samples
 var WEB_VOLUME_EAT       = 0.35; // category mix: eating samples
-var WEB_VOLUME_LOOP      = 0.75; // category mix: background loop
+var WEB_VOLUME_LOOP      = 0.90; // category mix: background loop
 var WEB_VOLUME_UI        = 0.80; // category mix: UI sounds (preset launch)
 
 const ZOOM_UTTER_ATTENUATION = 40; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const LOUD_PRESET_ATTENUATION = 40; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 // 🤖 UTTERANCE LOUDNESS NORMALIZATION (Synth.js _playVoiceNote)
 // Each note's gain used to be a blunt fixed ×4.0 makeup. That overdrove whenever a note's
@@ -43,7 +43,7 @@ var WEB_UTTER_MAKEUP_MAX      = 5.0;  // ceiling — caps how much a thin/quiet 
 var WEB_OUTPUT_LIMITER_ACTIVE = true; // brickwall limiter on/off
 var WEB_LIMITER_THRESHOLD_DB = -24.0; // dB where limiting starts
 var WEB_LIMITER_RELEASE      = 0.15;  // seconds — lower = snappier, higher = smoother (less pump)
-var WEB_LIMITER_MAKEUP       = 1.50;   // output gain after limiting
+var WEB_LIMITER_MAKEUP       = 1.25;   // output gain after limiting
 
 
 /****************************/

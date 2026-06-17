@@ -931,24 +931,24 @@ function determineCurrentMusicParameters () {
 		// mySet = getNoteIntervalSetFor('octaves');
 		SwimbotSynth.setReverbIR('bright4');
 		minReverb = Math.floor(MIN_REVERB_DEFAULT * 1.1); // a little more reverb
+		secBetweenUnivNoteShift = 0; 					// no shifts
 	/*** INVASION ***/
 	} else if (_chosenPoolToLoad == 1) {
 		// minReverb = Math.floor(MAX_REVERB_DEFAULT * .75); // lots of reverb
 		mySet = getNoteIntervalSetFor('octaves');
-		secBetweenUnivNoteShift = 10; 				// shorter shifts
 		shortestNoteMs = 90; 							// shortest notes will be 90ms
 		seqDurationStates[0].min = 100; 				// lengthen 'short' min to 100ms
 		seqDurationStates[0].max = 140; 				// lengthen 'short' max to 140mx
 		backgroundLoop = 'bg-bell-drone';
 		SwimbotSynth.setReverbIR('bright4');
-
+		secBetweenUnivNoteShift = 0; 					// no shifts
 	/*** FLOCKS ***/
 	} else if (_chosenPoolToLoad == 2) {
-		backgroundLoop = 'bg-bell-drone';
+		backgroundLoop = 'bg-lake-bacalar';
 		mySet = getNoteIntervalSetFor('pentatonic');
 		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
 		SwimbotSynth.setReverbIR('echohall');
-
+		secBetweenUnivNoteShift = 0; 					// no shifts
 	/*** RADIAL ***/
 	} else if (_chosenPoolToLoad == 3) {
 		shortestNoteMs = 35; 							// shortest notes will be 90ms
@@ -957,19 +957,21 @@ function determineCurrentMusicParameters () {
 		backgroundLoop = 'bg-reaktor-drone';
 		SwimbotSynth.setReverbIR('tunnel');
 		maxReverb = Math.floor(MIN_REVERB_DEFAULT * 1.25); // much less max reverb when zoomed out
+		secBetweenUnivNoteShift = 15; 					// frequent shifts
 	/*** BIG BANG ***/
 	} else if (_chosenPoolToLoad == 4) {
 		mySet = getNoteIntervalSetFor('pentatonic');
-		secBetweenUnivNoteShift = 60 * 2; 			// shorter shifts
+		backgroundLoop = 'bg-stardust';
 		SwimbotSynth.setReverbIR('bright4');
 		maxReverb = Math.floor(MAX_REVERB_DEFAULT * .8); // less reverb
-		
+		secBetweenUnivNoteShift = 0; 					// no shifts
 	/*** AUTOPILOT ***/
 	} else if (_chosenPoolToLoad == 5) {
 		mySet = getNoteIntervalSetFor('octaves');
 		backgroundLoop = 'bg-lake-bacalar';
 		minReverb = Math.floor(MAX_REVERB_DEFAULT * .7); // loads of reverb
 		SwimbotSynth.setReverbIR('dark4');
+		secBetweenUnivNoteShift = 60 * 5; // long shifts
 	}
 	
 	// build up our musicParameters object and return it

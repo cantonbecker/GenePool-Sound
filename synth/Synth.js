@@ -72,6 +72,7 @@ const WA_SAMPLE_CATALOG = {
 	// Loops
 	'bg-bell-drone': 'synth/sounds-loops/bell-drone.wav',
 	'bg-reaktor-drone': 'synth/sounds-loops/reaktor-drone.wav',
+	'bg-stardust': 'synth/sounds-loops/stardust-max.wav',
 	'bg-lake-bacalar': 'synth/sounds-loops/sample-lake-bacalar.wav',
 
 	// UI: preset launch sounds
