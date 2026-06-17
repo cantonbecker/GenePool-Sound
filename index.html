@@ -918,7 +918,7 @@
                         <div class="mix-row" style="margin-bottom:12px;">
                             <label style="font-weight:bold; font-size:13px;">Output Volume</label>
                             <input style="height: 30px;" type="range" id="mixerMaster" min="0" max="100" step="1"
-                                oninput="WEB_AUDIO_VOLUME = (this.value / 100) * .75; document.getElementById('mixerMasterVal').textContent = this.value;">
+                                oninput="WEB_AUDIO_VOLUME = (this.value / 100) * .75; document.getElementById('mixerMasterVal').textContent = this.value; if (SwimbotSynth.isReady()) SwimbotSynth.refreshUtteranceVolume();">
                             <span id="mixerMasterVal" style="margin-left:6px; font-size:12px; width:24px; flex-shrink:0; font-weight: bold;"></span>
                             <div id="autopilotVolumeNotice" style="display:none; font-size:10px; color:#900;"></div>
                         </div>
@@ -928,7 +928,7 @@
                         <div class="mix-row">
                             <label style="text-align: right;">Utterances &nbsp;</label>
                             <input type="range" id="mixerUtterance" min="0" max="100" step="1"
-                                oninput="WEB_VOLUME_UTTERANCE = this.value / 100; document.getElementById('mixerUtteranceVal').textContent = this.value;">
+                                oninput="WEB_VOLUME_UTTERANCE = this.value / 100; document.getElementById('mixerUtteranceVal').textContent = this.value; if (SwimbotSynth.isReady()) SwimbotSynth.refreshUtteranceVolume();">
                             <span id="mixerUtteranceVal" style="margin-left:6px; font-size:11px; width:24px; flex-shrink:0;"></span>
                         </div>
                         <div class="mix-row">
@@ -970,6 +970,60 @@
 
                         <div style="border-top: 1px solid #999; height: 1px; margin-bottom: 10px;"></div>
 
+                        <!-- 🤖 Output-stage brickwall limiter (final peak safety net) -->
+                        <div class="mix-row" style="margin-bottom:6px;">
+                            <label style="text-align: right;">Brickwall Limiter &nbsp;</label>
+                            <input type="checkbox" id="mixerLimiterActive"
+                                onchange="WEB_OUTPUT_LIMITER_ACTIVE = this.checked; if (SwimbotSynth.isReady()) SwimbotSynth.setCeilingMode(this.checked ? 'limiter' : 'off'); document.getElementById('mixerLimiterActiveVal').textContent = this.checked ? 'on' : 'off';">
+                            <span id="mixerLimiterActiveVal" style="margin-left:6px; font-size:11px; flex:1;"></span>
+                        </div>
+                        <div class="mix-row" style="margin-bottom:12px; gap:8px; font-size:11px;">
+                            <span style="white-space:nowrap;">Thresh
+                                <select id="mixerLimThresh" style="font-size:11px;"
+                                    onchange="WEB_LIMITER_THRESHOLD_DB = parseFloat(this.value); if (SwimbotSynth.isReady()) SwimbotSynth.applyCeilingParams();">
+                                    <option value="0">0 dB</option>
+                                    <option value="-3">-3 dB</option>
+                                    <option value="-6">-6 dB</option>
+                                    <option value="-9">-9 dB</option>
+                                    <option value="-12">-12 dB</option>
+                                    <option value="-15">-15 dB</option>
+                                    <option value="-18">-18 dB</option>
+                                    <option value="-24">-24 dB</option>
+                                    <option value="-30">-30 dB</option>
+                                    <option value="-36">-36 dB</option>
+                                </select>
+                            </span>
+                            <span style="white-space:nowrap;">Release
+                                <select id="mixerLimRelease" style="font-size:11px;"
+                                    onchange="WEB_LIMITER_RELEASE = parseFloat(this.value); if (SwimbotSynth.isReady()) SwimbotSynth.applyCeilingParams();">
+                                    <option value="0.02">0.02s</option>
+                                    <option value="0.05">0.05s</option>
+                                    <option value="0.1">0.1s</option>
+                                    <option value="0.15">0.15s</option>
+                                    <option value="0.2">0.2s</option>
+                                    <option value="0.3">0.3s</option>
+                                    <option value="0.5">0.5s</option>
+                                    <option value="0.75">0.75s</option>
+                                    <option value="1">1.0s</option>
+                                </select>
+                            </span>
+                            <span style="white-space:nowrap;">Makeup
+                                <select id="mixerLimMakeup" style="font-size:11px;"
+                                    onchange="WEB_LIMITER_MAKEUP = parseFloat(this.value); if (SwimbotSynth.isReady()) SwimbotSynth.applyCeilingParams();">
+                                    <option value="0.5">×0.5</option>
+                                    <option value="0.75">×0.75</option>
+                                    <option value="1">×1.0</option>
+                                    <option value="1.25">×1.25</option>
+                                    <option value="1.5">×1.5</option>
+                                    <option value="2">×2.0</option>
+                                    <option value="3">×3.0</option>
+                                    <option value="4">×4.0</option>
+                                </select>
+                            </span>
+                        </div>
+
+                        <div style="border-top: 1px solid #999; height: 1px; margin-bottom: 10px;"></div>
+
                         <div class="mix-row" style="margin-bottom:12px;">
                             <label>Max Utter Voices</label>
                             <input type="range" id="mixerMaxVoices" min="1" max="64" step="1"
@@ -997,6 +1051,11 @@
                             document.getElementById('mixerUIVal').textContent        = Math.round(WEB_VOLUME_UI * 100);
                             document.getElementById('mixerMaxVoices').value = WEB_MAXIMUM_VOICES;
                             document.getElementById('mixerMaxVoicesVal').textContent = WEB_MAXIMUM_VOICES;
+                            document.getElementById('mixerLimiterActive').checked    = WEB_OUTPUT_LIMITER_ACTIVE;
+                            document.getElementById('mixerLimiterActiveVal').textContent = WEB_OUTPUT_LIMITER_ACTIVE ? 'on' : 'off';
+                            document.getElementById('mixerLimThresh').value  = String(WEB_LIMITER_THRESHOLD_DB);
+                            document.getElementById('mixerLimRelease').value = String(WEB_LIMITER_RELEASE);
+                            document.getElementById('mixerLimMakeup').value  = String(WEB_LIMITER_MAKEUP);
                         </script>
 
                         <div id="audioStatusPanel" style="padding:6px; background:#f0f0f0; border-radius:4px; font-size:11px; color:#666; line-height:1.6;">

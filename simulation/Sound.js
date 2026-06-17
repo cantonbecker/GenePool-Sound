@@ -244,6 +244,7 @@ function Sound()
 			if (slider) slider.value = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
 			if (valSpan) valSpan.textContent = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
 			if (notice) notice.style.display = 'inline-block';
+			SwimbotSynth.refreshUtteranceVolume(); // 🤖 push the autopilot volume cut to the utterance bus
 		} else if (!AUTOPILOT_MODE && _autopilotVolumeApplied) {
 			WEB_AUDIO_VOLUME = _autopilotVolumeStored;
 			_autopilotVolumeApplied = false;
@@ -253,6 +254,7 @@ function Sound()
 			if (slider) slider.value = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
 			if (valSpan) valSpan.textContent = Math.round(WEB_AUDIO_VOLUME / 0.75 * 100);
 			if (notice) notice.style.display = 'none';
+			SwimbotSynth.refreshUtteranceVolume(); // 🤖 restore the utterance bus level
 		}
 
 		// Web Audio: reverb wet level and background loop management

@@ -616,11 +616,13 @@
 		function setWebAudioVolume(value) {
 			WEB_AUDIO_VOLUME = Number(value);
 			updateMixerReadouts();
+			if (SwimbotSynth.isReady()) SwimbotSynth.refreshUtteranceVolume();
 		}
 
 		function setUtteranceVolume(value) {
 			WEB_VOLUME_UTTERANCE = Number(value);
 			updateMixerReadouts();
+			if (SwimbotSynth.isReady()) SwimbotSynth.refreshUtteranceVolume();
 		}
 
 		function applyCurrentKnobsToVoice(voice) {

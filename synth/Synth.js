@@ -117,8 +117,9 @@ var SwimbotSynth = (function () {
 	let _sampleTotal     = Object.keys(WA_SAMPLE_CATALOG).length;
 	let _sampleLoaded    = 0;
 	let _noiseBuffer     = null;               // reusable white-noise source for CC14 noise mix
-	let _ceilingIn       = null;               // stable bus: masterGain + reverbWetGain feed this
-	let _ceilingChain    = [];                 // swappable processor node(s) between _ceilingIn and destination
+	let _utteranceSum    = null;               // all utterance voices sum here (pre-limiter)
+	let _utteranceVolume = null;               // post-limiter gain = WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE
+	let _limiterChain    = [];                 // swappable limiter node(s) between _utteranceSum and _utteranceVolume
 	let _ceilingMode     = null;               // 'limiter' (on) | 'off'
 
 	// ── Utility ──────────────────────────────────────────────────────────────
@@ -240,13 +241,13 @@ var SwimbotSynth = (function () {
 		reverbConvolver.normalize = true; // let the browser normalize the IR to prevent clipping
 		reverbWetGain = audioCtx.createGain();
 		reverbWetGain.gain.value = WA_REVERB_WET_INIT;
-		// Dry path:  masterGain → ceilingIn → ceiling → destination (panned, wired in initialize)
-		// Wet path:  reverbBus → convolver → wetGain → ceilingIn → ceiling → destination (centered)
+		// Dry path:  masterGain → destination (utterances arrive here post-limiter via _utteranceVolume)
+		// Wet path:  reverbBus → convolver → wetGain → destination
 		reverbBus = audioCtx.createGain();
 		reverbBus.gain.value = 1.0;
 		reverbBus.connect(reverbConvolver);
 		reverbConvolver.connect(reverbWetGain);
-		reverbWetGain.connect(_ceilingIn); // 🤖 wet feeds the shared output ceiling, not destination directly
+		reverbWetGain.connect(audioCtx.destination);
 		_preloadAllIRs();
 	}
 
@@ -292,18 +293,18 @@ var SwimbotSynth = (function () {
 		}
 	}
 
-	// ── Output-stage brickwall limiter (Layer 2: one shared node, both dry + wet feed it) ──
-	// 🤖 Final safety net catching anything per-note normalization misses (mid-note formant
-	// sweeps, stacked voices, sample peaks). _ceilingIn stays put while the processor between it
-	// and destination is swapped on/off, so the dry/wet sends never move.
+	// ── Utterances-only brickwall limiter (Layer 2) ──────────────────────────
+	// 🤖 Sits INSIDE the utterance submix (_utteranceSum → [limiter] → _utteranceVolume), so it
+	// only ever touches utterances. Background loop and event samples bypass it entirely (they go
+	// straight to masterGain), which is why busy utterances can no longer duck/"huff" the loop.
 
-	// Tear down the current processor and (re)wire _ceilingIn → processor → destination for `mode`.
-	// mode: 'limiter' (brick wall on) | 'off' (straight through).
+	// Tear down the current limiter and (re)wire _utteranceSum → … → _utteranceVolume for `mode`.
+	// mode: 'limiter' (brick wall on) | 'off' (utterances bypass it).
 	function _setCeilingMode(mode) {
-		if (!audioCtx || !_ceilingIn) return;
-		try { _ceilingIn.disconnect(); } catch (e) {}
-		for (const node of _ceilingChain) { try { node.disconnect(); } catch (e) {} }
-		_ceilingChain = [];
+		if (!audioCtx || !_utteranceSum || !_utteranceVolume) return;
+		try { _utteranceSum.disconnect(); } catch (e) {}
+		for (const node of _limiterChain) { try { node.disconnect(); } catch (e) {} }
+		_limiterChain = [];
 		_ceilingMode = mode;
 
 		if (mode === 'limiter') {
@@ -315,14 +316,23 @@ var SwimbotSynth = (function () {
 			comp.release.value   = WEB_LIMITER_RELEASE;
 			const makeup = audioCtx.createGain();
 			makeup.gain.value = WEB_LIMITER_MAKEUP;
-			_ceilingIn.connect(comp);
+			_utteranceSum.connect(comp);
 			comp.connect(makeup);
-			makeup.connect(audioCtx.destination);
-			_ceilingChain = [comp, makeup];
-		} else { // 'off' — straight through
-			_ceilingIn.connect(audioCtx.destination);
+			makeup.connect(_utteranceVolume);
+			_limiterChain = [comp, makeup];
+		} else { // 'off' — utterances bypass the limiter
+			_utteranceSum.connect(_utteranceVolume);
 			_ceilingMode = 'off';
 		}
+	}
+
+	// 🤖 Post-limiter utterance level = master × utterance fader. Recomputed whenever either slider
+	// (or autopilot) changes WEB_AUDIO_VOLUME / WEB_VOLUME_UTTERANCE, so both faders stay effective
+	// even while the limiter is engaged.
+	function _refreshUtteranceVolume() {
+		if (!audioCtx || !_utteranceVolume) return;
+		const g = WEB_AUDIO_VOLUME * WEB_VOLUME_UTTERANCE;
+		_utteranceVolume.gain.setTargetAtTime(g, audioCtx.currentTime, 0.02);
 	}
 
 	// ── Sample preloading ────────────────────────────────────────────────────
@@ -558,12 +568,13 @@ var SwimbotSynth = (function () {
 		trebleFilter.gain.value = 0;
 		formantMixer.connect(trebleFilter);
 
-		// Stereo panner — sits between trebleFilter and masterGain, one per utterance
+		// Stereo panner — sits between trebleFilter and the utterance submix, one per utterance.
+		// All voices sum into _utteranceSum, which feeds the limiter then the post-limiter volume;
+		// the dry + reverb sends for utterances both happen downstream of _utteranceVolume.
 		const panner = audioCtx.createStereoPanner();
 		panner.pan.value = (panValue !== undefined) ? panValue : 0;
 		trebleFilter.connect(panner);
-		panner.connect(masterGain);    // panned → dry output
-		trebleFilter.connect(reverbBus); // pre-pan → centered reverb feed
+		panner.connect(_utteranceSum); // → limiter → _utteranceVolume → masterGain (dry) + reverbBus (wet)
 
 		const ccState = {
 			noiseMix: 0,
@@ -640,8 +651,10 @@ var SwimbotSynth = (function () {
 		});
 	}
 
-	// Play one note through a voice's formant chain
-	// WEB_AUDIO_VOLUME and WEB_VOLUME_UTTERANCE are globals set by the Audio tab mixer
+	// Play one note through a voice's formant chain.
+	// 🤖 Note: the user volume faders (WEB_AUDIO_VOLUME / WEB_VOLUME_UTTERANCE) are NOT applied here
+	// anymore — they live on _utteranceVolume, post-limiter. amp only carries velocity + the Layer-1
+	// loudness makeup, so the limiter always sees a consistent, normalized level.
 	function _playVoiceNote(voice, noteNumber, velocity, durationMs) {
 		if (!audioCtx || !voice) return;
 
@@ -656,7 +669,7 @@ var SwimbotSynth = (function () {
 		const weightedRMS = _estimateNoteWeightedRMS(voice.ccState, freq);
 		let makeup = WEB_UTTER_LOUDNESS_TARGET / (weightedRMS > 1e-6 ? weightedRMS : 1e-6);
 		makeup = Math.max(WEB_UTTER_MAKEUP_MIN, Math.min(WEB_UTTER_MAKEUP_MAX, makeup));
-		const amp    = (velocity / 127) * WEB_AUDIO_VOLUME * WEB_VOLUME_UTTERANCE * makeup * wetComp;
+		const amp    = (velocity / 127) * makeup * wetComp; // user faders applied later on _utteranceVolume
 		const durSec = durationMs / 1000;
 		const envA   = 0.200;	// 200ms attack
 		const envR   = 0.050;	// 50ms release
@@ -763,14 +776,19 @@ var SwimbotSynth = (function () {
 			try {
 				audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
 				masterGain = audioCtx.createGain();
-				masterGain.gain.value = 1.0; // per-note amplitude carries volume via WEB_AUDIO_VOLUME
-				// 🤖 Shared output ceiling: masterGain (dry) + reverbWetGain (wet) → _ceilingIn → processor → destination
-				_ceilingIn = audioCtx.createGain();
-				_ceilingIn.gain.value = 1.0;
-				masterGain.connect(_ceilingIn);
-				_setCeilingMode(WEB_OUTPUT_LIMITER_ACTIVE ? 'limiter' : 'off'); // wires _ceilingIn → processor → destination
+				masterGain.gain.value = 1.0; // final dry sum; loops/samples + post-limiter utterances feed it
+				masterGain.connect(audioCtx.destination);
+				// 🤖 Utterances-only submix: voices → _utteranceSum → [limiter] → _utteranceVolume → masterGain (dry) + reverbBus (wet).
+				// Loops/samples go straight to masterGain, bypassing the limiter, so utterance bursts can't duck them.
+				_utteranceSum    = audioCtx.createGain();
+				_utteranceSum.gain.value = 1.0;
+				_utteranceVolume = audioCtx.createGain(); // gain set by _refreshUtteranceVolume() below
 				_noiseBuffer = _createNoiseBuffer();
-				_initReverb(); // wires reverbWetGain → _ceilingIn
+				_initReverb(); // creates reverbBus / reverbWetGain (needed before wiring the utterance wet send)
+				_utteranceVolume.connect(masterGain); // dry utterance out
+				_utteranceVolume.connect(reverbBus);  // wet send (post-fader, post-limiter)
+				_setCeilingMode(WEB_OUTPUT_LIMITER_ACTIVE ? 'limiter' : 'off'); // builds _utteranceSum → … → _utteranceVolume
+				_refreshUtteranceVolume();
 				_preloadAllSamples();
 				console.log("SwimbotSynth: Web Audio ready.");
 				return true;
@@ -805,8 +823,8 @@ var SwimbotSynth = (function () {
 		// Swap reverb to a preloaded IR by catalog name (e.g. 'bright4', 'dark4', 'medium4', 'bright5').
 		setReverbIR: function (name) { _setReverbIR(name); },
 
-		// 🤖 Brickwall limiter control (Layer 2). mode: 'limiter' (on) | 'off'.
-		// Updates the global and rebuilds the one shared processor node — safe to call live.
+		// 🤖 Utterance limiter control (Layer 2). mode: 'limiter' (on) | 'off'.
+		// Updates the global and rebuilds the limiter inside the utterance submix — safe to call live.
 		setCeilingMode: function (mode) {
 			WEB_OUTPUT_LIMITER_ACTIVE = (mode === 'limiter');
 			_setCeilingMode(mode);
@@ -814,8 +832,12 @@ var SwimbotSynth = (function () {
 		// Rebuild the current limiter from the current Parameters globals (call after tweaking
 		// WEB_LIMITER_* so the change takes effect).
 		applyCeilingParams: function () { _setCeilingMode(_ceilingMode || (WEB_OUTPUT_LIMITER_ACTIVE ? 'limiter' : 'off')); },
-		// Current ceiling mode (for UI display).
+		// Current limiter mode (for UI display).
 		getCeilingMode: function () { return _ceilingMode; },
+
+		// 🤖 Recompute the post-limiter utterance bus gain from WEB_AUDIO_VOLUME × WEB_VOLUME_UTTERANCE.
+		// Call from the master/utterance volume sliders and autopilot so both faders take effect live.
+		refreshUtteranceVolume: function () { _refreshUtteranceVolume(); },
 
 		// Play a one-shot sample. options: { volume: 0–1, semitones: pitch shift (varispeed), reverb: bool, reverbSend: per-call wet multiplier on top of global zoom level }
 		playSample: function (name, options) { _playSample(name, options); },

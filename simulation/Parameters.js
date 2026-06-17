@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-06-16.2';
+const SWIMBOT_VERSION			= '2026-06-16.3';
 
 
 /*************************/
@@ -15,16 +15,16 @@ const DEBUGGING_NOISY_CONSOLE_MODE  = false; // show lots more messages
 
 // The Audio tab sliders will initialize from these values.
 var WEB_AUDIO_VOLUME     = 0.90; // master volume 0–1 (scaled ×0.75 by slider, so 0.50 → 37.5% of max)
-var WEB_VOLUME_UTTERANCE = 0.90; // category mix: swimbot vocal utterances
-var WEB_VOLUME_BIRTH     = 0.45; // category mix: birth samples
-var WEB_VOLUME_SPAWN     = 0.35; // category mix: spawn (q*bert) samples
-var WEB_VOLUME_DEATH     = 0.45; // category mix: death samples
-var WEB_VOLUME_EAT       = 0.30; // category mix: eating samples
-var WEB_VOLUME_LOOP      = 0.55; // category mix: background loop
-var WEB_VOLUME_UI        = 0.70; // category mix: UI sounds (preset launch)
+var WEB_VOLUME_UTTERANCE = 0.75; // category mix: swimbot vocal utterances
+var WEB_VOLUME_BIRTH     = 0.75; // category mix: birth samples
+var WEB_VOLUME_SPAWN     = 0.55; // category mix: spawn (q*bert) samples
+var WEB_VOLUME_DEATH     = 0.65; // category mix: death samples
+var WEB_VOLUME_EAT       = 0.35; // category mix: eating samples
+var WEB_VOLUME_LOOP      = 0.75; // category mix: background loop
+var WEB_VOLUME_UI        = 0.80; // category mix: UI sounds (preset launch)
 
-const ZOOM_UTTER_ATTENUATION = 20; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
-const LOUD_PRESET_ATTENUATION = 30; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
+const ZOOM_UTTER_ATTENUATION = 40; // when zooming out, we can quiet our swimbots by this much (velocity reduction 0-127)
+const LOUD_PRESET_ATTENUATION = 20; // a couple of our presets can get really loud so, set *additionally* reduce them by this much (0-127)
 
 // 🤖 UTTERANCE LOUDNESS NORMALIZATION (Synth.js _playVoiceNote)
 // Each note's gain used to be a blunt fixed ×4.0 makeup. That overdrove whenever a note's
@@ -43,8 +43,8 @@ var WEB_OUTPUT_LIMITER_ACTIVE = true; // brickwall limiter on/off
 
 // Brickwall limiter brute controls
 var WEB_LIMITER_THRESHOLD_DB = -18.0; // dB where limiting starts
-var WEB_LIMITER_RELEASE      = 0.20;  // seconds — lower = snappier, higher = smoother (less pump)
-var WEB_LIMITER_MAKEUP       = 1.0;   // output gain after limiting
+var WEB_LIMITER_RELEASE      = 0.15;  // seconds — lower = snappier, higher = smoother (less pump)
+var WEB_LIMITER_MAKEUP       = 1.25;   // output gain after limiting
 
 
 /****************************/
@@ -146,8 +146,8 @@ const UI_UPDATE_PERIOD = 2000; // decrease when using graphs to debug
 /*******************************/
 
 var AUTOPILOT_MODE = false; 					// Init until we're inactive
-const USER_INACTION_TIME_OUT	= 5*60; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
-const AUTOPILOT_VOLUME_REDUCTION = .40; 	// percentage decrease in volume when we enter autopilot
+const USER_INACTION_TIME_OUT	= 3*60; 		// switch to AUTOPILOT preset when user hasn't touched interface in this many seconds. Set to 0 to disable.
+const AUTOPILOT_VOLUME_REDUCTION = .60; 	// percentage decrease in volume when we enter autopilot
 const AUTOPILOT_MIN_POPULATION   = 8;		// if we're in AUTOPILOT and our population is ≤ this, start a brand new autopilot from a random snapshot
 
 // Autopilot camera roaming — picks a new zoom target periodically, choosing
