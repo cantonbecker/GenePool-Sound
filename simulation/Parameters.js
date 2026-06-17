@@ -1,4 +1,4 @@
-const SWIMBOT_VERSION			= '2026-06-16.3';
+const SWIMBOT_VERSION			= '2026-06-17.1';
 
 
 /*************************/
