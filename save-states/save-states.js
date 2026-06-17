@@ -3,8 +3,8 @@
 window.POOL_SNAPSHOTS = {
   "132K big headed singers": {
   "_meta": {
-    "chosenPoolToLoad": 2,
-    "presetName": "FLOCKS",
+    "chosenPoolToLoad": 4,
+    "presetName": "BIG_BANG",
     "savedAt": "2026-05-28T12:27:30.767Z"
   },
   "pool": {
@@ -2998,8 +2998,8 @@ window.POOL_SNAPSHOTS = {
 },
   "18K-fun-party": {
   "_meta": {
-    "chosenPoolToLoad": 2,
-    "presetName": "FLOCKS",
+    "chosenPoolToLoad": 4,
+    "presetName": "BIG_BANG",
     "savedAt": "2026-05-28T12:21:19.640Z"
   },
   "pool": {
@@ -6013,8 +6013,8 @@ window.POOL_SNAPSHOTS = {
 },
   "300K pleasant y guys": {
   "_meta": {
-    "chosenPoolToLoad": 2,
-    "presetName": "FLOCKS",
+    "chosenPoolToLoad": 4,
+    "presetName": "BIG_BANG",
     "savedAt": "2026-05-28T21:36:35.815Z"
   },
   "pool": {
@@ -11166,8 +11166,8 @@ window.POOL_SNAPSHOTS = {
 },
   "hungry-twoleggers-300K": {
   "_meta": {
-    "chosenPoolToLoad": 2,
-    "presetName": "FLOCKS",
+    "chosenPoolToLoad": 4,
+    "presetName": "BIG_BANG",
     "savedAt": "2026-05-27T15:31:07.927Z"
   },
   "pool": {

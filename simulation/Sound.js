@@ -927,7 +927,7 @@ function determineCurrentMusicParameters () {
 	/*** BLANK POOL ***/
 	if (_chosenPoolToLoad == 0) {
 		backgroundLoop = 'bg-lake-bacalar'; 							// no background loop
-		mySet = getNoteIntervalSetFor('minor pentatonic');
+		mySet = getNoteIntervalSetFor('pentatonic');
 		// mySet = getNoteIntervalSetFor('octaves');
 		SwimbotSynth.setReverbIR('bright4');
 		minReverb = Math.floor(MIN_REVERB_DEFAULT * 1.1); // a little more reverb
@@ -945,7 +945,7 @@ function determineCurrentMusicParameters () {
 	/*** FLOCKS ***/
 	} else if (_chosenPoolToLoad == 2) {
 		backgroundLoop = 'bg-lake-bacalar';
-		mySet = getNoteIntervalSetFor('pentatonic');
+		mySet = getNoteIntervalSetFor('minor pentatonic');
 		noteProbabilityMatrix = structuredClone(IOI_NOTE_PROBABILITY_MATRICES['bell']); // evener note distribution
 		SwimbotSynth.setReverbIR('echohall');
 		secBetweenUnivNoteShift = 0; 					// no shifts
