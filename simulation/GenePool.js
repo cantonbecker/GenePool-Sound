@@ -353,6 +353,8 @@ function GenePool()
    //***********************
 	this.startSimulation = function( mode )
 	{
+        _sound.killAllUtterances(); // 🤖 silence any utterances still queued from the previous world
+
         // trigger the sound for this particular simulation, but wait a moment for the CPU to catch up
         setTimeout(() => {
             _sound.doSwimbotSoundEvent(SOUND_EVENT_TYPE_LAUNCH, mode);

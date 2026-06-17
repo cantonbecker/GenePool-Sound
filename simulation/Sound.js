@@ -172,12 +172,27 @@ function Sound()
 	let _parameter_2 = ZERO;
 	let _parameter_3 = ZERO;
 
+	// Live utterances currently scheduled. Each record = { timers: [setTimeout IDs], voice }.
+	// Tracked so a preset/autopilot launch can cancel everything still queued.
+	let _activeUtterances = new Set();
+
 	//--------------------------------
 	this.resetHistogram = function()
 	{
 		for (let i = 0; i < 12; i++) NOTE_HISTOGRAM[i] = 0;
 		NOTE_COUNT = 0;
 		MOD_COUNT  = 0;
+	}
+
+	// 🤖 Cancel every queued utterance and dispose its voice. Called on preset/autopilot
+	// launch so the previous world's notes don't bleed into the new one. Hard cut.
+	this.killAllUtterances = function ()
+	{
+		for (const rec of _activeUtterances) {
+			for (const id of rec.timers) clearTimeout(id);
+			if (rec.voice) { try { rec.voice.dispose(); } catch (e) { /* already disposed */ } }
+		}
+		_activeUtterances.clear();
 	}
 
 	this.initialize = function()
@@ -390,8 +405,12 @@ function Sound()
 		// don't clobber each other's CC state.
 		const voice = playAudio ? SwimbotSynth.createVoice(utterVariablesObj.panValue, utterVariablesObj.swimbotID) : null;
 
+		// Track this utterance's timers + voice so killAllUtterances() can cancel it on a preset switch.
+		const record = { timers: [], voice };
+		_activeUtterances.add(record);
+
 		for (const step of utterVariablesObj.utterSequence) {
-			setTimeout(() => {
+			const id = setTimeout(() => {
 				if (step.type === 'note') {
 					// attenuate it (zoom etc.) into a LOCAL — step is shared by
 					// reference with the bot's stored song via getUtterSequence(),
@@ -413,8 +432,10 @@ function Sound()
 					MOD_COUNT++;
 				} else if (step.type === 'done') {
 					if (voice) voice.dispose();
+					_activeUtterances.delete(record); // self-cleanup on natural completion
 				}
 			}, step.delay);
+			record.timers.push(id);
 		}
 	}
 
